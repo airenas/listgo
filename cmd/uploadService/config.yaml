@@ -1,0 +1,4 @@
+port: 8081
+
+fileStorage:
+    path: /data/audio.in/
