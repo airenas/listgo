@@ -41,6 +41,10 @@ func run(cmd *cobra.Command, args []string) {
 	log.Println("Starting uploadService")
 	log.Println("Init File Storage for " + viper.GetString("fileStorage.path"))
 	fileSaver := saver.NewLocalFileSaver(viper.GetString("fileStorage.path"))
-	msgSender := new(msgsender.MachineMessageSender)
+	msgSender, err := msgsender.NewMachineMessageSender()
+	if err != nil {
+		panic(err)
+	}
+
 	StartWebServer(&ServiceData{fileSaver, msgSender, strconv.Itoa(viper.GetInt("port"))})
 }
