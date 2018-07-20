@@ -1,7 +1,7 @@
 package msgsender
 
 import (
-	"log"
+	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 
 	"github.com/RichardKnop/machinery/v1"
 	"github.com/RichardKnop/machinery/v1/tasks"
@@ -16,7 +16,7 @@ type MachineMessageSender struct {
 //NewMachineMessageSender initializes machinery server
 func NewMachineMessageSender() (*MachineMessageSender, error) {
 	config := NewServerConfig()
-	log.Printf("Initializing the machinery server at: %s\n", config.Broker)
+	cmdapp.Log.Infof("Initializing the machinery server at: %s", config.Broker)
 
 	server, err := machinery.NewServer(config)
 	if err != nil {
@@ -27,7 +27,7 @@ func NewMachineMessageSender() (*MachineMessageSender, error) {
 
 //Send sends the message
 func (sender *MachineMessageSender) Send(message Message) error {
-	log.Printf("Sending message %s(%s)\n", message.Queue, message.ID)
+	cmdapp.Log.Infof("Sending message %s(%s)", message.Queue, message.ID)
 	decodeTask := tasks.Signature{
 		Name: message.Queue,
 		Args: []tasks.Arg{newStringArg("ID", message.ID), newStringArg("Email", message.ID)}}

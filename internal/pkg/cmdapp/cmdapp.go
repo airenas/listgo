@@ -1,9 +1,10 @@
 package cmdapp
 
 import (
-	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/heirko/go-contrib/logrusHelper"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -24,26 +25,45 @@ func initConfig() {
 	failOnNoFail := false
 	if configFile != "" {
 		// Use config file from the flag.
-		viper.SetConfigFile(configFile)
+		Config.SetConfigFile(configFile)
 		failOnNoFail = true
 	} else {
 		// Find home directory.
 		ex, err := os.Executable()
 		if err != nil {
-			log.Fatalln("Can't get the app directory:", err)
+			Log.Error("Can't get the app directory:", err)
 			panic(1)
 		}
-		viper.AddConfigPath(filepath.Dir(ex))
-		viper.SetConfigName("config")
+		Config.AddConfigPath(filepath.Dir(ex))
+		Config.SetConfigName("config")
 	}
 
-	if err := viper.ReadInConfig(); err != nil {
-		log.Println("Can't read config:", err)
+	if err := Config.ReadInConfig(); err != nil {
+		Log.Warn("Can't read config:", err)
 		if failOnNoFail {
-			log.Fatalln("Exiting the app")
+			Log.Error("Exiting the app")
 			panic(1)
 		}
-	} else {
-		log.Println("Config loaded from: ", viper.ConfigFileUsed())
 	}
+	initLog()
+	Log.Info("Config loaded from: ", Config.ConfigFileUsed())
+}
+
+func initLog() {
+	initDefaultLogConfig()
+	c := logrusHelper.UnmarshalConfiguration(Config.Sub("logger"))
+	err := logrusHelper.SetConfig(Log, c)
+	if err != nil {
+		Log.Error("Can't init log ", err)
+	}
+}
+
+func initDefaultLogConfig() {
+	defaultLogConfig := map[string]interface{}{
+		"level":                              "info",
+		"formatter.name":                     "text",
+		"formatter.options.full_timestamp":   true,
+		"formatter.options.timestamp_format": "2006-01-02T15:04:05.000",
+	}
+	Config.SetDefault("logger", defaultLogConfig)
 }

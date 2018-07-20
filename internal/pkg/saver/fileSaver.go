@@ -3,9 +3,10 @@ package saver
 import (
 	"errors"
 	"io"
-	"log"
 	"os"
 	"strconv"
+
+	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 )
 
 //WriterCloser keeps Writer interface and close function
@@ -26,6 +27,7 @@ type LocalFileSaver struct {
 
 //NewLocalFileSaver creates LocalFileSaver instance
 func NewLocalFileSaver(storagePath string) *LocalFileSaver {
+	cmdapp.Log.Infof("Init Local File Storage at: %s", storagePath)
 	f := LocalFileSaver{StoragePath: storagePath, OpenFileFunc: openFile}
 	return &f
 }
@@ -42,7 +44,7 @@ func (fs LocalFileSaver) Save(name string, reader io.Reader) error {
 	if err != nil {
 		return errors.New("Can not save file " + fileName + ". " + err.Error())
 	}
-	log.Println("Saved file " + fileName + ". Size = " + strconv.FormatInt(savedBytes, 10))
+	cmdapp.Log.Infof("Saved file %s. Size = %d b", fileName, strconv.FormatInt(savedBytes, 10))
 	return nil
 }
 

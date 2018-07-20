@@ -1,17 +1,13 @@
 package upload
 
 import (
-	"fmt"
-	"log"
 	"os"
-	"strconv"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/msgsender"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/saver"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var rootCmd = &cobra.Command{
@@ -24,27 +20,36 @@ var rootCmd = &cobra.Command{
 func init() {
 	cmdapp.InitApplication(rootCmd)
 	rootCmd.PersistentFlags().Int32P("port", "", 8000, "Default service port")
-	viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
-	viper.SetDefault("port", 8080)
-	viper.SetDefault("fileStorage.path", "/data/audio.in/")
+	cmdapp.Config.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
+	cmdapp.Config.SetDefault("port", 8080)
+	cmdapp.Config.SetDefault("fileStorage.path", "/data/audio.in/")
 }
 
-//Execute starts the server
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+func logPanic() {
+	if r := recover(); r != nil {
+		cmdapp.Log.Error(r)
 		os.Exit(1)
 	}
 }
 
+//Execute starts the server
+func Execute() {
+	defer logPanic()
+	if err := rootCmd.Execute(); err != nil {
+		panic(err)
+	}
+}
+
 func run(cmd *cobra.Command, args []string) {
-	log.Println("Starting uploadService")
-	log.Println("Init File Storage for " + viper.GetString("fileStorage.path"))
-	fileSaver := saver.NewLocalFileSaver(viper.GetString("fileStorage.path"))
+	cmdapp.Log.Info("Starting uploadService")
+	fileSaver := saver.NewLocalFileSaver(cmdapp.Config.GetString("fileStorage.path"))
 	msgSender, err := msgsender.NewMachineMessageSender()
 	if err != nil {
 		panic(err)
 	}
 
-	StartWebServer(&ServiceData{fileSaver, msgSender, strconv.Itoa(viper.GetInt("port"))})
+	err = StartWebServer(&ServiceData{fileSaver, msgSender, cmdapp.Config.GetInt("port")})
+	if err != nil {
+		panic(err)
+	}
 }

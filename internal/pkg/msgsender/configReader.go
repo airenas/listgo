@@ -1,14 +1,14 @@
 package msgsender
 
 import (
+	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/RichardKnop/machinery/v1/config"
-	"github.com/spf13/viper"
 )
 
 //NewServerConfig reads the mesage broker config from viper
 func NewServerConfig() *config.Config {
 	return &config.Config{
-		Broker:        viper.GetString("messageServer.broker"),
-		DefaultQueue:  viper.GetString("messageServer.defaultQueue"),
-		ResultBackend: viper.GetString("messageServer.resultBackend")}
+		Broker:        cmdapp.Config.GetString("messageServer.broker"),
+		DefaultQueue:  cmdapp.Config.GetString("messageServer.defaultQueue"),
+		ResultBackend: cmdapp.Config.GetString("messageServer.resultBackend")}
 }
