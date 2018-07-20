@@ -3,6 +3,7 @@ package upload
 import (
 	"os"
 
+	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 	"bitbucket.org/airenas/listgo/internal/pkg/msgsender"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
@@ -50,8 +51,17 @@ func run(cmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
+	mongoSessionProvider, err := mongo.NewSessionProvider()
+	if err != nil {
+		panic(err)
+	}
+	defer mongoSessionProvider.Close()
 
-	err = StartWebServer(&ServiceData{fileSaver, msgSender, cmdapp.Config.GetInt("port")})
+	statusSaver, err := mongo.NewStatusSaver(mongoSessionProvider)
+	if err != nil {
+		panic(err)
+	}
+	err = StartWebServer(&ServiceData{fileSaver, msgSender, statusSaver, cmdapp.Config.GetInt("port")})
 	if err != nil {
 		panic(err)
 	}

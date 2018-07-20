@@ -77,7 +77,9 @@ func TestPOST(t *testing.T) {
 		resp := httptest.NewRecorder()
 
 		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{MessageSender: testSender{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
+			NewRouter(&ServiceData{MessageSender: testSender{},
+				FileSaver:   testSaver{},
+				StatusSaver: testStatusSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 200", func() {
 				So(resp.Code, ShouldEqual, 200)
@@ -104,7 +106,7 @@ func TestPOSTNoFile(t *testing.T) {
 		resp := httptest.NewRecorder()
 
 		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{MessageSender: testSender{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
+			NewRouter(&ServiceData{StatusSaver: testStatusSaver{}, MessageSender: testSender{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
@@ -129,7 +131,7 @@ func TestPOST_NoEmail(t *testing.T) {
 		resp := httptest.NewRecorder()
 
 		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{MessageSender: testSender{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
+			NewRouter(&ServiceData{StatusSaver: testStatusSaver{}, MessageSender: testSender{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
@@ -158,7 +160,7 @@ func TestPOST_Sender(t *testing.T) {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
 				func(message msgsender.Message) error {
 					return nil
-				}), FileSaver: testSaver{}}).ServeHTTP(resp, req)
+				}), StatusSaver: testStatusSaver{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 200", func() {
 				So(resp.Code, ShouldEqual, 200)
@@ -187,7 +189,7 @@ func TestPOST_SenderFails(t *testing.T) {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
 				func(message msgsender.Message) error {
 					return errors.New("Can not send")
-				}), FileSaver: testSaver{}}).ServeHTTP(resp, req)
+				}), StatusSaver: testStatusSaver{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
@@ -216,10 +218,42 @@ func TestPOST_SaverFails(t *testing.T) {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
 				func(message msgsender.Message) error {
 					return nil
-				}), FileSaver: testSaverFunc(
-				func(id string, reader io.Reader) error {
-					return errors.New("Can not send")
-				})}).ServeHTTP(resp, req)
+				}), StatusSaver: testStatusSaver{},
+				FileSaver: testSaverFunc(
+					func(id string, reader io.Reader) error {
+						return errors.New("Can not send")
+					})}).ServeHTTP(resp, req)
+
+			Convey("Then the response should be a 400", func() {
+				So(resp.Code, ShouldEqual, 400)
+			})
+		})
+	})
+}
+
+func TestPOST_StatusSaverFails(t *testing.T) {
+	Convey("Given a HTTP request without email", t, func() {
+
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		part, _ := writer.CreateFormFile("file", "fileName")
+		_, _ = io.Copy(part, strings.NewReader("body"))
+		writer.WriteField("email", "a@a.a")
+
+		writer.Close()
+
+		req := httptest.NewRequest("POST", "/upload", body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+
+		resp := httptest.NewRecorder()
+
+		Convey("When the request is handled by the Router", func() {
+			NewRouter(&ServiceData{MessageSender: testSender{},
+				StatusSaver: testStatusSaverFunc(
+					func(ID string, status string, errorStr string) error {
+						return errors.New("Can not send")
+					}),
+				FileSaver: testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
@@ -251,5 +285,18 @@ type testSender struct{}
 
 func (sender testSender) Send(message msgsender.Message) error {
 	log.Printf("Sending msg %s\n", message.ID)
+	return nil
+}
+
+type testStatusSaverFunc func(ID string, status string, errorStr string) error
+
+func (f testStatusSaverFunc) Save(ID string, status string, errorStr string) error {
+	return f(ID, status, errorStr)
+}
+
+type testStatusSaver struct{}
+
+func (saver testStatusSaver) Save(ID string, status string, errorStr string) error {
+	log.Printf("Saving status %s %s\n", ID, status)
 	return nil
 }

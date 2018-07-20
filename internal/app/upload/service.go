@@ -2,8 +2,6 @@ package upload
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -19,6 +17,7 @@ import (
 type ServiceData struct {
 	FileSaver     FileSaver
 	MessageSender MessageSender
+	StatusSaver   StatusSaver
 	Port          int
 }
 
@@ -53,23 +52,31 @@ type uploadHandler struct {
 }
 
 func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Println("Saving file from " + r.Host)
+	cmdapp.Log.Infof("Saving file from %s", r.Host)
 
 	r.ParseMultipartForm(32 << 20)
 	email := r.FormValue("email")
 	if email == "" {
 		setError(w, "No email", http.StatusBadRequest)
-		log.Println("No email")
+		cmdapp.Log.Errorf("No email")
 		return
 	}
+	id := uuid.New().String()
+
+	err := h.data.StatusSaver.Save(id, "RECEIVED", "")
+	if err != nil {
+		setError(w, "Can not save file", http.StatusBadRequest)
+		cmdapp.Log.Error(err)
+		return
+	}
+
 	file, handler, err := r.FormFile("file")
 	if err != nil {
 		setError(w, "No file", http.StatusBadRequest)
-		log.Println(err)
+		cmdapp.Log.Error(err)
 		return
 	}
 	defer file.Close()
-	id := uuid.New().String()
 
 	ext := filepath.Ext(handler.Filename)
 	fileName := id + ext
@@ -77,14 +84,14 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = h.data.FileSaver.Save(fileName, file)
 	if err != nil {
 		setError(w, "Can not save file", http.StatusBadRequest)
-		log.Println(err)
+		cmdapp.Log.Error(err)
 		return
 	}
 
 	err = h.data.MessageSender.Send(createDecodeMsg(id))
 	if err != nil {
 		setError(w, "Can not send decode message", http.StatusBadRequest)
-		log.Println(err)
+		cmdapp.Log.Error(err)
 		return
 	}
 
@@ -92,7 +99,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resultBytes, err := json.Marshal(result)
 	if err != nil {
 		setError(w, "Can not prepare result", http.StatusBadRequest)
-		fmt.Println(err)
+		cmdapp.Log.Error(err)
 		return
 	}
 
