@@ -51,6 +51,21 @@ func TestFailsOnNoOpen(t *testing.T) {
 	})
 }
 
+func TestChecksDirOnInit(t *testing.T) {
+	Convey("Given non empty input", t, func() {
+		_, err := NewLocalFileSaver("./")
+		Convey("Then no error is returned", func() {
+			So(err, ShouldBeNil)
+		})
+	})
+	Convey("Given empty input", t, func() {
+		_, err := NewLocalFileSaver("")
+		Convey("Then error is returned", func() {
+			So(err, ShouldNotBeNil)
+		})
+	})
+}
+
 type fakeWriterCloser struct {
 	*bytes.Buffer
 	Name   string

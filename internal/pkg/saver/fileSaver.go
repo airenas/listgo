@@ -26,10 +26,20 @@ type LocalFileSaver struct {
 }
 
 //NewLocalFileSaver creates LocalFileSaver instance
-func NewLocalFileSaver(storagePath string) *LocalFileSaver {
+func NewLocalFileSaver(storagePath string) (*LocalFileSaver, error) {
 	cmdapp.Log.Infof("Init Local File Storage at: %s", storagePath)
+	if storagePath == "" {
+		return nil, errors.New("No storage path provided")
+	}
+	if _, err := os.Stat(storagePath); os.IsNotExist(err) {
+		cmdapp.Log.Infof("Trying to create storage directory at: %s", storagePath)
+		err = os.MkdirAll(storagePath, os.ModePerm)
+		if err != nil {
+			return nil, err
+		}
+	}
 	f := LocalFileSaver{StoragePath: storagePath, OpenFileFunc: openFile}
-	return &f
+	return &f, nil
 }
 
 // Save saves file to disk

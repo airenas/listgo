@@ -42,7 +42,10 @@ func Execute() {
 
 func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Info("Starting uploadService")
-	fileSaver := saver.NewLocalFileSaver(cmdapp.Config.GetString("fileStorage.path"))
+	fileSaver, err := saver.NewLocalFileSaver(cmdapp.Config.GetString("fileStorage.path"))
+	if err != nil {
+		panic(err)
+	}
 	msgSender, err := msgsender.NewMachineMessageSender()
 	if err != nil {
 		panic(err)
