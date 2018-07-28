@@ -26,7 +26,7 @@ func NewMachineMessageSender() (*MachineMessageSender, error) {
 }
 
 //Send sends the message
-func (sender *MachineMessageSender) Send(message Message) error {
+func (sender *MachineMessageSender) Send(message *Message) error {
 	cmdapp.Log.Infof("Sending message %s(%s)", message.Queue, message.ID)
 	decodeTask := tasks.Signature{
 		Name: message.Queue,

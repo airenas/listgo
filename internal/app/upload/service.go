@@ -31,11 +31,11 @@ func StartWebServer(data *ServiceData) error {
 	cmdapp.Log.Infof("Starting HTTP service at %d", data.Port)
 	r := NewRouter(data)
 	http.Handle("/", r)
-	portS := strconv.Itoa(data.Port)
-	err := http.ListenAndServe(":"+portS, nil)
+	portStr := strconv.Itoa(data.Port)
+	err := http.ListenAndServe(":"+portStr, nil)
 
 	if err != nil {
-		return errors.Wrap(err, "Can't start HTTP listener at port "+portS)
+		return errors.Wrap(err, "Can't start HTTP listener at port "+portStr)
 	}
 	return nil
 }
@@ -107,8 +107,8 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write(resultBytes)
 }
 
-func createDecodeMsg(id string) msgsender.Message {
-	return msgsender.Message{ID: id, Queue: "Decode"}
+func createDecodeMsg(id string) *msgsender.Message {
+	return &msgsender.Message{ID: id, Queue: "Decode"}
 }
 
 func setError(w http.ResponseWriter, message string, statusCode int) {

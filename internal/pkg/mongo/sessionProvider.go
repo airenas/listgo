@@ -1,10 +1,9 @@
 package mongo
 
 import (
-	"errors"
-
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/globalsign/mgo"
+	"github.com/pkg/errors"
 )
 
 //SessionProvider connects and provides session for mongo DB
@@ -27,4 +26,35 @@ func (sp *SessionProvider) Close() {
 	if sp.session != nil {
 		sp.session.Close()
 	}
+}
+
+//NewSession creates mongo session
+func (sp *SessionProvider) NewSession() (*mgo.Session, error) {
+	if sp.session == nil {
+		cmdapp.Log.Info("Dial mongo. URL: " + sp.URL)
+		session, err := mgo.Dial(sp.URL)
+		if err != nil {
+			return nil, errors.Wrap(err, "Can't dial to mongo: "+sp.URL)
+		}
+		err = checkIndex(session)
+		if err != nil {
+			return nil, errors.Wrap(err, "Can't create index")
+		}
+		sp.session = session
+	}
+	return sp.session.Copy(), nil
+}
+
+func checkIndex(s *mgo.Session) error {
+	session := s.Copy()
+	defer session.Close()
+	c := session.DB("store").C("status")
+	index := mgo.Index{
+		Key:        []string{"ID"},
+		Unique:     true,
+		DropDups:   true,
+		Background: true,
+		Sparse:     true,
+	}
+	return c.EnsureIndex(index)
 }

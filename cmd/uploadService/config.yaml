@@ -8,6 +8,9 @@ messageServer:
     defaultQueue: tasks
     resultBackend: redis://localhost:6379
 
+mongo:
+    url: mongo    
+
 
 logger:
     level: info
