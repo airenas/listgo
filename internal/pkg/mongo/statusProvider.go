@@ -3,6 +3,7 @@ package mongo
 import (
 	"bitbucket.org/airenas/listgo/internal/app/status/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -31,6 +32,11 @@ func (fs StatusProvider) Get(ID string) (*api.TranscriptionResult, error) {
 
 	var m bson.M
 	err = c.Find(bson.M{"ID": ID}).One(&m)
+	if err == mgo.ErrNotFound {
+		cmdapp.Log.Infof("ID not found %s", ID)
+		return newNotFoundResult(ID), nil
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -42,4 +48,11 @@ func (fs StatusProvider) Get(ID string) (*api.TranscriptionResult, error) {
 		result.Status = status
 	}
 	return &result, err
+}
+
+func newNotFoundResult(ID string) *api.TranscriptionResult {
+	result := api.TranscriptionResult{ID: ID}
+	result.Status = "NOT_FOUND"
+	result.Error = "Nežinomas ID: " + ID
+	return &result
 }
