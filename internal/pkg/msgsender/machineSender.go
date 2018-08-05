@@ -30,7 +30,7 @@ func (sender *MachineMessageSender) Send(message *Message) error {
 	cmdapp.Log.Infof("Sending message %s(%s)", message.Queue, message.ID)
 	decodeTask := tasks.Signature{
 		Name: message.Queue,
-		Args: []tasks.Arg{newStringArg("ID", message.ID), newStringArg("Email", message.ID)}}
+		Args: []tasks.Arg{newStringArg("ID", message.ID), newStringArg("Email", message.Email)}}
 	_, err := sender.server.SendTask(&decodeTask)
 	if err != nil {
 		return errors.Wrap(err, "Can't send message")
