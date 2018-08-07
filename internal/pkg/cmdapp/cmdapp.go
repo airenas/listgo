@@ -67,3 +67,18 @@ func initDefaultLogConfig() {
 	}
 	Config.SetDefault("logger", defaultLogConfig)
 }
+
+func logPanic() {
+	if r := recover(); r != nil {
+		Log.Error(r)
+		os.Exit(1)
+	}
+}
+
+//Execute the main command
+func Execute(cmd *cobra.Command) {
+	defer logPanic()
+	if err := cmd.Execute(); err != nil {
+		panic(err)
+	}
+}

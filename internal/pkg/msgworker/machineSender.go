@@ -1,9 +1,11 @@
-package msgsender
+package msgworker
 
 import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/msgsender"
 
 	"github.com/RichardKnop/machinery/v1"
+	"github.com/RichardKnop/machinery/v1/backends/result"
 	"github.com/RichardKnop/machinery/v1/tasks"
 	"github.com/pkg/errors"
 )
@@ -15,7 +17,7 @@ type MachineMessageSender struct {
 
 //NewMachineMessageSender initializes machinery sender
 func NewMachineMessageSender() (*MachineMessageSender, error) {
-	server, err := NewMachineryServer()
+	server, err := msgsender.NewMachineryServer()
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't init machinery")
 	}
@@ -23,16 +25,12 @@ func NewMachineMessageSender() (*MachineMessageSender, error) {
 }
 
 //Send sends the message
-func (sender *MachineMessageSender) Send(message *Message) error {
+func (sender *MachineMessageSender) Send(message *msgsender.Message) (*result.AsyncResult, error) {
 	cmdapp.Log.Infof("Sending message %s(%s)", message.Queue, message.ID)
 	decodeTask := tasks.Signature{
 		Name: message.Queue,
 		Args: []tasks.Arg{newStringArg("ID", message.ID)}}
-	_, err := sender.Server.SendTask(&decodeTask)
-	if err != nil {
-		return errors.Wrap(err, "Can't send message")
-	}
-	return nil
+	return sender.Server.SendTask(&decodeTask)
 }
 
 func newStringArg(name string, val string) tasks.Arg {
