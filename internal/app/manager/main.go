@@ -34,8 +34,8 @@ func run(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	msgSender := msgworker.MachineMessageSender{msgServer}
-	msgWorker := msgworker.MachineWorker{msgServer}
+	msgSender := msgworker.MachineMessageSender{Server: msgServer}
+	msgWorker := msgworker.MachineWorker{Server: msgServer}
 
 	mongoSessionProvider, err := mongo.NewSessionProvider()
 	if err != nil {
