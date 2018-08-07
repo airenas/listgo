@@ -9,12 +9,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var appName = "LiST Transcription Manager Service"
+var appName = "LiST Manager Service"
 
 var rootCmd = &cobra.Command{
 	Use:   "managerService",
 	Short: appName,
-	Long:  `Transcription manager service to lead audio transcription process`,
+	Long:  `Transcription manager service leads audio transcription process`,
 	Run:   run,
 }
 
