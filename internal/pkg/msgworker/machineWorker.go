@@ -12,7 +12,7 @@ type MachineWorker struct {
 
 //Listen listen for event queue
 func (w *MachineWorker) Listen(workerName string) error {
-	worker := w.Server.NewWorker(workerName, 0)
+	worker := w.Server.NewWorker(workerName, 1)
 	cmdapp.Log.Info("Starting consume queue")
 	return worker.Launch()
 }

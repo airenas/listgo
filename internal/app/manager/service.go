@@ -21,7 +21,8 @@ func StartWorkerService(data *ServiceData) error {
 	cmdapp.Log.Infof("Starting listen for messages")
 
 	err := data.MessageListener.RegisterTask("Decode", func(id string) error {
-		return decode(data, id)
+		go decode(data, id)
+		return nil
 	})
 	if err != nil {
 		return errors.Wrap(err, "Can't register decode task")

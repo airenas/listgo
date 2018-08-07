@@ -3,3 +3,4 @@ cmd/uploadService/uploadService
 */**/debug
 .vscode/**
 cmd/statusProviderService/statusProviderService
+cmd/managerService/managerService
