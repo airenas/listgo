@@ -67,8 +67,9 @@ func RunCommand(command string, workingDir string, id string) error {
 	cmd.Dir = workingDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		cmdapp.Log.Error(string(output))
-		return err
+		errR := errors.Wrap(err, "Output: "+string(output))
+		cmdapp.Log.Error(errR.Error())
+		return errR
 	}
 	return nil
 }
