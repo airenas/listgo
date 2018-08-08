@@ -4,3 +4,4 @@ cmd/uploadService/uploadService
 .vscode/**
 cmd/statusProviderService/statusProviderService
 cmd/managerService/managerService
+cmd/cmdWorkerService/cmdWorkerService
