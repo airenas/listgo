@@ -19,8 +19,8 @@ func NewStatusProvider(sessionProvider *SessionProvider) (*StatusProvider, error
 }
 
 // Get retrieves status from DB
-func (fs StatusProvider) Get(ID string) (*api.TranscriptionResult, error) {
-	cmdapp.Log.Infof("Retrieving status %s", ID)
+func (fs StatusProvider) Get(id string) (*api.TranscriptionResult, error) {
+	cmdapp.Log.Infof("Retrieving status %s", id)
 
 	session, err := fs.SessionProvider.NewSession()
 	if err != nil {
@@ -31,21 +31,25 @@ func (fs StatusProvider) Get(ID string) (*api.TranscriptionResult, error) {
 	c := session.DB("store").C("status")
 
 	var m bson.M
-	err = c.Find(bson.M{"ID": ID}).One(&m)
+	err = c.Find(bson.M{"ID": id}).One(&m)
 	if err == mgo.ErrNotFound {
-		cmdapp.Log.Infof("ID not found %s", ID)
-		return newNotFoundResult(ID), nil
+		cmdapp.Log.Infof("ID not found %s", id)
+		return newNotFoundResult(id), nil
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	result := api.TranscriptionResult{ID: ID}
+	result := api.TranscriptionResult{ID: id}
 
 	status, ok := m["status"].(string)
 	if ok {
 		result.Status = status
+	}
+	errorStr, ok := m["error"].(string)
+	if ok {
+		result.Error = errorStr
 	}
 	return &result, err
 }
