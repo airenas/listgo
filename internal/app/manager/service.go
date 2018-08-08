@@ -41,6 +41,7 @@ func StartWorkerService(data *ServiceData) error {
 // 1. set status to STARTED
 // 2. send 'Started' event (async)
 // 3. send and wait for 'AudioConvert' to finish
+// 4. send and wait for 'Diarization' to finish
 
 // send 'Finished' event (async)
 // set status to COMPLETE
@@ -58,11 +59,11 @@ func decode(data *ServiceData, id string) error {
 		cmdapp.Log.Error(err)
 		return err
 	}
-	// err = doTask("Split", data, id)
-	// if err != nil {
-	// 	cmdapp.Log.Error(err)
-	// 	return err
-	// }
+	err = doTask("Diarization", data, id)
+	if err != nil {
+		cmdapp.Log.Error(err)
+		return err
+	}
 	// err = doTask("Decode", data, id)
 	// if err != nil {
 	// 	cmdapp.Log.Error(err)
