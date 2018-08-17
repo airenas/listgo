@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/msgsender"
+	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -158,7 +158,7 @@ func TestPOST_Sender(t *testing.T) {
 
 		Convey("When the request is handled by the Router", func() {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
-				func(message *msgsender.Message) error {
+				func(message *messages.Message) error {
 					return nil
 				}), StatusSaver: testStatusSaver{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
 
@@ -187,7 +187,7 @@ func TestPOST_SenderFails(t *testing.T) {
 
 		Convey("When the request is handled by the Router", func() {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
-				func(message *msgsender.Message) error {
+				func(message *messages.Message) error {
 					return errors.New("Can not send")
 				}), StatusSaver: testStatusSaver{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
 
@@ -216,7 +216,7 @@ func TestPOST_SaverFails(t *testing.T) {
 
 		Convey("When the request is handled by the Router", func() {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
-				func(message *msgsender.Message) error {
+				func(message *messages.Message) error {
 					return nil
 				}), StatusSaver: testStatusSaver{},
 				FileSaver: testSaverFunc(
@@ -262,9 +262,9 @@ func TestPOST_StatusSaverFails(t *testing.T) {
 	})
 }
 
-type testSenderFunc func(message *msgsender.Message) error
+type testSenderFunc func(message *messages.Message) error
 
-func (f testSenderFunc) Send(message *msgsender.Message) error {
+func (f testSenderFunc) Send(message *messages.Message) error {
 	return f(message)
 }
 
@@ -283,7 +283,7 @@ func (saver testSaver) Save(name string, reader io.Reader) error {
 
 type testSender struct{}
 
-func (sender testSender) Send(message *msgsender.Message) error {
+func (sender testSender) Send(message *messages.Message) error {
 	log.Printf("Sending msg %s\n", message.ID)
 	return nil
 }

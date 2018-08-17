@@ -5,3 +5,5 @@ cmd/uploadService/uploadService
 cmd/statusProviderService/statusProviderService
 cmd/managerService/managerService
 cmd/cmdWorkerService/cmdWorkerService
+cmd/test/**
+cmd/uploadService/data/**

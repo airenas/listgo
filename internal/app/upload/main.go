@@ -3,8 +3,10 @@ package upload
 import (
 	"os"
 
+	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
-	"bitbucket.org/airenas/listgo/internal/pkg/msgsender"
+	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/saver"
@@ -47,10 +49,13 @@ func run(cmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
-	msgSender, err := msgsender.NewMachineMessageSender()
+	msgChannelProvider, err := rabbit.NewChannelProvider(cmdapp.Config.GetString("messageServer.broker"))
 	if err != nil {
 		panic(err)
 	}
+	defer msgChannelProvider.Close()
+	msgSender := rabbit.NewSender(msgChannelProvider, initSender)
+
 	mongoSessionProvider, err := mongo.NewSessionProvider()
 	if err != nil {
 		panic(err)
@@ -65,4 +70,13 @@ func run(cmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func initSender(prv *rabbit.ChannelProvider) error {
+	ch, err := prv.Channel()
+	if err != nil {
+		return err
+	}
+	_, err = rabbit.Declare(ch, messages.Decode)
+	return err
 }

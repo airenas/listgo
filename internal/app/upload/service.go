@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/msgsender"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -107,8 +108,8 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write(resultBytes)
 }
 
-func createDecodeMsg(id string) *msgsender.Message {
-	return &msgsender.Message{ID: id, Queue: "Decode"}
+func createDecodeMsg(id string) *messages.Message {
+	return &messages.Message{ID: id, Queue: "Decode"}
 }
 
 func setError(w http.ResponseWriter, message string, statusCode int) {
