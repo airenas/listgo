@@ -158,7 +158,7 @@ func TestPOST_Sender(t *testing.T) {
 
 		Convey("When the request is handled by the Router", func() {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
-				func(message *messages.Message) error {
+				func(m *messages.QueueMessage, q string, rq string) error {
 					return nil
 				}), StatusSaver: testStatusSaver{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
 
@@ -187,7 +187,7 @@ func TestPOST_SenderFails(t *testing.T) {
 
 		Convey("When the request is handled by the Router", func() {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
-				func(message *messages.Message) error {
+				func(m *messages.QueueMessage, q string, rq string) error {
 					return errors.New("Can not send")
 				}), StatusSaver: testStatusSaver{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
 
@@ -216,7 +216,7 @@ func TestPOST_SaverFails(t *testing.T) {
 
 		Convey("When the request is handled by the Router", func() {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
-				func(message *messages.Message) error {
+				func(m *messages.QueueMessage, q string, rq string) error {
 					return nil
 				}), StatusSaver: testStatusSaver{},
 				FileSaver: testSaverFunc(
@@ -262,10 +262,10 @@ func TestPOST_StatusSaverFails(t *testing.T) {
 	})
 }
 
-type testSenderFunc func(message *messages.Message) error
+type testSenderFunc func(m *messages.QueueMessage, q string, rq string) error
 
-func (f testSenderFunc) Send(message *messages.Message) error {
-	return f(message)
+func (f testSenderFunc) Send(m *messages.QueueMessage, q string, rq string) error {
+	return f(m, q, rq)
 }
 
 type testSaverFunc func(name string, reader io.Reader) error
@@ -283,8 +283,8 @@ func (saver testSaver) Save(name string, reader io.Reader) error {
 
 type testSender struct{}
 
-func (sender testSender) Send(message *messages.Message) error {
-	log.Printf("Sending msg %s\n", message.ID)
+func (sender testSender) Send(m *messages.QueueMessage, q string, rq string) error {
+	log.Printf("Sending msg %s\n", m.ID)
 	return nil
 }
 

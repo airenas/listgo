@@ -17,7 +17,7 @@ import (
 // ServiceData keeps data required for service work
 type ServiceData struct {
 	FileSaver     FileSaver
-	MessageSender MessageSender
+	MessageSender messages.Sender
 	StatusSaver   StatusSaver
 	Port          int
 }
@@ -89,7 +89,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.data.MessageSender.Send(createDecodeMsg(id))
+	err = h.data.MessageSender.Send(messages.NewQueueMessage(id), messages.Decode, "")
 	if err != nil {
 		setError(w, "Can not send decode message", http.StatusBadRequest)
 		cmdapp.Log.Error(err)
@@ -106,10 +106,6 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(resultBytes)
-}
-
-func createDecodeMsg(id string) *messages.Message {
-	return &messages.Message{ID: id, Queue: "Decode"}
 }
 
 func setError(w http.ResponseWriter, message string, statusCode int) {

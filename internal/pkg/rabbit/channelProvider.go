@@ -3,6 +3,7 @@ package rabbit
 import (
 	"sync"
 
+	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/streadway/amqp"
 
 	"github.com/pkg/errors"
@@ -15,6 +16,8 @@ type ChannelProvider struct {
 	ch   *amqp.Channel
 	m    sync.Mutex // struct field mutex
 }
+
+type runOnChannelFunc func(*amqp.Channel) error
 
 //NewChannelProvider initializes channel provider
 func NewChannelProvider(url string) (*ChannelProvider, error) {
@@ -44,6 +47,25 @@ func (pr *ChannelProvider) Channel() (*amqp.Channel, error) {
 	pr.conn = conn
 	pr.ch = ch
 	return pr.ch, nil
+}
+
+//RunOnChannelWithRetry invokes method on channel with retry
+func (pr *ChannelProvider) RunOnChannelWithRetry(f runOnChannelFunc) error {
+	ch, err := pr.Channel()
+	if err != nil {
+		return errors.Wrap(err, "Can't init channel")
+	}
+	err = f(ch)
+	if err != nil {
+		cmdapp.Log.Infof("Retry opening channel")
+		pr.Close()
+		ch, err = pr.Channel()
+		if err != nil {
+			return errors.Wrap(err, "Can't init channel")
+		}
+		err = f(ch)
+	}
+	return err
 }
 
 //Close finalizes ChannelProvider

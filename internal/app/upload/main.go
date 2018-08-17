@@ -3,6 +3,8 @@ package upload
 import (
 	"os"
 
+	"github.com/streadway/amqp"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
@@ -10,6 +12,7 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/saver"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -54,7 +57,12 @@ func run(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 	defer msgChannelProvider.Close()
-	msgSender := rabbit.NewSender(msgChannelProvider, initSender)
+
+	err = initQueues(msgChannelProvider)
+	if err != nil {
+		panic(errors.Wrap(err, "Can't init queues"))
+	}
+	msgSender := rabbit.NewSender(msgChannelProvider)
 
 	mongoSessionProvider, err := mongo.NewSessionProvider()
 	if err != nil {
@@ -72,11 +80,10 @@ func run(cmd *cobra.Command, args []string) {
 	}
 }
 
-func initSender(prv *rabbit.ChannelProvider) error {
-	ch, err := prv.Channel()
-	if err != nil {
+func initQueues(prv *rabbit.ChannelProvider) error {
+	cmdapp.Log.Info("Initializing queues")
+	return prv.RunOnChannelWithRetry(func(ch *amqp.Channel) error {
+		_, err := rabbit.DeclareQueue(ch, messages.Decode)
 		return err
-	}
-	_, err = rabbit.Declare(ch, messages.Decode)
-	return err
+	})
 }
