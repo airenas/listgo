@@ -1,6 +1,8 @@
 package mongo
 
 import (
+	"sync"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/globalsign/mgo"
 	"github.com/pkg/errors"
@@ -10,6 +12,7 @@ import (
 type SessionProvider struct {
 	session *mgo.Session
 	URL     string
+	m       sync.Mutex // struct field mutex
 }
 
 //NewSessionProvider creates Mongo session provider
@@ -30,6 +33,9 @@ func (sp *SessionProvider) Close() {
 
 //NewSession creates mongo session
 func (sp *SessionProvider) NewSession() (*mgo.Session, error) {
+	sp.m.Lock()
+	defer sp.m.Unlock()
+
 	if sp.session == nil {
 		cmdapp.Log.Info("Dial mongo. URL: " + sp.URL)
 		session, err := mgo.Dial(sp.URL)
