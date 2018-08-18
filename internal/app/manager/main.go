@@ -99,7 +99,8 @@ func initQueues(prv *rabbit.ChannelProvider) error {
 			messages.AudioConvert, messages.ResultQueueFor(messages.AudioConvert),
 			messages.Diarization, messages.ResultQueueFor(messages.Diarization),
 			messages.Transcription, messages.ResultQueueFor(messages.Transcription),
-			messages.ResultMake, messages.ResultQueueFor(messages.ResultMake)}
+			messages.ResultMake, messages.ResultQueueFor(messages.ResultMake),
+			messages.FinishDecode}
 		for _, queue := range queues {
 			_, err := rabbit.DeclareQueue(ch, queue)
 			if err != nil {
