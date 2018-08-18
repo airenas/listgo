@@ -9,6 +9,8 @@ const (
 	AudioConvert string = "AudioConvert"
 	// Diarization queue
 	Diarization string = "Diarization"
+	// Transcription queue
+	Transcription string = "Transcription"
 )
 
 //ResultQueueFor creates result queus name for input queue

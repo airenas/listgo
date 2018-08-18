@@ -17,6 +17,7 @@ func TestHandlesMessages(t *testing.T) {
 	Convey("Given a manager", t, func() {
 		dc := make(chan amqp.Delivery)
 		ac := make(chan amqp.Delivery)
+		diac := make(chan amqp.Delivery)
 		data := ServiceData{}
 		ts := testStatusSaver{statuses: make([]string, 0)}
 		data.StatusSaver = &ts
@@ -24,6 +25,7 @@ func TestHandlesMessages(t *testing.T) {
 		data.MessageSender = &tsn
 		data.DecodeCh = dc
 		data.AudioConvertCh = ac
+		data.DiarizationCh = diac
 		go StartWorkerService(&data)
 		Convey("When wrong Decode msg is put", func() {
 			dc <- amqp.Delivery{}
@@ -76,6 +78,38 @@ func TestHandlesMessages(t *testing.T) {
 			close(ac)
 			Convey("Status must be changed", func() {
 				So(test.Contains(ts.statuses, messages.AudioConvert+"error"), ShouldBeTrue)
+			})
+			Convey("No msg sent", func() {
+				So(cap(tsn.Msgs), ShouldEqual, 0)
+			})
+		})
+		Convey("When wrong DiarizationResult msg is put", func() {
+			diac <- amqp.Delivery{}
+			close(diac)
+			Convey("Status must not be changed", func() {
+				So(cap(ts.statuses), ShouldEqual, 0)
+			})
+			Convey("No msg sent", func() {
+				So(cap(tsn.Msgs), ShouldEqual, 0)
+			})
+		})
+		Convey("When good DiarizationResult msg is put", func() {
+			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
+			diac <- amqp.Delivery{Body: msgdata}
+			close(diac)
+			Convey("Status must be changed", func() {
+				So(test.Contains(ts.statuses, messages.Transcription), ShouldBeTrue)
+			})
+			Convey("Transcription msg sent", func() {
+				So(test.ContainsMsg(tsn.Msgs, test.NewMsg("1", messages.Transcription, true)), ShouldBeTrue)
+			})
+		})
+		Convey("When good DiarizationResult msg with error is put", func() {
+			msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
+			diac <- amqp.Delivery{Body: msgdata}
+			close(diac)
+			Convey("Status must be changed", func() {
+				So(test.Contains(ts.statuses, messages.Diarization+"error"), ShouldBeTrue)
 			})
 			Convey("No msg sent", func() {
 				So(cap(tsn.Msgs), ShouldEqual, 0)

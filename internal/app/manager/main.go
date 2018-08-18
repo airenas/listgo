@@ -64,6 +64,14 @@ func run(cmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(errors.Wrap(err, "Can't listen Decode channel"))
 	}
+	data.AudioConvertCh, err = rabbit.NewChannel(ch, messages.ResultQueueFor(messages.AudioConvert))
+	if err != nil {
+		panic(errors.Wrap(err, "Can't listen AudioConvertCh channel"))
+	}
+	data.DiarizationCh, err = rabbit.NewChannel(ch, messages.ResultQueueFor(messages.Diarization))
+	if err != nil {
+		panic(errors.Wrap(err, "Can't listen AudioConvertCh channel"))
+	}
 
 	data.StatusSaver, err = mongo.NewStatusSaver(mongoSessionProvider)
 	if err != nil {
@@ -81,7 +89,8 @@ func initQueues(prv *rabbit.ChannelProvider) error {
 	return prv.RunOnChannelWithRetry(func(ch *amqp.Channel) error {
 		queues := []string{messages.Decode, messages.StartedDecode,
 			messages.AudioConvert, messages.ResultQueueFor(messages.AudioConvert),
-			messages.Diarization, messages.ResultQueueFor(messages.Diarization)}
+			messages.Diarization, messages.ResultQueueFor(messages.Diarization),
+			messages.Transcription, messages.ResultQueueFor(messages.Transcription)}
 		for _, queue := range queues {
 			_, err := rabbit.DeclareQueue(ch, queue)
 			if err != nil {

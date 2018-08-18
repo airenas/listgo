@@ -17,6 +17,7 @@ type ServiceData struct {
 	StatusSaver    upload.StatusSaver
 	DecodeCh       <-chan amqp.Delivery
 	AudioConvertCh <-chan amqp.Delivery
+	DiarizationCh  <-chan amqp.Delivery
 }
 
 type prFunc func(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error
@@ -29,6 +30,7 @@ func StartWorkerService(data *ServiceData) error {
 
 	go listenQueue(data.DecodeCh, decode, data, fc)
 	go listenQueue(data.AudioConvertCh, audioConvertFinish, data, fc)
+	go listenQueue(data.DiarizationCh, diarizationFinish, data, fc)
 
 	<-fc
 	cmdapp.Log.Infof("Exiting service")
@@ -100,6 +102,28 @@ func audioConvertFinish(message *messages.QueueMessage, data *ServiceData, d *am
 	}
 	return data.MessageSender.Send(messages.NewQueueMessage(message.ID),
 		messages.Diarization, messages.ResultQueueFor(messages.Diarization))
+}
+
+//diarizationFinish processes audio diarization result messages
+// 1. logs status
+// 2. sends 'Transctiption' message
+func diarizationFinish(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error {
+	cmdapp.Log.Infof("Got diarizationFinish msg :%s", message.ID)
+	if message.Error != "" {
+		err := data.StatusSaver.Save(message.ID, messages.Diarization, message.Error)
+		if err != nil {
+			cmdapp.Log.Error(err)
+			return err
+		}
+		return nil
+	}
+	err := data.StatusSaver.Save(message.ID, messages.Transcription, "")
+	if err != nil {
+		cmdapp.Log.Error(err)
+		return err
+	}
+	return data.MessageSender.Send(messages.NewQueueMessage(message.ID),
+		messages.Transcription, messages.ResultQueueFor(messages.Transcription))
 }
 
 //decode is main method to lead the transcription process
