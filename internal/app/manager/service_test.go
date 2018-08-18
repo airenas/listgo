@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"testing"
+	"time"
 
 	"github.com/streadway/amqp"
 
@@ -18,6 +19,8 @@ func TestHandlesMessages(t *testing.T) {
 		dc := make(chan amqp.Delivery)
 		ac := make(chan amqp.Delivery)
 		diac := make(chan amqp.Delivery)
+		tc := make(chan amqp.Delivery)
+		rc := make(chan amqp.Delivery)
 		data := ServiceData{}
 		ts := testStatusSaver{statuses: make([]string, 0)}
 		data.StatusSaver = &ts
@@ -26,6 +29,8 @@ func TestHandlesMessages(t *testing.T) {
 		data.DecodeCh = dc
 		data.AudioConvertCh = ac
 		data.DiarizationCh = diac
+		data.TranscriptionCh = tc
+		data.ResultMakeCh = rc
 		go StartWorkerService(&data)
 		Convey("When wrong Decode msg is put", func() {
 			dc <- amqp.Delivery{}
@@ -110,6 +115,54 @@ func TestHandlesMessages(t *testing.T) {
 			close(diac)
 			Convey("Status must be changed", func() {
 				So(test.Contains(ts.statuses, messages.Diarization+"error"), ShouldBeTrue)
+			})
+			Convey("No msg sent", func() {
+				So(cap(tsn.Msgs), ShouldEqual, 0)
+			})
+		})
+		Convey("When good TranscriptionResult msg is put", func() {
+			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
+			tc <- amqp.Delivery{Body: msgdata}
+			close(tc)
+			time.Sleep(time.Second * 2)
+			Convey("Status must be changed", func() {
+				So(test.Contains(ts.statuses, messages.ResultMake), ShouldBeTrue)
+			})
+			Convey("Transcription msg sent", func() {
+				So(test.ContainsMsg(tsn.Msgs, test.NewMsg("1", messages.ResultMake, true)), ShouldBeTrue)
+			})
+		})
+		Convey("When good TranscriptionResult msg with error is put", func() {
+			msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
+			tc <- amqp.Delivery{Body: msgdata}
+			close(tc)
+			time.Sleep(time.Second * 2)
+			Convey("Status must be changed", func() {
+				So(test.Contains(ts.statuses, messages.Transcription+"error"), ShouldBeTrue)
+			})
+			Convey("No msg sent", func() {
+				So(cap(tsn.Msgs), ShouldEqual, 0)
+			})
+		})
+		Convey("When good ResultMakeResult msg is put", func() {
+			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
+			rc <- amqp.Delivery{Body: msgdata}
+			close(rc)
+			time.Sleep(time.Second * 2)
+			Convey("Status must be changed", func() {
+				So(test.Contains(ts.statuses, "COMPLETED"), ShouldBeTrue)
+			})
+			Convey("FinishDecode msg sent", func() {
+				So(test.ContainsMsg(tsn.Msgs, test.NewMsg("1", messages.FinishDecode, false)), ShouldBeTrue)
+			})
+		})
+		Convey("When good ResultMakeResult msg with error is put", func() {
+			msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
+			rc <- amqp.Delivery{Body: msgdata}
+			close(rc)
+			time.Sleep(time.Second * 2)
+			Convey("Status must be changed", func() {
+				So(test.Contains(ts.statuses, messages.ResultMake+"error"), ShouldBeTrue)
 			})
 			Convey("No msg sent", func() {
 				So(cap(tsn.Msgs), ShouldEqual, 0)

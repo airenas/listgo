@@ -13,11 +13,13 @@ import (
 
 // ServiceData keeps data required for service work
 type ServiceData struct {
-	MessageSender  messages.Sender
-	StatusSaver    upload.StatusSaver
-	DecodeCh       <-chan amqp.Delivery
-	AudioConvertCh <-chan amqp.Delivery
-	DiarizationCh  <-chan amqp.Delivery
+	MessageSender   messages.Sender
+	StatusSaver     upload.StatusSaver
+	DecodeCh        <-chan amqp.Delivery
+	AudioConvertCh  <-chan amqp.Delivery
+	DiarizationCh   <-chan amqp.Delivery
+	TranscriptionCh <-chan amqp.Delivery
+	ResultMakeCh    <-chan amqp.Delivery
 }
 
 type prFunc func(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error
@@ -31,6 +33,8 @@ func StartWorkerService(data *ServiceData) error {
 	go listenQueue(data.DecodeCh, decode, data, fc)
 	go listenQueue(data.AudioConvertCh, audioConvertFinish, data, fc)
 	go listenQueue(data.DiarizationCh, diarizationFinish, data, fc)
+	go listenQueue(data.TranscriptionCh, transcriptionFinish, data, fc)
+	go listenQueue(data.ResultMakeCh, resultMakeFinish, data, fc)
 
 	<-fc
 	cmdapp.Log.Infof("Exiting service")
@@ -124,6 +128,49 @@ func diarizationFinish(message *messages.QueueMessage, data *ServiceData, d *amq
 	}
 	return data.MessageSender.Send(messages.NewQueueMessage(message.ID),
 		messages.Transcription, messages.ResultQueueFor(messages.Transcription))
+}
+
+//transcriptionFinish processes transcription result messages
+// 1. logs status
+// 2. sends 'ResultMake' message
+func transcriptionFinish(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error {
+	cmdapp.Log.Infof("Got transcriptionFinish msg :%s", message.ID)
+	if message.Error != "" {
+		err := data.StatusSaver.Save(message.ID, messages.Transcription, message.Error)
+		if err != nil {
+			cmdapp.Log.Error(err)
+			return err
+		}
+		return nil
+	}
+	err := data.StatusSaver.Save(message.ID, messages.ResultMake, "")
+	if err != nil {
+		cmdapp.Log.Error(err)
+		return err
+	}
+	return data.MessageSender.Send(messages.NewQueueMessage(message.ID),
+		messages.ResultMake, messages.ResultQueueFor(messages.ResultMake))
+}
+
+//transcriptionFinish processes transcription result messages
+// 1. logs status
+// 2. sends 'FinishDecode' message
+func resultMakeFinish(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error {
+	cmdapp.Log.Infof("Got resultMakeFinish msg :%s", message.ID)
+	if message.Error != "" {
+		err := data.StatusSaver.Save(message.ID, messages.ResultMake, message.Error)
+		if err != nil {
+			cmdapp.Log.Error(err)
+			return err
+		}
+		return nil
+	}
+	err := data.StatusSaver.Save(message.ID, "COMPLETED", "")
+	if err != nil {
+		cmdapp.Log.Error(err)
+		return err
+	}
+	return data.MessageSender.Send(messages.NewQueueMessage(message.ID), messages.FinishDecode, "")
 }
 
 //decode is main method to lead the transcription process

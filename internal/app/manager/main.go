@@ -70,7 +70,15 @@ func run(cmd *cobra.Command, args []string) {
 	}
 	data.DiarizationCh, err = rabbit.NewChannel(ch, messages.ResultQueueFor(messages.Diarization))
 	if err != nil {
-		panic(errors.Wrap(err, "Can't listen AudioConvertCh channel"))
+		panic(errors.Wrap(err, "Can't listen DiarizationCh channel"))
+	}
+	data.TranscriptionCh, err = rabbit.NewChannel(ch, messages.ResultQueueFor(messages.Transcription))
+	if err != nil {
+		panic(errors.Wrap(err, "Can't listen DiarizationCh channel"))
+	}
+	data.ResultMakeCh, err = rabbit.NewChannel(ch, messages.ResultQueueFor(messages.ResultMake))
+	if err != nil {
+		panic(errors.Wrap(err, "Can't listen DiarizationCh channel"))
 	}
 
 	data.StatusSaver, err = mongo.NewStatusSaver(mongoSessionProvider)
@@ -90,7 +98,8 @@ func initQueues(prv *rabbit.ChannelProvider) error {
 		queues := []string{messages.Decode, messages.StartedDecode,
 			messages.AudioConvert, messages.ResultQueueFor(messages.AudioConvert),
 			messages.Diarization, messages.ResultQueueFor(messages.Diarization),
-			messages.Transcription, messages.ResultQueueFor(messages.Transcription)}
+			messages.Transcription, messages.ResultQueueFor(messages.Transcription),
+			messages.ResultMake, messages.ResultQueueFor(messages.ResultMake)}
 		for _, queue := range queues {
 			_, err := rabbit.DeclareQueue(ch, queue)
 			if err != nil {

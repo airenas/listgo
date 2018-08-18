@@ -11,6 +11,10 @@ const (
 	Diarization string = "Diarization"
 	// Transcription queue
 	Transcription string = "Transcription"
+	// ResultMake queue
+	ResultMake string = "ResultMake"
+	// FinishDecode queue
+	FinishDecode string = "FinishDecode"
 )
 
 //ResultQueueFor creates result queus name for input queue
