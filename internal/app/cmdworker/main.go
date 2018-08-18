@@ -1,12 +1,10 @@
 package cmdworker
 
 import (
-	"errors"
-
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/msgsender"
-	"bitbucket.org/airenas/listgo/internal/pkg/msgworker"
+	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -30,19 +28,40 @@ func Execute() {
 
 func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Info("Starting " + appName)
-	msgServer, err := msgsender.NewMachineryServer()
+	err := validateConfig()
 	if err != nil {
 		panic(err)
 	}
+	data := ServiceData{}
 
-	msgWorker := msgworker.MachineWorker{Server: msgServer}
-	err = validateConfig()
+	msgChannelProvider, err := rabbit.NewChannelProvider(cmdapp.Config.GetString("messageServer.broker"))
 	if err != nil {
 		panic(err)
 	}
+	defer msgChannelProvider.Close()
 
-	err = StartWorkerService(&ServiceData{&msgWorker, cmdapp.Config.GetString("worker.taskName"),
-		cmdapp.Config.GetString("worker.command"), cmdapp.Config.GetString("worker.workingDir")})
+	data.MessageSender = rabbit.NewSender(msgChannelProvider)
+
+	ch, err := msgChannelProvider.Channel()
+	if err != nil {
+		panic(errors.Wrap(err, "Can't open channel"))
+	}
+	err = ch.Qos(1, 0, false)
+	if err != nil {
+		panic(errors.Wrap(err, "Can't set Qos"))
+	}
+
+	data.TaskName = cmdapp.Config.GetString("worker.taskName")
+
+	data.WorkCh, err = rabbit.NewChannel(ch, data.TaskName)
+	if err != nil {
+		panic(errors.Wrap(err, "Can't listen "+data.TaskName+" channel"))
+	}
+
+	data.Command = cmdapp.Config.GetString("worker.command")
+	data.WorkingDir = cmdapp.Config.GetString("worker.workingDir")
+
+	err = StartWorkerService(&data)
 	if err != nil {
 		panic(err)
 	}
