@@ -37,11 +37,11 @@ func StartWorkerService(data *ServiceData) error {
 
 func listenQueue(q <-chan amqp.Delivery, f prFunc, data *ServiceData, fc chan<- bool) {
 	for d := range q {
-		err := processMsg(&d, f, data)
+		redeliver, err := processMsg(&d, f, data)
 		if err != nil {
 			cmdapp.Log.Errorf("Can't process message %s\n%s", d.MessageId, string(d.Body))
 			cmdapp.Log.Error(err)
-			d.Nack(false, false)
+			d.Nack(false, redeliver && !d.Redelivered) // redeliver for first time
 		} else {
 			d.Ack(false)
 		}
@@ -50,12 +50,13 @@ func listenQueue(q <-chan amqp.Delivery, f prFunc, data *ServiceData, fc chan<- 
 	fc <- true
 }
 
-func processMsg(d *amqp.Delivery, f prFunc, data *ServiceData) error {
+//processMsg return true if message can be retried
+func processMsg(d *amqp.Delivery, f prFunc, data *ServiceData) (bool, error) {
 	var message messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
-		return errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
+		return false, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
 	}
-	return f(&message, data, d)
+	return true, f(&message, data, d)
 }
 
 //decode starts the transcription process

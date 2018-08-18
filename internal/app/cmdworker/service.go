@@ -56,12 +56,14 @@ func listenQueue(data *ServiceData, fc chan<- bool) {
 		msg, err := processMsg(&d, data)
 		if err != nil {
 			cmdapp.Log.Error("Message error", err)
+			d.Nack(false, false)
 			continue
 		}
 		if d.ReplyTo != "" {
 			err = data.MessageSender.Send(msg, d.ReplyTo, "")
 			if err != nil {
 				cmdapp.Log.Error("Can't reply result", err)
+				d.Nack(false, !d.Redelivered) // try redeliver for first time
 				continue
 			}
 		}
@@ -77,6 +79,7 @@ func processMsg(d *amqp.Delivery, data *ServiceData) (*messages.QueueMessage, er
 		return nil, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
 	}
 	err := work(data, message.ID)
+	cmdapp.Log.Infof("Msg processed")
 	result := messages.NewQueueMessage(message.ID)
 	if err != nil {
 		result.Error = err.Error()

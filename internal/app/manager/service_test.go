@@ -9,6 +9,7 @@ import (
 	"github.com/streadway/amqp"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"bitbucket.org/airenas/listgo/internal/pkg/test"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -19,7 +20,7 @@ func TestHandlesMessages(t *testing.T) {
 		data := ServiceData{}
 		ts := testStatusSaver{statuses: make([]string, 0)}
 		data.StatusSaver = &ts
-		tsn := testSender{msgs: make([]msg, 0)}
+		tsn := test.Sender{Msgs: make([]test.Msg, 0)}
 		data.MessageSender = &tsn
 		data.DecodeCh = dc
 		data.AudioConvertCh = ac
@@ -31,7 +32,7 @@ func TestHandlesMessages(t *testing.T) {
 				So(cap(ts.statuses), ShouldEqual, 0)
 			})
 			Convey("No msg sent", func() {
-				So(cap(tsn.msgs), ShouldEqual, 0)
+				So(cap(tsn.Msgs), ShouldEqual, 0)
 			})
 		})
 		Convey("When good Decode msg is put", func() {
@@ -39,15 +40,13 @@ func TestHandlesMessages(t *testing.T) {
 			dc <- amqp.Delivery{Body: msgdata}
 			close(dc)
 			Convey("Status must be changed", func() {
-				a := contains(ts.statuses, messages.AudioConvert)
-				So(contains(ts.statuses, messages.AudioConvert), ShouldBeTrue)
-				So(a, ShouldBeTrue)
+				So(test.Contains(ts.statuses, messages.AudioConvert), ShouldBeTrue)
 			})
 			Convey("AudioConvert msg sent", func() {
-				So(containsMsg(tsn.msgs, newMsg("1", messages.AudioConvert, true)), ShouldBeTrue)
+				So(test.ContainsMsg(tsn.Msgs, test.NewMsg("1", messages.AudioConvert, true)), ShouldBeTrue)
 			})
 			Convey("StartedDecode msg sent", func() {
-				So(containsMsg(tsn.msgs, newMsg("1", messages.StartedDecode, false)), ShouldBeTrue)
+				So(test.ContainsMsg(tsn.Msgs, test.NewMsg("1", messages.StartedDecode, false)), ShouldBeTrue)
 			})
 		})
 		Convey("When wrong AudioConvertResult msg is put", func() {
@@ -57,7 +56,7 @@ func TestHandlesMessages(t *testing.T) {
 				So(cap(ts.statuses), ShouldEqual, 0)
 			})
 			Convey("No msg sent", func() {
-				So(cap(tsn.msgs), ShouldEqual, 0)
+				So(cap(tsn.Msgs), ShouldEqual, 0)
 			})
 		})
 		Convey("When good AudioConvertResult msg is put", func() {
@@ -65,10 +64,10 @@ func TestHandlesMessages(t *testing.T) {
 			ac <- amqp.Delivery{Body: msgdata}
 			close(ac)
 			Convey("Status must be changed", func() {
-				So(contains(ts.statuses, messages.Diarization), ShouldBeTrue)
+				So(test.Contains(ts.statuses, messages.Diarization), ShouldBeTrue)
 			})
 			Convey("Diarization msg sent", func() {
-				So(containsMsg(tsn.msgs, newMsg("1", messages.Diarization, true)), ShouldBeTrue)
+				So(test.ContainsMsg(tsn.Msgs, test.NewMsg("1", messages.Diarization, true)), ShouldBeTrue)
 			})
 		})
 		Convey("When good AudioConvertResult msg with error is put", func() {
@@ -76,10 +75,10 @@ func TestHandlesMessages(t *testing.T) {
 			ac <- amqp.Delivery{Body: msgdata}
 			close(ac)
 			Convey("Status must be changed", func() {
-				So(contains(ts.statuses, messages.AudioConvert+"error"), ShouldBeTrue)
+				So(test.Contains(ts.statuses, messages.AudioConvert+"error"), ShouldBeTrue)
 			})
 			Convey("No msg sent", func() {
-				So(cap(tsn.msgs), ShouldEqual, 0)
+				So(cap(tsn.Msgs), ShouldEqual, 0)
 			})
 		})
 	})
@@ -104,34 +103,6 @@ func (saver testSaver) Save(name string, reader io.Reader) error {
 	return nil
 }
 
-type msg struct {
-	m  *messages.QueueMessage
-	q  string
-	rq string
-}
-
-func (m *msg) equals(o *msg) bool {
-	return m.m.ID == o.m.ID && m.q == o.q && m.rq == o.rq
-}
-
-func newMsg(id string, q string, useRq bool) *msg {
-	rq := ""
-	if useRq {
-		rq = messages.ResultQueueFor(q)
-	}
-	return &msg{m: messages.NewQueueMessage(id), q: q, rq: rq}
-}
-
-type testSender struct {
-	msgs []msg
-}
-
-func (sender *testSender) Send(m *messages.QueueMessage, q string, rq string) error {
-	log.Printf("Sending msg %s\n", m.ID)
-	sender.msgs = append(sender.msgs, msg{m, q, rq})
-	return nil
-}
-
 type testStatusSaverFunc func(ID string, status string, errorStr string) error
 
 func (f testStatusSaverFunc) Save(ID string, status string, errorStr string) error {
@@ -146,22 +117,4 @@ func (saver *testStatusSaver) Save(ID string, status string, errorStr string) er
 	log.Printf("Saving status %s %s\n", ID, status)
 	saver.statuses = append(saver.statuses, status+errorStr)
 	return nil
-}
-
-func contains(s []string, v string) bool {
-	for _, a := range s {
-		if a == v {
-			return true
-		}
-	}
-	return false
-}
-
-func containsMsg(s []msg, v *msg) bool {
-	for _, a := range s {
-		if a.equals(v) {
-			return true
-		}
-	}
-	return false
 }
