@@ -11,3 +11,8 @@ type QueueMessage struct {
 func NewQueueMessage(id string) *QueueMessage {
 	return &QueueMessage{ID: id}
 }
+
+//NewQueueMsgWithError creates the message with id and error
+func NewQueueMsgWithError(id string, errMsg string) *QueueMessage {
+	return &QueueMessage{ID: id, Error: errMsg}
+}
