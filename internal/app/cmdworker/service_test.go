@@ -3,7 +3,6 @@ package cmdworker
 import (
 	"encoding/json"
 	"testing"
-	"time"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 
@@ -62,6 +61,7 @@ func TestRun_ID_Changed(t *testing.T) {
 
 func TestHandlesMessages(t *testing.T) {
 	Convey("Given a worker", t, func() {
+		// init worker service
 		wc := make(chan amqp.Delivery)
 		data := ServiceData{}
 		data.Command = "ls -la"
@@ -70,14 +70,19 @@ func TestHandlesMessages(t *testing.T) {
 		ts := &test.Sender{Msgs: make([]test.Msg, 0)}
 		data.MessageSender = ts
 		data.WorkCh = wc
-		go StartWorkerService(&data)
+		fc, _ := StartWorkerService(&data)
+		// init message
+		msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
+		d := amqp.Delivery{Body: msgdata}
+		ack := &mocks.Acknowledger{}
+		d.Acknowledger = ack
+
 		Convey("When wrong msg is put", func() {
-			d := amqp.Delivery{}
-			ack := &mocks.Acknowledger{}
+			d.Body = make([]byte, 0)
 			ack.On("Nack").Return(nil)
-			d.Acknowledger = ack
 			wc <- d
 			close(wc)
+			<-fc // wait for complete
 			Convey("No msg sent", func() {
 				So(cap(ts.Msgs), ShouldEqual, 0)
 			})
@@ -86,15 +91,11 @@ func TestHandlesMessages(t *testing.T) {
 			})
 		})
 		Convey("When good msg is put with reply", func() {
-			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
-			d := amqp.Delivery{Body: msgdata}
-			ack := &mocks.Acknowledger{}
 			ack.On("Ack").Return(nil)
-			d.Acknowledger = ack
 			d.ReplyTo = "rt"
 			wc <- d
 			close(wc)
-			time.Sleep(time.Second * 2)
+			<-fc // wait for complete
 			Convey("msg replied", func() {
 				So(cap(ts.Msgs), ShouldEqual, 1)
 			})
@@ -103,17 +104,27 @@ func TestHandlesMessages(t *testing.T) {
 			})
 		})
 		Convey("When good msg is put with no reply", func() {
-			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
-			d := amqp.Delivery{Body: msgdata}
-			ack := &mocks.Acknowledger{}
 			ack.On("Ack").Return(nil)
-			d.Acknowledger = ack
-			d.ReplyTo = ""
 			wc <- d
 			close(wc)
-			time.Sleep(time.Second * 2)
+			<-fc // wait for complete
 			Convey("No msg replied", func() {
 				So(cap(ts.Msgs), ShouldEqual, 0)
+			})
+			Convey("Ack is called", func() {
+				So(ack.AssertExpectations(t), ShouldBeTrue)
+			})
+		})
+		Convey("When task fails", func() {
+			data.Command = "lsss"
+			ack.On("Ack").Return(nil)
+			d.ReplyTo = "rt"
+			wc <- d
+			close(wc)
+			<-fc // wait for complete
+			Convey("msg replied", func() {
+				So(cap(ts.Msgs), ShouldEqual, 1)
+				So(ts.Msgs[0].M.Error, ShouldNotBeEmpty)
 			})
 			Convey("Ack is called", func() {
 				So(ack.AssertExpectations(t), ShouldBeTrue)

@@ -21,23 +21,26 @@ type ServiceData struct {
 	WorkCh        <-chan amqp.Delivery
 }
 
-//StartWorkerService starts the event queue listener service tp listen for Decode events
-func StartWorkerService(data *ServiceData) error {
+//StartWorkerService starts the event queue listener service to listen for configured events
+// return channel to track the finish event
+//
+// to wait sync for the service to finish:
+// fc, err := StartWorkerService(data)
+// handle err
+// <-fc // waits for finish
+func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 	cmdapp.Log.Infof("Starting listen for messages")
 	if data.TaskName == "" {
-		return errors.New("No Task Name")
+		return nil, errors.New("No Task Name")
 	}
 	if data.Command == "" {
-		return errors.New("No command")
+		return nil, errors.New("No command")
 	}
 
 	fc := make(chan bool)
 
 	go listenQueue(data, fc)
-
-	<-fc
-	cmdapp.Log.Infof("Exiting service")
-	return nil
+	return fc, nil
 }
 
 //work is main method to process of the worker

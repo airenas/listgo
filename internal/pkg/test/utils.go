@@ -7,13 +7,13 @@ import (
 )
 
 type Msg struct {
-	m  *messages.QueueMessage
+	M  *messages.QueueMessage
 	q  string
 	rq string
 }
 
 func (m *Msg) equals(o *Msg) bool {
-	return m.m.ID == o.m.ID && m.q == o.q && m.rq == o.rq
+	return m.M.ID == o.M.ID && m.q == o.q && m.rq == o.rq
 }
 
 func NewMsg(id string, q string, useRq bool) *Msg {
@@ -21,7 +21,7 @@ func NewMsg(id string, q string, useRq bool) *Msg {
 	if useRq {
 		rq = messages.ResultQueueFor(q)
 	}
-	return &Msg{m: messages.NewQueueMessage(id), q: q, rq: rq}
+	return &Msg{M: messages.NewQueueMessage(id), q: q, rq: rq}
 }
 
 type Sender struct {
