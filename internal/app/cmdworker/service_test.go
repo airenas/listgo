@@ -8,6 +8,7 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/test"
+	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/streadway/amqp"
 )
@@ -128,6 +129,70 @@ func TestHandlesMessages(t *testing.T) {
 			})
 			Convey("Ack is called", func() {
 				So(ack.AssertExpectations(t), ShouldBeTrue)
+			})
+		})
+		Convey("When good msg is put with result required", func() {
+			data.ReadFunc = func(file string, id string) (string, error) {
+				return "olia", nil
+			}
+			data.ResultFile = "rFile"
+			ack.On("Ack").Return(nil)
+			d.ReplyTo = "rt"
+
+			wc <- d
+			close(wc)
+			<-fc // wait for complete
+			Convey("msg replied with result", func() {
+				So(cap(ts.Msgs), ShouldEqual, 1)
+				So(ts.Msgs[0].M.Result, ShouldEqual, "olia")
+			})
+			Convey("Ack is called", func() {
+				So(ack.AssertExpectations(t), ShouldBeTrue)
+			})
+		})
+		Convey("When good msg is put with result failing", func() {
+			data.ReadFunc = func(file string, id string) (string, error) {
+				return "", errors.New("error")
+			}
+			data.ResultFile = "rFile"
+			ack.On("Ack").Return(nil)
+			d.ReplyTo = "rt"
+
+			wc <- d
+			close(wc)
+			<-fc // wait for complete
+			Convey("msg replied with error", func() {
+				So(cap(ts.Msgs), ShouldEqual, 1)
+				So(ts.Msgs[0].M.Error, ShouldNotBeEmpty)
+			})
+			Convey("Ack is called", func() {
+				So(ack.AssertExpectations(t), ShouldBeTrue)
+			})
+		})
+	})
+}
+
+func TestCheckInputParameters(t *testing.T) {
+	wc := make(chan amqp.Delivery)
+	data := ServiceData{}
+	data.Command = "ls -la"
+	data.WorkingDir = "."
+	data.TaskName = "olia"
+	data.WorkCh = wc
+
+	Convey("Given resultFile", t, func() {
+		data.ResultFile = "olia"
+		Convey("And no function", func() {
+			_, error := StartWorkerService(&data)
+			Convey("Error returned", func() {
+				So(error, ShouldNotBeNil)
+			})
+		})
+		Convey("Given function", func() {
+			data.ReadFunc = ReadFile
+			_, error := StartWorkerService(&data)
+			Convey("No error returned", func() {
+				So(error, ShouldBeNil)
 			})
 		})
 	})

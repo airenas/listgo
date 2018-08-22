@@ -2,6 +2,7 @@ package cmdworker
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"os/exec"
 	"strings"
 
@@ -11,11 +12,17 @@ import (
 	"github.com/streadway/amqp"
 )
 
+type readFunc func(file string, id string) (string, error)
+
 // ServiceData keeps data required for service work
 type ServiceData struct {
 	TaskName   string
 	Command    string
 	WorkingDir string
+	//ResultFile if non empty then tries to pass result to reply message from the file
+	// changes {ID} in the file with message id
+	ResultFile string
+	ReadFunc   readFunc
 
 	MessageSender messages.Sender
 	WorkCh        <-chan amqp.Delivery
@@ -34,6 +41,9 @@ func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 		return nil, errors.New("No Task Name")
 	}
 	if data.Command == "" {
+		return nil, errors.New("No command")
+	}
+	if data.ResultFile != "" && data.ReadFunc == nil {
 		return nil, errors.New("No command")
 	}
 
@@ -86,6 +96,13 @@ func processMsg(d *amqp.Delivery, data *ServiceData) (*messages.QueueMessage, er
 	result := messages.NewQueueMessage(message.ID)
 	if err != nil {
 		result.Error = err.Error()
+	} else {
+		if data.ResultFile != "" && d.ReplyTo != "" {
+			result.Result, err = data.ReadFunc(data.ResultFile, message.ID)
+			if err != nil {
+				result.Error = err.Error()
+			}
+		}
 	}
 	return result, nil
 }
@@ -109,4 +126,15 @@ func RunCommand(command string, workingDir string, id string) error {
 		return errR
 	}
 	return nil
+}
+
+//ReadFile reads content as string
+func ReadFile(file string, id string) (string, error) {
+	realFile := strings.Replace(file, "{ID}", id, -1)
+	cmdapp.Log.Infof("Reading file: %s", realFile)
+	bytes, err := ioutil.ReadFile(realFile)
+	if err != nil {
+		return "", errors.Wrap(err, "Can't read file "+realFile)
+	}
+	return string(bytes), nil
 }
