@@ -3,6 +3,7 @@ package mongo
 import (
 	"bitbucket.org/airenas/listgo/internal/app/status/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 )
@@ -28,7 +29,7 @@ func (fs StatusProvider) Get(id string) (*api.TranscriptionResult, error) {
 	}
 	defer session.Close()
 
-	c := session.DB("store").C("status")
+	c := session.DB(store).C(statusTable)
 
 	var m bson.M
 	err = c.Find(bson.M{"ID": id}).One(&m)
@@ -51,7 +52,33 @@ func (fs StatusProvider) Get(id string) (*api.TranscriptionResult, error) {
 	if ok {
 		result.Error = errorStr
 	}
+	if result.Status == messages.StCOMPLETED {
+		result.RecognizedText, err = getResultText(session, id)
+	}
+
 	return &result, err
+}
+
+// Get retrieves status from DB
+func getResultText(session *mgo.Session, id string) (string, error) {
+	cmdapp.Log.Infof("Retrieving result %s", id)
+
+	c := session.DB(store).C(resultTable)
+
+	var m bson.M
+	err := c.Find(bson.M{"ID": id}).One(&m)
+	if err == mgo.ErrNotFound {
+		cmdapp.Log.Infof("ID not found %s", id)
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	text, ok := m["text"].(string)
+	if ok {
+		return text, nil
+	}
+	return "", nil
 }
 
 func newNotFoundResult(ID string) *api.TranscriptionResult {

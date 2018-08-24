@@ -17,6 +17,11 @@ const (
 	FinishDecode string = "FinishDecode"
 )
 
+const (
+	// StCOMPLETE is status for complete indicator
+	StCOMPLETED string = "COMPLETED"
+)
+
 //ResultQueueFor creates result queus name for input queue
 func ResultQueueFor(queue string) string {
 	return queue + "_Result"

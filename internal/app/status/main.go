@@ -1,8 +1,6 @@
 package status
 
 import (
-	"os"
-
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
@@ -25,19 +23,9 @@ func init() {
 	cmdapp.Config.SetDefault("port", 8080)
 }
 
-func logPanic() {
-	if r := recover(); r != nil {
-		cmdapp.Log.Error(r)
-		os.Exit(1)
-	}
-}
-
 //Execute starts the server
 func Execute() {
-	defer logPanic()
-	if err := rootCmd.Execute(); err != nil {
-		panic(err)
-	}
+	cmdapp.Execute(rootCmd)
 }
 
 func run(cmd *cobra.Command, args []string) {

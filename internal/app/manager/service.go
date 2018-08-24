@@ -145,7 +145,7 @@ func resultMakeFinish(message *messages.QueueMessage, data *ServiceData, d *amqp
 			return err
 		}
 	}
-	c, err := processStatus(message, data, messages.ResultMake, "COMPLETED")
+	c, err := processStatus(message, data, messages.ResultMake, messages.StCOMPLETED)
 	if !c {
 		if err != nil {
 			cmdapp.Log.Error(err)
