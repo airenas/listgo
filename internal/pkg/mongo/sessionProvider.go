@@ -42,19 +42,23 @@ func (sp *SessionProvider) NewSession() (*mgo.Session, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "Can't dial to mongo: "+sp.URL)
 		}
-		err = checkIndex(session)
+		err = checkIndex(session, statusTable)
 		if err != nil {
-			return nil, errors.Wrap(err, "Can't create index")
+			return nil, errors.Wrap(err, "Can't create index: "+statusTable)
+		}
+		err = checkIndex(session, resultTable)
+		if err != nil {
+			return nil, errors.Wrap(err, "Can't create index: "+resultTable)
 		}
 		sp.session = session
 	}
 	return sp.session.Copy(), nil
 }
 
-func checkIndex(s *mgo.Session) error {
+func checkIndex(s *mgo.Session, table string) error {
 	session := s.Copy()
 	defer session.Close()
-	c := session.DB("store").C("status")
+	c := session.DB(store).C(table)
 	index := mgo.Index{
 		Key:        []string{"ID"},
 		Unique:     true,

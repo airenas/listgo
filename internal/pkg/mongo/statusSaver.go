@@ -26,7 +26,7 @@ func (fs StatusSaver) Save(ID string, status string, errorStr string) error {
 	}
 	defer session.Close()
 
-	c := session.DB("store").C("status")
+	c := session.DB(store).C(statusTable)
 	_, err = c.Upsert(
 		bson.M{"ID": ID},
 		bson.M{"$set": bson.M{"status": status, "error": errorStr}},

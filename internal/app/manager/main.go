@@ -34,7 +34,6 @@ func run(cmd *cobra.Command, args []string) {
 
 	mongoSessionProvider, err := mongo.NewSessionProvider()
 	cmdapp.CheckOrPanic(err, "Can't init mongo provider")
-
 	defer mongoSessionProvider.Close()
 
 	msgChannelProvider, err := rabbit.NewChannelProvider(cmdapp.Config.GetString("messageServer.broker"))
@@ -60,6 +59,8 @@ func run(cmd *cobra.Command, args []string) {
 
 	data.StatusSaver, err = mongo.NewStatusSaver(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "Can't init status saver")
+	data.ResultSaver, err = mongo.NewResultSaver(mongoSessionProvider)
+	cmdapp.CheckOrPanic(err, "Can't init result saver")
 
 	fc, err := StartWorkerService(&data)
 	cmdapp.CheckOrPanic(err, "Can't start worker service")

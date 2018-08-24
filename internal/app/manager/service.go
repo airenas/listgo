@@ -15,6 +15,7 @@ import (
 type ServiceData struct {
 	MessageSender   messages.Sender
 	StatusSaver     upload.StatusSaver
+	ResultSaver     ResultSaver
 	DecodeCh        <-chan amqp.Delivery
 	AudioConvertCh  <-chan amqp.Delivery
 	DiarizationCh   <-chan amqp.Delivery
@@ -26,6 +27,10 @@ type prFunc func(message *messages.QueueMessage, data *ServiceData, d *amqp.Deli
 
 //StartWorkerService starts the event queue listener service to listen for events
 func StartWorkerService(data *ServiceData) (<-chan bool, error) {
+	if data.ResultSaver == nil {
+		return nil, errors.New("Result saver not provided")
+	}
+
 	cmdapp.Log.Infof("Starting listen for messages")
 
 	fc := make(chan bool)
@@ -133,6 +138,13 @@ func transcriptionFinish(message *messages.QueueMessage, data *ServiceData, d *a
 // 1. logs status
 // 2. sends 'FinishDecode' message
 func resultMakeFinish(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error {
+	if message.Error != "" {
+		err := data.ResultSaver.Save(message.ID, message.Result)
+		if err != nil {
+			cmdapp.Log.Error(err)
+			return err
+		}
+	}
 	c, err := processStatus(message, data, messages.ResultMake, "COMPLETED")
 	if !c {
 		if err != nil {
@@ -140,6 +152,7 @@ func resultMakeFinish(message *messages.QueueMessage, data *ServiceData, d *amqp
 		}
 		return err
 	}
+
 	return data.MessageSender.Send(messages.NewQueueMessage(message.ID), messages.FinishDecode, "")
 }
 

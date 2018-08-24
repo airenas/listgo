@@ -6,12 +6,29 @@ import (
 	"log"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/test"
+	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 	. "github.com/smartystreets/goconvey/convey"
 )
+
+func TestInitManager(t *testing.T) {
+	Convey("Given a manager", t, func() {
+		data := ServiceData{}
+		Convey("When no result Saver", func() {
+			_, err := StartWorkerService(&data)
+			So(err, ShouldNotBeNil)
+		})
+		Convey("When ResultSaver Provided", func() {
+			data.ResultSaver = &mocks.ResultSaver{}
+			_, err := StartWorkerService(&data)
+			So(err, ShouldBeNil)
+		})
+	})
+}
 
 func TestHandlesMessages(t *testing.T) {
 	Convey("Given a manager", t, func() {
@@ -30,6 +47,8 @@ func TestHandlesMessages(t *testing.T) {
 		data.DiarizationCh = diac
 		data.TranscriptionCh = tc
 		data.ResultMakeCh = rc
+		rsMock := &mocks.ResultSaver{}
+		data.ResultSaver = rsMock
 		fc, _ := StartWorkerService(&data)
 		Convey("When wrong Decode msg is put", func() {
 			dc <- amqp.Delivery{}
@@ -106,6 +125,7 @@ func TestHandlesMessages(t *testing.T) {
 			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
 			diac <- amqp.Delivery{Body: msgdata}
 			close(diac)
+			<-fc
 			Convey("Status must be changed", func() {
 				So(test.Contains(ts.statuses, messages.Transcription), ShouldBeTrue)
 			})
@@ -162,7 +182,10 @@ func TestHandlesMessages(t *testing.T) {
 			})
 		})
 		Convey("When good ResultMakeResult msg with error is put", func() {
-			msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
+			rsMock.On("Save", "1", "result").Return(nil)
+			msg := messages.NewQueueMsgWithError("1", "error")
+			msg.Result = "result"
+			msgdata, _ := json.Marshal(msg)
 			rc <- amqp.Delivery{Body: msgdata}
 			close(rc)
 			<-fc
@@ -172,6 +195,28 @@ func TestHandlesMessages(t *testing.T) {
 			Convey("No msg sent", func() {
 				So(cap(tsn.Msgs), ShouldEqual, 0)
 			})
+			Convey("result save is called", func() {
+				So(rsMock.AssertExpectations(t), ShouldBeTrue)
+			})
+		})
+		Convey("When good ResultMakeResult msg is put and", func() {
+			Convey("Result save fails", func() {
+				rsMock.On("Save", "1", "").Return(errors.New("Fail"))
+				msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
+				rc <- amqp.Delivery{Body: msgdata}
+				close(rc)
+				<-fc
+				Convey("Status must not be changed", func() {
+					So(len(ts.statuses), ShouldEqual, 0)
+				})
+				Convey("No msg sent", func() {
+					So(cap(tsn.Msgs), ShouldEqual, 0)
+				})
+				Convey("result save is called", func() {
+					So(rsMock.AssertExpectations(t), ShouldBeTrue)
+				})
+			})
+
 		})
 	})
 }
