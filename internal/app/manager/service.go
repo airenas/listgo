@@ -69,7 +69,7 @@ func processMsg(d *amqp.Delivery, f prFunc, data *ServiceData) (bool, error) {
 // 2. send 'Started' event (async)
 // 3. send and wait for 'AudioConvert' to finish
 func decode(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error {
-	cmdapp.Log.Infof("Got decode msg :%s", message.ID)
+	cmdapp.Log.Infof("Got %s msg :%s", messages.Decode, message.ID)
 	err := data.StatusSaver.Save(message.ID, messages.AudioConvert, "")
 	if err != nil {
 		cmdapp.Log.Error(err)
@@ -88,18 +88,11 @@ func decode(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery)
 // 1. logs status
 // 2. sends 'Diarization' message
 func audioConvertFinish(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error {
-	cmdapp.Log.Infof("Got audioConvertFinish msg :%s", message.ID)
-	if message.Error != "" {
-		err := data.StatusSaver.Save(message.ID, messages.AudioConvert, message.Error)
+	c, err := processStatus(message, data, messages.AudioConvert, messages.Diarization)
+	if !c {
 		if err != nil {
 			cmdapp.Log.Error(err)
-			return err
 		}
-		return nil
-	}
-	err := data.StatusSaver.Save(message.ID, messages.Diarization, "")
-	if err != nil {
-		cmdapp.Log.Error(err)
 		return err
 	}
 	return data.MessageSender.Send(messages.NewQueueMessage(message.ID),
@@ -110,18 +103,11 @@ func audioConvertFinish(message *messages.QueueMessage, data *ServiceData, d *am
 // 1. logs status
 // 2. sends 'Transctiption' message
 func diarizationFinish(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error {
-	cmdapp.Log.Infof("Got diarizationFinish msg :%s", message.ID)
-	if message.Error != "" {
-		err := data.StatusSaver.Save(message.ID, messages.Diarization, message.Error)
+	c, err := processStatus(message, data, messages.Diarization, messages.Transcription)
+	if !c {
 		if err != nil {
 			cmdapp.Log.Error(err)
-			return err
 		}
-		return nil
-	}
-	err := data.StatusSaver.Save(message.ID, messages.Transcription, "")
-	if err != nil {
-		cmdapp.Log.Error(err)
 		return err
 	}
 	return data.MessageSender.Send(messages.NewQueueMessage(message.ID),
@@ -132,18 +118,11 @@ func diarizationFinish(message *messages.QueueMessage, data *ServiceData, d *amq
 // 1. logs status
 // 2. sends 'ResultMake' message
 func transcriptionFinish(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error {
-	cmdapp.Log.Infof("Got transcriptionFinish msg :%s", message.ID)
-	if message.Error != "" {
-		err := data.StatusSaver.Save(message.ID, messages.Transcription, message.Error)
+	c, err := processStatus(message, data, messages.Transcription, messages.ResultMake)
+	if !c {
 		if err != nil {
 			cmdapp.Log.Error(err)
-			return err
 		}
-		return nil
-	}
-	err := data.StatusSaver.Save(message.ID, messages.ResultMake, "")
-	if err != nil {
-		cmdapp.Log.Error(err)
 		return err
 	}
 	return data.MessageSender.Send(messages.NewQueueMessage(message.ID),
@@ -154,101 +133,30 @@ func transcriptionFinish(message *messages.QueueMessage, data *ServiceData, d *a
 // 1. logs status
 // 2. sends 'FinishDecode' message
 func resultMakeFinish(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error {
-	cmdapp.Log.Infof("Got resultMakeFinish msg :%s", message.ID)
-	if message.Error != "" {
-		err := data.StatusSaver.Save(message.ID, messages.ResultMake, message.Error)
+	c, err := processStatus(message, data, messages.ResultMake, "COMPLETED")
+	if !c {
 		if err != nil {
 			cmdapp.Log.Error(err)
-			return err
 		}
-		return nil
-	}
-	err := data.StatusSaver.Save(message.ID, "COMPLETED", "")
-	if err != nil {
-		cmdapp.Log.Error(err)
 		return err
 	}
 	return data.MessageSender.Send(messages.NewQueueMessage(message.ID), messages.FinishDecode, "")
 }
 
-//decode is main method to lead the transcription process
-// workflow:
-// 1. set status to STARTED
-// 2. send 'Started' event (async)
-// 3. send and wait for 'AudioConvert' to finish
-// 4. send and wait for 'Diarization' to finish
-// 5. send and wait for 'Transcription' to finish
-// 6. send and wait for 'MakeResult' to finish
-
-// send 'Finished' event (async)
-// set status to COMPLETE
-// func decode1(data *ServiceData, id string) error {
-// 	cmdapp.Log.Infof("Got decode msg :%s", id)
-// 	err := data.StatusSaver.Save(id, "STARTED", "")
-// 	if err != nil {
-// 		cmdapp.Log.Error(err)
-// 		return err
-// 	}
-// 	sendAsyncMessage("Started", data, id)
-
-// 	err = doTask("AudioConvert", data, id)
-// 	if err != nil {
-// 		cmdapp.Log.Error(err)
-// 		return err
-// 	}
-// 	err = doTask("Diarization", data, id)
-// 	if err != nil {
-// 		cmdapp.Log.Error(err)
-// 		return err
-// 	}
-// 	err = doTask("Transcription", data, id)
-// 	if err != nil {
-// 		cmdapp.Log.Error(err)
-// 		return err
-// 	}
-// 	err = doTask("MakeResult", data, id)
-// 	if err != nil {
-// 		cmdapp.Log.Error(err)
-// 		return err
-// 	}
-
-// 	sendAsyncMessage("Finished", data, id)
-
-// 	err = data.StatusSaver.Save(id, "COMPLETE", "")
-// 	if err != nil {
-// 		cmdapp.Log.Error(err)
-// 		return err
-// 	}
-// 	return nil
-// }
-
-// func doTask(name string, data *ServiceData, id string) error {
-// 	cmdapp.Log.Infof("Doing task %s, id %s", name, id)
-// 	err := data.StatusSaver.Save(id, name, "")
-// 	if err != nil {
-// 		return errors.Wrap(err, "Can't save status")
-// 	}
-// 	asyncResult, err := data.MessageSender.Send(newMsg(id, name))
-// 	if err != nil {
-// 		data.StatusSaver.Save(id, name, err.Error())
-// 		return errors.Wrap(err, "Can't send message")
-// 	}
-// 	cmdapp.Log.Infof("Message sent. Waiting for completion %s, id %s", name, id)
-// 	_, err = asyncResult.Get(time.Duration(time.Second))
-// 	if err != nil {
-// 		data.StatusSaver.Save(id, name, err.Error())
-// 		return errors.Wrap(err, "Can't get result")
-// 	}
-// 	return nil
-// }
-
-// func sendMessage(name string, data *ServiceData, id string) {
-// 	// _, err := data.MessageSender.Send(newMsg(id, name))
-// 	// if err != nil {
-// 	// 	cmdapp.Log.Errorf("Can't send message %s (%s). Cause: %s", name, id, err.Error())
-// 	// }
-// }
-
-// func newMsg(id string, queue string) *msgsender.Message {
-// 	return &msgsender.Message{ID: id, Queue: queue}
-// }
+func processStatus(message *messages.QueueMessage, data *ServiceData, from string, to string) (bool, error) {
+	cmdapp.Log.Infof("Got %s msg :%s", from, message.ID)
+	if message.Error != "" {
+		err := data.StatusSaver.Save(message.ID, from, message.Error)
+		if err != nil {
+			cmdapp.Log.Error(err)
+			return false, err
+		}
+		return false, nil
+	}
+	err := data.StatusSaver.Save(message.ID, to, "")
+	if err != nil {
+		cmdapp.Log.Error(err)
+		return false, err
+	}
+	return true, nil
+}
