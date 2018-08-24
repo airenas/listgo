@@ -170,7 +170,10 @@ func TestHandlesMessages(t *testing.T) {
 			})
 		})
 		Convey("When good ResultMakeResult msg is put", func() {
-			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
+			rsMock.On("Save", "1", "result").Return(nil)
+			msg := messages.NewQueueMsgWithError("1", "")
+			msg.Result = "result"
+			msgdata, _ := json.Marshal(msg)
 			rc <- amqp.Delivery{Body: msgdata}
 			close(rc)
 			<-fc
@@ -180,11 +183,12 @@ func TestHandlesMessages(t *testing.T) {
 			Convey("FinishDecode msg sent", func() {
 				So(test.ContainsMsg(tsn.Msgs, test.NewMsg("1", messages.FinishDecode, false)), ShouldBeTrue)
 			})
+			Convey("result save is called", func() {
+				So(rsMock.AssertExpectations(t), ShouldBeTrue)
+			})
 		})
 		Convey("When good ResultMakeResult msg with error is put", func() {
-			rsMock.On("Save", "1", "result").Return(nil)
 			msg := messages.NewQueueMsgWithError("1", "error")
-			msg.Result = "result"
 			msgdata, _ := json.Marshal(msg)
 			rc <- amqp.Delivery{Body: msgdata}
 			close(rc)
@@ -195,14 +199,14 @@ func TestHandlesMessages(t *testing.T) {
 			Convey("No msg sent", func() {
 				So(cap(tsn.Msgs), ShouldEqual, 0)
 			})
-			Convey("result save is called", func() {
+			Convey("result save is not called", func() {
 				So(rsMock.AssertExpectations(t), ShouldBeTrue)
 			})
 		})
 		Convey("When good ResultMakeResult msg is put and", func() {
 			Convey("Result save fails", func() {
 				rsMock.On("Save", "1", "").Return(errors.New("Fail"))
-				msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
+				msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", ""))
 				rc <- amqp.Delivery{Body: msgdata}
 				close(rc)
 				<-fc

@@ -138,7 +138,7 @@ func transcriptionFinish(message *messages.QueueMessage, data *ServiceData, d *a
 // 1. logs status
 // 2. sends 'FinishDecode' message
 func resultMakeFinish(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error {
-	if message.Error != "" {
+	if message.Error == "" {
 		err := data.ResultSaver.Save(message.ID, message.Result)
 		if err != nil {
 			cmdapp.Log.Error(err)
