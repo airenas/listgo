@@ -18,8 +18,13 @@ const (
 )
 
 const (
-	// StCOMPLETE is status for complete indicator
+	//StCOMPLETED is status for complete indicator
 	StCOMPLETED string = "COMPLETED"
+)
+
+const (
+	//TopicStatusChange is topic name for status change event
+	TopicStatusChange string = "StatusChange"
 )
 
 //ResultQueueFor creates result queus name for input queue

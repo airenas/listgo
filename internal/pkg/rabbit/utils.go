@@ -26,3 +26,16 @@ func NewChannel(ch *amqp.Channel, qName string) (<-chan amqp.Delivery, error) {
 		nil,   // args
 	)
 }
+
+//DeclareExchange creates exchange to publish events
+func DeclareExchange(ch *amqp.Channel, topic string) error {
+	return ch.ExchangeDeclare(
+		topic,    // name
+		"fanout", // type
+		true,     // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
+	)
+}

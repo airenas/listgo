@@ -90,3 +90,10 @@ func CheckOrPanic(err error, msg string) {
 		panic(errors.Wrap(err, msg))
 	}
 }
+
+//LogIf logs error if err != nil
+func LogIf(err error) {
+	if err != nil {
+		Log.Error(err)
+	}
+}

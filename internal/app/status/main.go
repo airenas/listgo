@@ -31,17 +31,12 @@ func Execute() {
 func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Info("Starting " + appName)
 	mongoSessionProvider, err := mongo.NewSessionProvider()
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "")
 	defer mongoSessionProvider.Close()
 
 	statusProvider, err := mongo.NewStatusProvider(mongoSessionProvider)
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "")
+
 	err = StartWebServer(&ServiceData{*statusProvider, cmdapp.Config.GetInt("port")})
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "")
 }

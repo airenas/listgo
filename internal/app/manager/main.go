@@ -42,8 +42,11 @@ func run(cmd *cobra.Command, args []string) {
 
 	err = initQueues(msgChannelProvider)
 	cmdapp.CheckOrPanic(err, "Can't init queues")
+	err = initEventExchange(msgChannelProvider)
+	cmdapp.CheckOrPanic(err, "Can't init event exchange")
 
 	data.MessageSender = rabbit.NewSender(msgChannelProvider)
+	data.Publisher = rabbit.NewPublisher(msgChannelProvider)
 
 	ch, err := msgChannelProvider.Channel()
 	cmdapp.CheckOrPanic(err, "Can't open channel")
@@ -91,5 +94,12 @@ func initQueues(prv *rabbit.ChannelProvider) error {
 			}
 		}
 		return nil
+	})
+}
+
+func initEventExchange(prv *rabbit.ChannelProvider) error {
+	cmdapp.Log.Info("Initializing exchanges")
+	return prv.RunOnChannelWithRetry(func(ch *amqp.Channel) error {
+		return rabbit.DeclareExchange(ch, messages.TopicStatusChange)
 	})
 }

@@ -14,6 +14,7 @@ import (
 // ServiceData keeps data required for service work
 type ServiceData struct {
 	MessageSender   messages.Sender
+	Publisher       messages.Publisher
 	StatusSaver     upload.StatusSaver
 	ResultSaver     ResultSaver
 	DecodeCh        <-chan amqp.Delivery
@@ -29,6 +30,9 @@ type prFunc func(message *messages.QueueMessage, data *ServiceData, d *amqp.Deli
 func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 	if data.ResultSaver == nil {
 		return nil, errors.New("Result saver not provided")
+	}
+	if data.Publisher == nil {
+		return nil, errors.New("Publisher not provided")
 	}
 
 	cmdapp.Log.Infof("Starting listen for messages")
@@ -80,6 +84,7 @@ func decode(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery)
 		cmdapp.Log.Error(err)
 		return err
 	}
+	publishStatusChange(message, data)
 	err = data.MessageSender.Send(messages.NewQueueMessage(message.ID),
 		messages.StartedDecode, "")
 	if err != nil {
@@ -152,6 +157,7 @@ func resultMakeFinish(message *messages.QueueMessage, data *ServiceData, d *amqp
 		}
 		return err
 	}
+	publishStatusChange(message, data)
 
 	return data.MessageSender.Send(messages.NewQueueMessage(message.ID), messages.FinishDecode, "")
 }
@@ -164,6 +170,7 @@ func processStatus(message *messages.QueueMessage, data *ServiceData, from strin
 			cmdapp.Log.Error(err)
 			return false, err
 		}
+		publishStatusChange(message, data)
 		return false, nil
 	}
 	err := data.StatusSaver.Save(message.ID, to, "")
@@ -171,5 +178,12 @@ func processStatus(message *messages.QueueMessage, data *ServiceData, from strin
 		cmdapp.Log.Error(err)
 		return false, err
 	}
+	publishStatusChange(message, data)
 	return true, nil
+}
+
+func publishStatusChange(message *messages.QueueMessage, data *ServiceData) {
+	cmdapp.Log.Infof("Publishing status change %s", message.ID)
+	err := data.Publisher.Publish(message.ID, messages.TopicStatusChange)
+	cmdapp.LogIf(err)
 }

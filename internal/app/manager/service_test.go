@@ -18,12 +18,23 @@ import (
 func TestInitManager(t *testing.T) {
 	Convey("Given a manager", t, func() {
 		data := ServiceData{}
+		data.ResultSaver = &mocks.ResultSaver{}
+		data.Publisher = &mocks.Publisher{}
 		Convey("When no result Saver", func() {
+			data.ResultSaver = nil
 			_, err := StartWorkerService(&data)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("When ResultSaver Provided", func() {
-			data.ResultSaver = &mocks.ResultSaver{}
+			_, err := StartWorkerService(&data)
+			So(err, ShouldBeNil)
+		})
+		Convey("When no Publisher", func() {
+			data.Publisher = nil
+			_, err := StartWorkerService(&data)
+			So(err, ShouldNotBeNil)
+		})
+		Convey("When Publisher Provided", func() {
 			_, err := StartWorkerService(&data)
 			So(err, ShouldBeNil)
 		})
@@ -49,6 +60,9 @@ func TestHandlesMessages(t *testing.T) {
 		data.ResultMakeCh = rc
 		rsMock := &mocks.ResultSaver{}
 		data.ResultSaver = rsMock
+		pubMock := &mocks.Publisher{}
+		pubMock.On("Publish", "1", messages.TopicStatusChange).Return(nil).Times(10)
+		data.Publisher = pubMock
 		fc, _ := StartWorkerService(&data)
 		Convey("When wrong Decode msg is put", func() {
 			dc <- amqp.Delivery{}
