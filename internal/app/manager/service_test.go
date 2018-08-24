@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"testing"
-	"time"
 
 	"github.com/streadway/amqp"
 
@@ -31,10 +30,11 @@ func TestHandlesMessages(t *testing.T) {
 		data.DiarizationCh = diac
 		data.TranscriptionCh = tc
 		data.ResultMakeCh = rc
-		go StartWorkerService(&data)
+		fc, _ := StartWorkerService(&data)
 		Convey("When wrong Decode msg is put", func() {
 			dc <- amqp.Delivery{}
 			close(dc)
+			<-fc
 			Convey("Status must not be changed", func() {
 				So(cap(ts.statuses), ShouldEqual, 0)
 			})
@@ -46,6 +46,7 @@ func TestHandlesMessages(t *testing.T) {
 			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
 			dc <- amqp.Delivery{Body: msgdata}
 			close(dc)
+			<-fc
 			Convey("Status must be changed", func() {
 				So(test.Contains(ts.statuses, messages.AudioConvert), ShouldBeTrue)
 			})
@@ -59,6 +60,7 @@ func TestHandlesMessages(t *testing.T) {
 		Convey("When wrong AudioConvertResult msg is put", func() {
 			ac <- amqp.Delivery{}
 			close(ac)
+			<-fc
 			Convey("Status must not be changed", func() {
 				So(cap(ts.statuses), ShouldEqual, 0)
 			})
@@ -70,6 +72,7 @@ func TestHandlesMessages(t *testing.T) {
 			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
 			ac <- amqp.Delivery{Body: msgdata}
 			close(ac)
+			<-fc
 			Convey("Status must be changed", func() {
 				So(test.Contains(ts.statuses, messages.Diarization), ShouldBeTrue)
 			})
@@ -81,6 +84,7 @@ func TestHandlesMessages(t *testing.T) {
 			msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
 			ac <- amqp.Delivery{Body: msgdata}
 			close(ac)
+			<-fc
 			Convey("Status must be changed", func() {
 				So(test.Contains(ts.statuses, messages.AudioConvert+"error"), ShouldBeTrue)
 			})
@@ -113,6 +117,7 @@ func TestHandlesMessages(t *testing.T) {
 			msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
 			diac <- amqp.Delivery{Body: msgdata}
 			close(diac)
+			<-fc
 			Convey("Status must be changed", func() {
 				So(test.Contains(ts.statuses, messages.Diarization+"error"), ShouldBeTrue)
 			})
@@ -124,7 +129,7 @@ func TestHandlesMessages(t *testing.T) {
 			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
 			tc <- amqp.Delivery{Body: msgdata}
 			close(tc)
-			time.Sleep(time.Second * 2)
+			<-fc
 			Convey("Status must be changed", func() {
 				So(test.Contains(ts.statuses, messages.ResultMake), ShouldBeTrue)
 			})
@@ -136,7 +141,7 @@ func TestHandlesMessages(t *testing.T) {
 			msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
 			tc <- amqp.Delivery{Body: msgdata}
 			close(tc)
-			time.Sleep(time.Second * 2)
+			<-fc
 			Convey("Status must be changed", func() {
 				So(test.Contains(ts.statuses, messages.Transcription+"error"), ShouldBeTrue)
 			})
@@ -148,7 +153,7 @@ func TestHandlesMessages(t *testing.T) {
 			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
 			rc <- amqp.Delivery{Body: msgdata}
 			close(rc)
-			time.Sleep(time.Second * 2)
+			<-fc
 			Convey("Status must be changed", func() {
 				So(test.Contains(ts.statuses, "COMPLETED"), ShouldBeTrue)
 			})
@@ -160,7 +165,7 @@ func TestHandlesMessages(t *testing.T) {
 			msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
 			rc <- amqp.Delivery{Body: msgdata}
 			close(rc)
-			time.Sleep(time.Second * 2)
+			<-fc
 			Convey("Status must be changed", func() {
 				So(test.Contains(ts.statuses, messages.ResultMake+"error"), ShouldBeTrue)
 			})

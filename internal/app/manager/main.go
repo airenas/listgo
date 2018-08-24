@@ -6,7 +6,6 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/streadway/amqp"
 )
@@ -34,62 +33,45 @@ func run(cmd *cobra.Command, args []string) {
 	data := ServiceData{}
 
 	mongoSessionProvider, err := mongo.NewSessionProvider()
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "Can't init mongo provider")
+
 	defer mongoSessionProvider.Close()
 
 	msgChannelProvider, err := rabbit.NewChannelProvider(cmdapp.Config.GetString("messageServer.broker"))
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "Can't init rabbit provider")
 	defer msgChannelProvider.Close()
 
 	err = initQueues(msgChannelProvider)
-	if err != nil {
-		panic(errors.Wrap(err, "Can't init queues"))
-	}
+	cmdapp.CheckOrPanic(err, "Can't init queues")
+
 	data.MessageSender = rabbit.NewSender(msgChannelProvider)
 
 	ch, err := msgChannelProvider.Channel()
-	if err != nil {
-		panic(errors.Wrap(err, "Can't open channel"))
-	}
-	err = ch.Qos(1, 0, false)
-	if err != nil {
-		panic(errors.Wrap(err, "Can't set Qos"))
-	}
+	cmdapp.CheckOrPanic(err, "Can't open channel")
 
-	data.DecodeCh, err = rabbit.NewChannel(ch, messages.Decode)
-	if err != nil {
-		panic(errors.Wrap(err, "Can't listen Decode channel"))
-	}
-	data.AudioConvertCh, err = rabbit.NewChannel(ch, messages.ResultQueueFor(messages.AudioConvert))
-	if err != nil {
-		panic(errors.Wrap(err, "Can't listen AudioConvertCh channel"))
-	}
-	data.DiarizationCh, err = rabbit.NewChannel(ch, messages.ResultQueueFor(messages.Diarization))
-	if err != nil {
-		panic(errors.Wrap(err, "Can't listen DiarizationCh channel"))
-	}
-	data.TranscriptionCh, err = rabbit.NewChannel(ch, messages.ResultQueueFor(messages.Transcription))
-	if err != nil {
-		panic(errors.Wrap(err, "Can't listen DiarizationCh channel"))
-	}
-	data.ResultMakeCh, err = rabbit.NewChannel(ch, messages.ResultQueueFor(messages.ResultMake))
-	if err != nil {
-		panic(errors.Wrap(err, "Can't listen DiarizationCh channel"))
-	}
+	err = ch.Qos(1, 0, false)
+	cmdapp.CheckOrPanic(err, "Can't set Qos")
+
+	data.DecodeCh = makeQChannel(ch, messages.Decode)
+	data.AudioConvertCh = makeQChannel(ch, messages.ResultQueueFor(messages.AudioConvert))
+	data.DiarizationCh = makeQChannel(ch, messages.ResultQueueFor(messages.Diarization))
+	data.TranscriptionCh = makeQChannel(ch, messages.ResultQueueFor(messages.Transcription))
+	data.ResultMakeCh = makeQChannel(ch, messages.ResultQueueFor(messages.ResultMake))
 
 	data.StatusSaver, err = mongo.NewStatusSaver(mongoSessionProvider)
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "Can't init status saver")
 
-	err = StartWorkerService(&data)
-	if err != nil {
-		panic(err)
-	}
+	fc, err := StartWorkerService(&data)
+	cmdapp.CheckOrPanic(err, "Can't start worker service")
+
+	<-fc
+	cmdapp.Log.Infof("Exiting service")
+}
+
+func makeQChannel(ch *amqp.Channel, qname string) <-chan amqp.Delivery {
+	result, err := rabbit.NewChannel(ch, qname)
+	cmdapp.CheckOrPanic(err, "Can't listen "+qname+" channel")
+	return result
 }
 
 func initQueues(prv *rabbit.ChannelProvider) error {

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/heirko/go-contrib/logrusHelper"
+	"github.com/pkg/errors"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -80,5 +81,12 @@ func Execute(cmd *cobra.Command) {
 	defer logPanic()
 	if err := cmd.Execute(); err != nil {
 		panic(err)
+	}
+}
+
+//CheckOrPanic panics if err != nil
+func CheckOrPanic(err error, msg string) {
+	if err != nil {
+		panic(errors.Wrap(err, msg))
 	}
 }

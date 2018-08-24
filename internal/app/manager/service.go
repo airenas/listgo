@@ -25,7 +25,7 @@ type ServiceData struct {
 type prFunc func(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error
 
 //StartWorkerService starts the event queue listener service to listen for events
-func StartWorkerService(data *ServiceData) error {
+func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 	cmdapp.Log.Infof("Starting listen for messages")
 
 	fc := make(chan bool)
@@ -36,9 +36,7 @@ func StartWorkerService(data *ServiceData) error {
 	go listenQueue(data.TranscriptionCh, transcriptionFinish, data, fc)
 	go listenQueue(data.ResultMakeCh, resultMakeFinish, data, fc)
 
-	<-fc
-	cmdapp.Log.Infof("Exiting service")
-	return nil
+	return fc, nil
 }
 
 func listenQueue(q <-chan amqp.Delivery, f prFunc, data *ServiceData, fc chan<- bool) {
