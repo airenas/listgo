@@ -3,6 +3,9 @@ port: 8081
 mongo:
     url: localhost:27018    
 
+messageServer: 
+    broker: amqp://list:list@localhost:5672/    
+
 logger:
     level: info
     formatter:
