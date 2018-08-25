@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"bitbucket.org/airenas/listgo/internal/pkg/status"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/google/uuid"
@@ -18,7 +19,7 @@ import (
 type ServiceData struct {
 	FileSaver     FileSaver
 	MessageSender messages.Sender
-	StatusSaver   StatusSaver
+	StatusSaver   status.Saver
 	Port          int
 }
 
@@ -64,7 +65,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	id := uuid.New().String()
 
-	err := h.data.StatusSaver.Save(id, "RECEIVED", "")
+	err := h.data.StatusSaver.Save(id, status.Uploaded)
 	if err != nil {
 		setError(w, "Can not save file", http.StatusBadRequest)
 		cmdapp.Log.Error(err)

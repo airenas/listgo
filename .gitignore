@@ -7,3 +7,5 @@ cmd/managerService/managerService
 cmd/cmdWorkerService/cmdWorkerService
 cmd/test/**
 cmd/uploadService/data/**
+internal/pkg/test/mocks/mock_*.*
+internal/pkg/test/mocks/matchers/**

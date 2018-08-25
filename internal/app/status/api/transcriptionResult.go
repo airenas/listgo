@@ -6,4 +6,5 @@ type TranscriptionResult struct {
 	Error          string `json:"error"`
 	Status         string `json:"status"`
 	RecognizedText string `json:"recognizedText"`
+	Progress       int32  `json:"progress"`
 }

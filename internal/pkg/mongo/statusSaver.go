@@ -2,6 +2,7 @@ package mongo
 
 import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/status"
 	"github.com/globalsign/mgo/bson"
 )
 
@@ -17,10 +18,10 @@ func NewStatusSaver(sessionProvider *SessionProvider) (*StatusSaver, error) {
 }
 
 // Save saves status to DB
-func (fs StatusSaver) Save(ID string, status string, errorStr string) error {
-	cmdapp.Log.Infof("Saving status %s: %s (%s)", ID, status, errorStr)
+func (ss *StatusSaver) Save(ID string, status status.Status) error {
+	cmdapp.Log.Infof("Saving status %s: %s", ID, status.Name)
 
-	session, err := fs.SessionProvider.NewSession()
+	session, err := ss.SessionProvider.NewSession()
 	if err != nil {
 		return err
 	}
@@ -29,7 +30,26 @@ func (fs StatusSaver) Save(ID string, status string, errorStr string) error {
 	c := session.DB(store).C(statusTable)
 	_, err = c.Upsert(
 		bson.M{"ID": ID},
-		bson.M{"$set": bson.M{"status": status, "error": errorStr}},
+		//bson.M{"$set": bson.M{"status": status, "error": errorStr}},
+		bson.M{"$set": bson.M{"status": status.Name}, "$unset": bson.M{"error": 1}},
+	)
+	return err
+}
+
+//SaveError saves error to DB
+func (ss *StatusSaver) SaveError(id string, errorStr string) error {
+	cmdapp.Log.Infof("Saving error %s: %s", id, errorStr)
+
+	session, err := ss.SessionProvider.NewSession()
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+
+	c := session.DB(store).C(statusTable)
+	_, err = c.Upsert(
+		bson.M{"ID": id},
+		bson.M{"$set": bson.M{"error": errorStr}},
 	)
 	return err
 }
