@@ -6,20 +6,36 @@ import (
 	"log"
 	"testing"
 
+	"github.com/petergtz/pegomock"
+
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"bitbucket.org/airenas/listgo/internal/pkg/status"
 	"bitbucket.org/airenas/listgo/internal/pkg/test"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
+	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+var statusSaverMock *mocks.MockSaver
+var resultSaverMock *mocks.MockResultSaver
+var publisherMock *mocks.MockPublisher
+
+func initTest(t *testing.T) {
+	mocks.AttachMockToConvey(t)
+	statusSaverMock = mocks.NewMockSaver()
+	resultSaverMock = mocks.NewMockResultSaver()
+	publisherMock = mocks.NewMockPublisher()
+}
+
 func TestInitManager(t *testing.T) {
 	Convey("Given a manager", t, func() {
+		initTest(t)
 		data := ServiceData{}
-		data.ResultSaver = &mocks.ResultSaver{}
-		data.Publisher = &mocks.Publisher{}
+		data.ResultSaver = resultSaverMock
+		data.Publisher = publisherMock
 		Convey("When no result Saver", func() {
 			data.ResultSaver = nil
 			_, err := StartWorkerService(&data)
@@ -43,14 +59,14 @@ func TestInitManager(t *testing.T) {
 
 func TestHandlesMessages(t *testing.T) {
 	Convey("Given a manager", t, func() {
+		initTest(t)
 		dc := make(chan amqp.Delivery)
 		ac := make(chan amqp.Delivery)
 		diac := make(chan amqp.Delivery)
 		tc := make(chan amqp.Delivery)
 		rc := make(chan amqp.Delivery)
 		data := ServiceData{}
-		ts := testStatusSaver{statuses: make([]string, 0)}
-		data.StatusSaver = &ts
+		data.StatusSaver = statusSaverMock
 		tsn := test.Sender{Msgs: make([]test.Msg, 0)}
 		data.MessageSender = &tsn
 		data.DecodeCh = dc
@@ -58,18 +74,15 @@ func TestHandlesMessages(t *testing.T) {
 		data.DiarizationCh = diac
 		data.TranscriptionCh = tc
 		data.ResultMakeCh = rc
-		rsMock := &mocks.ResultSaver{}
-		data.ResultSaver = rsMock
-		pubMock := &mocks.Publisher{}
-		pubMock.On("Publish", "1", messages.TopicStatusChange).Return(nil).Times(10)
-		data.Publisher = pubMock
+		data.ResultSaver = resultSaverMock
+		data.Publisher = publisherMock
 		fc, _ := StartWorkerService(&data)
 		Convey("When wrong Decode msg is put", func() {
 			dc <- amqp.Delivery{}
 			close(dc)
 			<-fc
 			Convey("Status must not be changed", func() {
-				So(cap(ts.statuses), ShouldEqual, 0)
+				statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
 			})
 			Convey("No msg sent", func() {
 				So(cap(tsn.Msgs), ShouldEqual, 0)
@@ -81,7 +94,7 @@ func TestHandlesMessages(t *testing.T) {
 			close(dc)
 			<-fc
 			Convey("Status must be changed", func() {
-				So(test.Contains(ts.statuses, messages.AudioConvert), ShouldBeTrue)
+				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.AudioConvert))
 			})
 			Convey("AudioConvert msg sent", func() {
 				So(test.ContainsMsg(tsn.Msgs, test.NewMsg("1", messages.AudioConvert, true)), ShouldBeTrue)
@@ -95,7 +108,7 @@ func TestHandlesMessages(t *testing.T) {
 			close(ac)
 			<-fc
 			Convey("Status must not be changed", func() {
-				So(cap(ts.statuses), ShouldEqual, 0)
+				statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
 			})
 			Convey("No msg sent", func() {
 				So(cap(tsn.Msgs), ShouldEqual, 0)
@@ -107,7 +120,7 @@ func TestHandlesMessages(t *testing.T) {
 			close(ac)
 			<-fc
 			Convey("Status must be changed", func() {
-				So(test.Contains(ts.statuses, messages.Diarization), ShouldBeTrue)
+				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.Diarization))
 			})
 			Convey("Diarization msg sent", func() {
 				So(test.ContainsMsg(tsn.Msgs, test.NewMsg("1", messages.Diarization, true)), ShouldBeTrue)
@@ -119,7 +132,9 @@ func TestHandlesMessages(t *testing.T) {
 			close(ac)
 			<-fc
 			Convey("Status must be changed", func() {
-				So(test.Contains(ts.statuses, messages.AudioConvert+"error"), ShouldBeTrue)
+				statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
+					pegomock.EqString("error"))
 			})
 			Convey("No msg sent", func() {
 				So(cap(tsn.Msgs), ShouldEqual, 0)
@@ -129,7 +144,7 @@ func TestHandlesMessages(t *testing.T) {
 			diac <- amqp.Delivery{}
 			close(diac)
 			Convey("Status must not be changed", func() {
-				So(cap(ts.statuses), ShouldEqual, 0)
+				statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
 			})
 			Convey("No msg sent", func() {
 				So(cap(tsn.Msgs), ShouldEqual, 0)
@@ -141,7 +156,7 @@ func TestHandlesMessages(t *testing.T) {
 			close(diac)
 			<-fc
 			Convey("Status must be changed", func() {
-				So(test.Contains(ts.statuses, messages.Transcription), ShouldBeTrue)
+				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.Transcription))
 			})
 			Convey("Transcription msg sent", func() {
 				So(test.ContainsMsg(tsn.Msgs, test.NewMsg("1", messages.Transcription, true)), ShouldBeTrue)
@@ -153,7 +168,9 @@ func TestHandlesMessages(t *testing.T) {
 			close(diac)
 			<-fc
 			Convey("Status must be changed", func() {
-				So(test.Contains(ts.statuses, messages.Diarization+"error"), ShouldBeTrue)
+				statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
+					pegomock.EqString("error"))
 			})
 			Convey("No msg sent", func() {
 				So(cap(tsn.Msgs), ShouldEqual, 0)
@@ -165,7 +182,7 @@ func TestHandlesMessages(t *testing.T) {
 			close(tc)
 			<-fc
 			Convey("Status must be changed", func() {
-				So(test.Contains(ts.statuses, messages.ResultMake), ShouldBeTrue)
+				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.ResultMake))
 			})
 			Convey("Transcription msg sent", func() {
 				So(test.ContainsMsg(tsn.Msgs, test.NewMsg("1", messages.ResultMake, true)), ShouldBeTrue)
@@ -177,14 +194,15 @@ func TestHandlesMessages(t *testing.T) {
 			close(tc)
 			<-fc
 			Convey("Status must be changed", func() {
-				So(test.Contains(ts.statuses, messages.Transcription+"error"), ShouldBeTrue)
+				statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
+					pegomock.EqString("error"))
 			})
 			Convey("No msg sent", func() {
 				So(cap(tsn.Msgs), ShouldEqual, 0)
 			})
 		})
 		Convey("When good ResultMakeResult msg is put", func() {
-			rsMock.On("Save", "1", "result").Return(nil)
 			msg := messages.NewQueueMsgWithError("1", "")
 			msg.Result = "result"
 			msgdata, _ := json.Marshal(msg)
@@ -192,13 +210,13 @@ func TestHandlesMessages(t *testing.T) {
 			close(rc)
 			<-fc
 			Convey("Status must be changed", func() {
-				So(test.Contains(ts.statuses, "COMPLETED"), ShouldBeTrue)
+				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.Completed))
 			})
 			Convey("FinishDecode msg sent", func() {
 				So(test.ContainsMsg(tsn.Msgs, test.NewMsg("1", messages.FinishDecode, false)), ShouldBeTrue)
 			})
 			Convey("result save is called", func() {
-				So(rsMock.AssertExpectations(t), ShouldBeTrue)
+				resultSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), pegomock.AnyString())
 			})
 		})
 		Convey("When good ResultMakeResult msg with error is put", func() {
@@ -208,30 +226,32 @@ func TestHandlesMessages(t *testing.T) {
 			close(rc)
 			<-fc
 			Convey("Status must be changed", func() {
-				So(test.Contains(ts.statuses, messages.ResultMake+"error"), ShouldBeTrue)
+				statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
+					pegomock.EqString("error"))
 			})
 			Convey("No msg sent", func() {
 				So(cap(tsn.Msgs), ShouldEqual, 0)
 			})
 			Convey("result save is not called", func() {
-				So(rsMock.AssertExpectations(t), ShouldBeTrue)
+				resultSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), pegomock.AnyString())
 			})
 		})
 		Convey("When good ResultMakeResult msg is put and", func() {
 			Convey("Result save fails", func() {
-				rsMock.On("Save", "1", "").Return(errors.New("Fail"))
+				pegomock.When(resultSaverMock.Save(pegomock.AnyString(), pegomock.AnyString())).ThenReturn(errors.New("Fail"))
 				msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", ""))
 				rc <- amqp.Delivery{Body: msgdata}
 				close(rc)
 				<-fc
 				Convey("Status must not be changed", func() {
-					So(len(ts.statuses), ShouldEqual, 0)
+					statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
 				})
 				Convey("No msg sent", func() {
 					So(cap(tsn.Msgs), ShouldEqual, 0)
 				})
 				Convey("result save is called", func() {
-					So(rsMock.AssertExpectations(t), ShouldBeTrue)
+					resultSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), pegomock.AnyString())
 				})
 			})
 
@@ -255,21 +275,5 @@ type testSaver struct{}
 
 func (saver testSaver) Save(name string, reader io.Reader) error {
 	log.Printf("Saving file %s\n", name)
-	return nil
-}
-
-type testStatusSaverFunc func(ID string, status string, errorStr string) error
-
-func (f testStatusSaverFunc) Save(ID string, status string, errorStr string) error {
-	return f(ID, status, errorStr)
-}
-
-type testStatusSaver struct {
-	statuses []string
-}
-
-func (saver *testStatusSaver) Save(ID string, status string, errorStr string) error {
-	log.Printf("Saving status %s %s\n", ID, status)
-	saver.statuses = append(saver.statuses, status+errorStr)
 	return nil
 }
