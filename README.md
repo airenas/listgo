@@ -3,12 +3,12 @@
 Lithuanian Speech Transcription services
 
 ###About
+Services for running the transcription process. It uses Mongo DB (for saving statuses) and RabbitMQ (for event bus)
 
 ---
-
 ###Build notes
 
-1. Go to base 'listgo' dir
+1. Go to the base 'listgo' dir
 2. Get required packages: 
     'go get ./...'
     'go get github.com/petergtz/pegomock/...'
@@ -18,8 +18,12 @@ Lithuanian Speech Transcription services
 
 ---
 ###Testing source code
-1. Go to base 'listgo' dir
+1. Go to the base 'listgo' dir
 2. 'go test ./...'
+
+---
+###Deploy note
+For deploy options see [bitbucket.org/airenas/list](https://bitbucket.org/airenas/list)
 
 ---
 ### Author
@@ -34,4 +38,4 @@ Lithuanian Speech Transcription services
 Copyright © 2017, [Airenas Vaičiūnas](https://bitbucket.org/airenas).
 Released under the [The 3-Clause BSD License](LICENSE).
 
-***
+---
