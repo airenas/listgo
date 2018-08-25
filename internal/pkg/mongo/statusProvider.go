@@ -3,7 +3,8 @@ package mongo
 import (
 	"bitbucket.org/airenas/listgo/internal/app/status/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"bitbucket.org/airenas/listgo/internal/pkg/progress"
+	"bitbucket.org/airenas/listgo/internal/pkg/status"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 )
@@ -44,15 +45,16 @@ func (fs StatusProvider) Get(id string) (*api.TranscriptionResult, error) {
 
 	result := api.TranscriptionResult{ID: id}
 
-	status, ok := m["status"].(string)
+	st, ok := m["status"].(string)
 	if ok {
-		result.Status = status
+		result.Status = st
 	}
 	errorStr, ok := m["error"].(string)
 	if ok {
 		result.Error = errorStr
 	}
-	if result.Status == messages.StCOMPLETED {
+	result.Progress = progress.Convert(result.Status)
+	if result.Status == status.Completed.Name {
 		result.RecognizedText, err = getResultText(session, id)
 	}
 

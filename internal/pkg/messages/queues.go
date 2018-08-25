@@ -18,11 +18,6 @@ const (
 )
 
 const (
-	//StCOMPLETED is status for complete indicator
-	StCOMPLETED string = "COMPLETED"
-)
-
-const (
 	//TopicStatusChange is topic name for status change event
 	TopicStatusChange string = "StatusChange"
 )
