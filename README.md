@@ -21,7 +21,7 @@ Services for running the transcription process. It uses Mongo DB (for saving sta
 ###Testing source code
 
 1. Go to the base *listgo* dir
-2. `go test ./...`
+2. `go test ./...` or `goconvey`
 
 ---
 ###Deploy note
