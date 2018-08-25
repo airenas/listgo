@@ -8,6 +8,7 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/test"
+	"github.com/petergtz/pegomock"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/streadway/amqp"
@@ -60,8 +61,26 @@ func TestRun_ID_Changed(t *testing.T) {
 	})
 }
 
+func AttachToConvey(t *testing.T) pegomock.FailHandler {
+	return func(message string, callerSkip ...int) {
+		So(message, ShouldBeEmpty)
+	}
+}
+
+var ackMock *mocks.MockAcknowledger
+var message amqp.Delivery
+
+func initTest(t *testing.T) {
+	mocks.AttachMockToConvey(t)
+	ackMock = mocks.NewMockAcknowledger()
+	msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
+	message = amqp.Delivery{Body: msgdata}
+	message.Acknowledger = ackMock
+}
+
 func TestHandlesMessages(t *testing.T) {
 	Convey("Given a worker", t, func() {
+		initTest(t)
 		// init worker service
 		wc := make(chan amqp.Delivery)
 		data := ServiceData{}
@@ -72,55 +91,45 @@ func TestHandlesMessages(t *testing.T) {
 		data.MessageSender = ts
 		data.WorkCh = wc
 		fc, _ := StartWorkerService(&data)
-		// init message
-		msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
-		d := amqp.Delivery{Body: msgdata}
-		ack := &mocks.Acknowledger{}
-		d.Acknowledger = ack
-
 		Convey("When wrong msg is put", func() {
-			d.Body = make([]byte, 0)
-			ack.On("Nack").Return(nil)
-			wc <- d
+			message.Body = make([]byte, 0)
+			wc <- message
 			close(wc)
 			<-fc // wait for complete
 			Convey("No msg sent", func() {
 				So(cap(ts.Msgs), ShouldEqual, 0)
 			})
 			Convey("Nack is called", func() {
-				So(ack.AssertExpectations(t), ShouldBeTrue)
+				ackMock.VerifyWasCalledOnce().Nack(pegomock.AnyUint64(), pegomock.AnyBool(), pegomock.AnyBool())
 			})
 		})
 		Convey("When good msg is put with reply", func() {
-			ack.On("Ack").Return(nil)
-			d.ReplyTo = "rt"
-			wc <- d
+			message.ReplyTo = "rt"
+			wc <- message
 			close(wc)
 			<-fc // wait for complete
 			Convey("msg replied", func() {
 				So(cap(ts.Msgs), ShouldEqual, 1)
 			})
 			Convey("Ack is called", func() {
-				So(ack.AssertExpectations(t), ShouldBeTrue)
+				ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 			})
 		})
 		Convey("When good msg is put with no reply", func() {
-			ack.On("Ack").Return(nil)
-			wc <- d
+			wc <- message
 			close(wc)
 			<-fc // wait for complete
 			Convey("No msg replied", func() {
 				So(cap(ts.Msgs), ShouldEqual, 0)
 			})
 			Convey("Ack is called", func() {
-				So(ack.AssertExpectations(t), ShouldBeTrue)
+				ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 			})
 		})
 		Convey("When task fails", func() {
 			data.Command = "lsss"
-			ack.On("Ack").Return(nil)
-			d.ReplyTo = "rt"
-			wc <- d
+			message.ReplyTo = "rt"
+			wc <- message
 			close(wc)
 			<-fc // wait for complete
 			Convey("msg replied", func() {
@@ -128,7 +137,7 @@ func TestHandlesMessages(t *testing.T) {
 				So(ts.Msgs[0].M.Error, ShouldNotBeEmpty)
 			})
 			Convey("Ack is called", func() {
-				So(ack.AssertExpectations(t), ShouldBeTrue)
+				ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 			})
 		})
 		Convey("When good msg is put with result required", func() {
@@ -136,10 +145,9 @@ func TestHandlesMessages(t *testing.T) {
 				return "olia", nil
 			}
 			data.ResultFile = "rFile"
-			ack.On("Ack").Return(nil)
-			d.ReplyTo = "rt"
+			message.ReplyTo = "rt"
 
-			wc <- d
+			wc <- message
 			close(wc)
 			<-fc // wait for complete
 			Convey("msg replied with result", func() {
@@ -147,7 +155,7 @@ func TestHandlesMessages(t *testing.T) {
 				So(ts.Msgs[0].M.Result, ShouldEqual, "olia")
 			})
 			Convey("Ack is called", func() {
-				So(ack.AssertExpectations(t), ShouldBeTrue)
+				ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 			})
 		})
 		Convey("When good msg is put with result failing", func() {
@@ -155,18 +163,17 @@ func TestHandlesMessages(t *testing.T) {
 				return "", errors.New("error")
 			}
 			data.ResultFile = "rFile"
-			ack.On("Ack").Return(nil)
-			d.ReplyTo = "rt"
+			message.ReplyTo = "rt"
 
-			wc <- d
+			wc <- message
 			close(wc)
-			<-fc // wait for complete
+			<-fc // wait for completeBuildTestingFailHandler
 			Convey("msg replied with error", func() {
 				So(cap(ts.Msgs), ShouldEqual, 1)
 				So(ts.Msgs[0].M.Error, ShouldNotBeEmpty)
 			})
 			Convey("Ack is called", func() {
-				So(ack.AssertExpectations(t), ShouldBeTrue)
+				ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 			})
 		})
 	})
