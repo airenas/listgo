@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"bitbucket.org/airenas/listgo/internal/pkg/status"
 
-	"bitbucket.org/airenas/listgo/internal/app/upload"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
@@ -15,7 +15,7 @@ import (
 type ServiceData struct {
 	MessageSender   messages.Sender
 	Publisher       messages.Publisher
-	StatusSaver     upload.StatusSaver
+	StatusSaver     status.Saver
 	ResultSaver     ResultSaver
 	DecodeCh        <-chan amqp.Delivery
 	AudioConvertCh  <-chan amqp.Delivery
@@ -79,7 +79,7 @@ func processMsg(d *amqp.Delivery, f prFunc, data *ServiceData) (bool, error) {
 // 3. send and wait for 'AudioConvert' to finish
 func decode(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error {
 	cmdapp.Log.Infof("Got %s msg :%s", messages.Decode, message.ID)
-	err := data.StatusSaver.Save(message.ID, messages.AudioConvert, "")
+	err := data.StatusSaver.Save(message.ID, status.AudioConvert)
 	if err != nil {
 		cmdapp.Log.Error(err)
 		return err
@@ -98,7 +98,7 @@ func decode(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery)
 // 1. logs status
 // 2. sends 'Diarization' message
 func audioConvertFinish(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error {
-	c, err := processStatus(message, data, messages.AudioConvert, messages.Diarization)
+	c, err := processStatus(message, data, messages.AudioConvert, status.Diarization)
 	if !c {
 		if err != nil {
 			cmdapp.Log.Error(err)
@@ -113,7 +113,7 @@ func audioConvertFinish(message *messages.QueueMessage, data *ServiceData, d *am
 // 1. logs status
 // 2. sends 'Transctiption' message
 func diarizationFinish(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error {
-	c, err := processStatus(message, data, messages.Diarization, messages.Transcription)
+	c, err := processStatus(message, data, messages.Diarization, status.Transcription)
 	if !c {
 		if err != nil {
 			cmdapp.Log.Error(err)
@@ -128,7 +128,7 @@ func diarizationFinish(message *messages.QueueMessage, data *ServiceData, d *amq
 // 1. logs status
 // 2. sends 'ResultMake' message
 func transcriptionFinish(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error {
-	c, err := processStatus(message, data, messages.Transcription, messages.ResultMake)
+	c, err := processStatus(message, data, messages.Transcription, status.ResultMake)
 	if !c {
 		if err != nil {
 			cmdapp.Log.Error(err)
@@ -150,7 +150,7 @@ func resultMakeFinish(message *messages.QueueMessage, data *ServiceData, d *amqp
 			return err
 		}
 	}
-	c, err := processStatus(message, data, messages.ResultMake, messages.StCOMPLETED)
+	c, err := processStatus(message, data, messages.ResultMake, status.Completed)
 	if !c {
 		if err != nil {
 			cmdapp.Log.Error(err)
@@ -162,10 +162,10 @@ func resultMakeFinish(message *messages.QueueMessage, data *ServiceData, d *amqp
 	return data.MessageSender.Send(messages.NewQueueMessage(message.ID), messages.FinishDecode, "")
 }
 
-func processStatus(message *messages.QueueMessage, data *ServiceData, from string, to string) (bool, error) {
+func processStatus(message *messages.QueueMessage, data *ServiceData, from string, to status.Status) (bool, error) {
 	cmdapp.Log.Infof("Got %s msg :%s", from, message.ID)
 	if message.Error != "" {
-		err := data.StatusSaver.Save(message.ID, from, message.Error)
+		err := data.StatusSaver.SaveError(message.ID, message.Error)
 		if err != nil {
 			cmdapp.Log.Error(err)
 			return false, err
@@ -173,7 +173,7 @@ func processStatus(message *messages.QueueMessage, data *ServiceData, from strin
 		publishStatusChange(message, data)
 		return false, nil
 	}
-	err := data.StatusSaver.Save(message.ID, to, "")
+	err := data.StatusSaver.Save(message.ID, to)
 	if err != nil {
 		cmdapp.Log.Error(err)
 		return false, err
