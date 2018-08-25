@@ -10,9 +10,19 @@ import (
 	"strings"
 	"testing"
 
+	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/petergtz/pegomock"
 	. "github.com/smartystreets/goconvey/convey"
 )
+
+var statusSaverMock *mocks.MockSaver
+
+func initTest() {
+	statusSaverMock = mocks.NewMockSaver()
+}
 
 func TestWrongPath(t *testing.T) {
 
@@ -61,8 +71,8 @@ func TestNoFilePOST(t *testing.T) {
 }
 
 func TestPOST(t *testing.T) {
+	initTest()
 	Convey("Given a HTTP request for /upload", t, func() {
-
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
 		part, _ := writer.CreateFormFile("file", "fileName")
@@ -79,7 +89,7 @@ func TestPOST(t *testing.T) {
 		Convey("When the request is handled by the Router", func() {
 			NewRouter(&ServiceData{MessageSender: testSender{},
 				FileSaver:   testSaver{},
-				StatusSaver: testStatusSaver{}}).ServeHTTP(resp, req)
+				StatusSaver: statusSaverMock}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 200", func() {
 				So(resp.Code, ShouldEqual, 200)
@@ -92,6 +102,7 @@ func TestPOST(t *testing.T) {
 }
 
 func TestPOSTNoFile(t *testing.T) {
+	initTest()
 	Convey("Given a HTTP request for /upload", t, func() {
 
 		body := &bytes.Buffer{}
@@ -106,7 +117,8 @@ func TestPOSTNoFile(t *testing.T) {
 		resp := httptest.NewRecorder()
 
 		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{StatusSaver: testStatusSaver{}, MessageSender: testSender{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
+			NewRouter(&ServiceData{StatusSaver: statusSaverMock,
+				MessageSender: testSender{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
@@ -116,6 +128,7 @@ func TestPOSTNoFile(t *testing.T) {
 }
 
 func TestPOST_NoEmail(t *testing.T) {
+	initTest()
 	Convey("Given a HTTP request without email", t, func() {
 
 		body := &bytes.Buffer{}
@@ -131,7 +144,7 @@ func TestPOST_NoEmail(t *testing.T) {
 		resp := httptest.NewRecorder()
 
 		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{StatusSaver: testStatusSaver{}, MessageSender: testSender{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
+			NewRouter(&ServiceData{StatusSaver: statusSaverMock, MessageSender: testSender{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
@@ -141,6 +154,7 @@ func TestPOST_NoEmail(t *testing.T) {
 }
 
 func TestPOST_Sender(t *testing.T) {
+	initTest()
 	Convey("Given a HTTP request without email", t, func() {
 
 		body := &bytes.Buffer{}
@@ -160,7 +174,7 @@ func TestPOST_Sender(t *testing.T) {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
 				func(m *messages.QueueMessage, q string, rq string) error {
 					return nil
-				}), StatusSaver: testStatusSaver{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
+				}), StatusSaver: statusSaverMock, FileSaver: testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 200", func() {
 				So(resp.Code, ShouldEqual, 200)
@@ -170,6 +184,7 @@ func TestPOST_Sender(t *testing.T) {
 }
 
 func TestPOST_SenderFails(t *testing.T) {
+	initTest()
 	Convey("Given a HTTP request without email", t, func() {
 
 		body := &bytes.Buffer{}
@@ -189,7 +204,7 @@ func TestPOST_SenderFails(t *testing.T) {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
 				func(m *messages.QueueMessage, q string, rq string) error {
 					return errors.New("Can not send")
-				}), StatusSaver: testStatusSaver{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
+				}), StatusSaver: statusSaverMock, FileSaver: testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
@@ -199,6 +214,7 @@ func TestPOST_SenderFails(t *testing.T) {
 }
 
 func TestPOST_SaverFails(t *testing.T) {
+	initTest()
 	Convey("Given a HTTP request without email", t, func() {
 
 		body := &bytes.Buffer{}
@@ -218,7 +234,7 @@ func TestPOST_SaverFails(t *testing.T) {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
 				func(m *messages.QueueMessage, q string, rq string) error {
 					return nil
-				}), StatusSaver: testStatusSaver{},
+				}), StatusSaver: statusSaverMock,
 				FileSaver: testSaverFunc(
 					func(id string, reader io.Reader) error {
 						return errors.New("Can not send")
@@ -232,6 +248,7 @@ func TestPOST_SaverFails(t *testing.T) {
 }
 
 func TestPOST_StatusSaverFails(t *testing.T) {
+	initTest()
 	Convey("Given a HTTP request without email", t, func() {
 
 		body := &bytes.Buffer{}
@@ -248,12 +265,12 @@ func TestPOST_StatusSaverFails(t *testing.T) {
 		resp := httptest.NewRecorder()
 
 		Convey("When the request is handled by the Router", func() {
+			pegomock.When(statusSaverMock.Save(pegomock.AnyString(),
+				matchers.AnyStatusStatus())).ThenReturn(errors.New("error"))
+
 			NewRouter(&ServiceData{MessageSender: testSender{},
-				StatusSaver: testStatusSaverFunc(
-					func(ID string, status string, errorStr string) error {
-						return errors.New("Can not send")
-					}),
-				FileSaver: testSaver{}}).ServeHTTP(resp, req)
+				StatusSaver: statusSaverMock,
+				FileSaver:   testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
@@ -285,18 +302,5 @@ type testSender struct{}
 
 func (sender testSender) Send(m *messages.QueueMessage, q string, rq string) error {
 	log.Printf("Sending msg %s\n", m.ID)
-	return nil
-}
-
-type testStatusSaverFunc func(ID string, status string, errorStr string) error
-
-func (f testStatusSaverFunc) Save(ID string, status string, errorStr string) error {
-	return f(ID, status, errorStr)
-}
-
-type testStatusSaver struct{}
-
-func (saver testStatusSaver) Save(ID string, status string, errorStr string) error {
-	log.Printf("Saving status %s %s\n", ID, status)
 	return nil
 }
