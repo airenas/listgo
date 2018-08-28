@@ -3,12 +3,12 @@ package cmdapp
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/heirko/go-contrib/logrusHelper"
 	"github.com/pkg/errors"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var (
@@ -17,7 +17,9 @@ var (
 
 // InitApplication initializes the app by reading config file
 func InitApplication(rootCommand *cobra.Command) {
-	viper.AutomaticEnv()
+	// make environment variable WEB_URL be found by viper with key web.url
+	Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	Config.AutomaticEnv()
 	cobra.OnInitialize(initConfig)
 	rootCommand.PersistentFlags().StringVarP(&configFile, "config", "c", "", "config file (default is config.yaml)")
 }

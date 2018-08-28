@@ -20,11 +20,22 @@ type ChannelProvider struct {
 type runOnChannelFunc func(*amqp.Channel) error
 
 //NewChannelProvider initializes channel provider
-func NewChannelProvider(url string) (*ChannelProvider, error) {
+func NewChannelProvider() (*ChannelProvider, error) {
+	url := cmdapp.Config.GetString("messageServer.url")
 	if url == "" {
-		return nil, errors.New("No broker url")
+		return nil, errors.New("No broker url from messageServer.url")
 	}
-	return &ChannelProvider{url: url}, nil
+	user := cmdapp.Config.GetString("messageServer.user")
+	pass := cmdapp.Config.GetString("messageServer.pass")
+	if user != "" && pass == "" {
+		return nil, errors.New("No broker pass from messageServer.pass")
+	}
+	finalURL := "amqp://"
+	if user != "" {
+		finalURL = finalURL + user + ":" + pass + "@"
+	}
+	finalURL = finalURL + url
+	return &ChannelProvider{url: finalURL}, nil
 }
 
 //Channel return cached channel or tries to connect to rabbit broker

@@ -4,7 +4,9 @@ fileStorage:
     path: data/audio.in/
 
 messageServer: 
-    broker: amqp://list:list@localhost:5672/
+    url: localhost:5672/
+    user: list
+    pass: olia
     
 mongo:
     url: localhost:27018
