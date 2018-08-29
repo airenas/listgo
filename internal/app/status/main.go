@@ -42,7 +42,7 @@ func run(cmd *cobra.Command, args []string) {
 	data.StatusProvider, err = mongo.NewStatusProvider(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "")
 
-	msgChannelProvider, err := rabbit.NewChannelProvider(cmdapp.Config.GetString("messageServer.broker"))
+	msgChannelProvider, err := rabbit.NewChannelProvider()
 	cmdapp.CheckOrPanic(err, "")
 	defer msgChannelProvider.Close()
 
