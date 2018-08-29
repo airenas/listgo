@@ -34,7 +34,7 @@ func run(cmd *cobra.Command, args []string) {
 	}
 	data := ServiceData{}
 
-	msgChannelProvider, err := rabbit.NewChannelProvider(cmdapp.Config.GetString("messageServer.broker"))
+	msgChannelProvider, err := rabbit.NewChannelProvider()
 	if err != nil {
 		panic(err)
 	}
