@@ -37,10 +37,10 @@ func (sp *SessionProvider) NewSession() (*mgo.Session, error) {
 	defer sp.m.Unlock()
 
 	if sp.session == nil {
-		cmdapp.Log.Info("Dial mongo. URL: " + sp.URL)
+		cmdapp.Log.Info("Dial mongo.")
 		session, err := mgo.Dial(sp.URL)
 		if err != nil {
-			return nil, errors.Wrap(err, "Can't dial to mongo: "+sp.URL)
+			return nil, errors.Wrap(err, "Can't dial to mongo")
 		}
 		err = checkIndex(session, statusTable)
 		if err != nil {
