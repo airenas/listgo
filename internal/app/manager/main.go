@@ -36,7 +36,7 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't init mongo provider")
 	defer mongoSessionProvider.Close()
 
-	msgChannelProvider, err := rabbit.NewChannelProvider(cmdapp.Config.GetString("messageServer.broker"))
+	msgChannelProvider, err := rabbit.NewChannelProvider()
 	cmdapp.CheckOrPanic(err, "Can't init rabbit provider")
 	defer msgChannelProvider.Close()
 

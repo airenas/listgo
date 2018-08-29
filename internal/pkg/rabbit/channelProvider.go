@@ -85,10 +85,10 @@ func (pr *ChannelProvider) Close() {
 	defer pr.m.Unlock()
 
 	if pr.ch != nil {
-		pr.ch.Close()
+		_ = pr.ch.Close()
 	}
 	if pr.conn != nil {
-		pr.conn.Close()
+		_ = pr.conn.Close()
 	}
 	pr.ch = nil
 	pr.conn = nil
