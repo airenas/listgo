@@ -5,9 +5,11 @@ import (
 	"log"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"bitbucket.org/airenas/listgo/internal/app/status/api"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/streadway/amqp"
 )
 
 func TestWrongPath(t *testing.T) {
@@ -73,6 +75,61 @@ func Test_ProviderFails(t *testing.T) {
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
+			})
+		})
+	})
+}
+
+func Test_Registering_Queue(t *testing.T) {
+	Convey("Invoking the register function", t, func() {
+		data := &ServiceData{}
+		i := 0
+		fail := true
+		c := make(chan amqp.Delivery)
+		data.EventChannelFunc = func() (<-chan amqp.Delivery, error) {
+			i++
+			if fail {
+				return nil, errors.New("error")
+			}
+			return c, nil
+		}
+		fc := make(chan bool)
+		waitc := make(chan bool)
+		f := func() {
+			registerQueue(data, fc, time.Millisecond)
+			waitc <- true
+		}
+		Convey("When queue func fails", func() {
+			go f()
+			time.Sleep(time.Millisecond * 100)
+			close(fc)
+			<-waitc
+			Convey("Tries reconnect", func() {
+				So(i, ShouldBeGreaterThan, 1)
+			})
+		})
+		Convey("Restores after failure", func() {
+			go f()
+			time.Sleep(time.Millisecond * 100)
+			fail = false
+			i = 0
+			time.Sleep(time.Millisecond * 100)
+			close(fc)
+			close(c)
+			<-waitc
+			Convey("No retry", func() {
+				So(i, ShouldEqual, 1)
+			})
+		})
+		Convey("No failure", func() {
+			fail = false
+			go f()
+			time.Sleep(time.Millisecond * 100)
+			close(fc)
+			close(c)
+			<-waitc
+			Convey("No retry", func() {
+				So(i, ShouldEqual, 1)
 			})
 		})
 	})

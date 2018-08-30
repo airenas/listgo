@@ -31,7 +31,8 @@ type ServiceData struct {
 func StartWebServer(data *ServiceData) error {
 
 	cmdapp.Log.Infof("Listen queue")
-	go registerQueue(data)
+	fc := make(chan bool)
+	go registerQueue(data, fc, time.Second)
 
 	cmdapp.Log.Infof("Starting HTTP service at %d", data.Port)
 	r := NewRouter(data)
@@ -42,6 +43,7 @@ func StartWebServer(data *ServiceData) error {
 	if err != nil {
 		return errors.Wrap(err, "Can't start HTTP listener at port "+portStr)
 	}
+	close(fc)
 	return nil
 }
 
@@ -165,25 +167,31 @@ func listenQueue(channel <-chan amqp.Delivery, data *ServiceData, fc chan<- bool
 	fc <- true
 }
 
-func registerQueue(data *ServiceData) {
+func registerQueue(data *ServiceData, quitChan <-chan bool, initialWait time.Duration) {
 	fc := make(chan bool)
-	wait := time.Duration(1)
+	wait := initialWait
 	for {
-		cmdapp.Log.Infof("Trying listening queue")
-		msgs, err := data.EventChannelFunc()
-		if err != nil {
-			cmdapp.Log.Error(err)
-			wait = wait * 2
-			if wait > 60 {
-				wait = 60
+		select {
+		case <-quitChan:
+			cmdapp.Log.Infof("Quit listening queue")
+			return
+		default:
+			cmdapp.Log.Infof("Trying listening queue")
+			msgs, err := data.EventChannelFunc()
+			if err != nil {
+				cmdapp.Log.Error(err)
+				wait = wait * 2
+				if wait > time.Minute {
+					wait = time.Minute
+				}
+				cmdapp.Log.Infof("Wait before reconnect %d s", wait/time.Second)
+				time.Sleep(wait)
+				continue
 			}
-			cmdapp.Log.Infof("Wait before reconnect %d s", wait)
-			time.Sleep(wait * time.Second)
-			continue
+			wait = initialWait
+			go listenQueue(msgs, data, fc)
+			<-fc
 		}
-		wait = 1
-		go listenQueue(msgs, data, fc)
-		<-fc
 	}
 }
 
