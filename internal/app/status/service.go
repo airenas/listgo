@@ -4,19 +4,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 
+	"bitbucket.org/airenas/listgo/internal/app/status/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
-
-var idConnectionMap = make(map[string]*websocket.Conn)
-var connectionIDMap = make(map[*websocket.Conn]string)
-var mapLock = sync.Mutex{}
 
 type eventChannelFunc func() (<-chan amqp.Delivery, error)
 
@@ -107,49 +103,6 @@ func (h websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	go handleConnection(c)
 }
 
-func handleConnection(conn *websocket.Conn) {
-	defer deleteConnection(conn)
-	for {
-		cmdapp.Log.Infof("handleConnection")
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			cmdapp.Log.Error(err)
-			break
-		} else {
-			saveConnection(conn, string(message))
-		}
-	}
-	cmdapp.Log.Infof("handleConnection finish")
-}
-
-func deleteConnection(conn *websocket.Conn) {
-	cmdapp.Log.Infof("deleteConnection")
-	mapLock.Lock()
-	defer mapLock.Unlock()
-	defer conn.Close()
-	cmdapp.Log.Info("delete connection")
-	id, found := connectionIDMap[conn]
-	if found {
-		delete(idConnectionMap, id)
-	}
-	delete(connectionIDMap, conn)
-	cmdapp.Log.Infof("deleteConnection finish: %d", len(connectionIDMap))
-}
-
-func saveConnection(conn *websocket.Conn, id string) {
-	cmdapp.Log.Infof("saveConnection")
-	mapLock.Lock()
-	defer mapLock.Unlock()
-	cmdapp.Log.Info("delete connection" + id)
-	idOld, found := connectionIDMap[conn]
-	if found {
-		delete(idConnectionMap, idOld)
-	}
-	connectionIDMap[conn] = id
-	idConnectionMap[id] = conn
-	cmdapp.Log.Infof("saveConnection finish: %d", len(connectionIDMap))
-}
-
 func setError(w http.ResponseWriter, message string, statusCode int) {
 	w.WriteHeader(statusCode)
 	w.Write([]byte(message))
@@ -198,18 +151,33 @@ func registerQueue(data *ServiceData, quitChan <-chan bool, initialWait time.Dur
 func processMsg(d *amqp.Delivery, data *ServiceData) error {
 	id := string(d.Body)
 	cmdapp.Log.Infof("processMsg event " + id)
-	conn, found := idConnectionMap[id]
+	conns, found := getConnections(id)
 	if found {
 		result, err := data.StatusProvider.Get(id)
 		if err != nil {
 			return errors.Wrap(err, "Cannot get status for ID: "+id)
 		}
-		err = conn.WriteJSON(result)
-		if err != nil {
-			return errors.Wrap(err, "Cannot write to websockket: "+id)
+		for c := range conns {
+			sendMsg(c, result)
 		}
 	} else {
 		cmdapp.Log.Infof("not found " + id)
+	}
+	return nil
+}
+
+func sendMsg(c wsConn, result *api.TranscriptionResult) error {
+	cmdapp.Log.Infof("sending result for %s", result.ID)
+	conn, ok := c.(*websocket.Conn)
+	if ok {
+		err := conn.WriteJSON(result)
+		cmdapp.Log.Infof("sent")
+		if err != nil {
+			cmdapp.Log.Error("Cannot write to websockket")
+			cmdapp.Log.Error(err)
+		}
+	} else {
+		cmdapp.Log.Errorf("Can not cast to *websocket.Conn")
 	}
 	return nil
 }
