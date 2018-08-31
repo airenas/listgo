@@ -2,6 +2,7 @@ package manager
 
 import (
 	"encoding/json"
+	"sync"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
@@ -10,6 +11,21 @@ import (
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
+
+type multiCloseChannel struct {
+	c    chan struct{}
+	once sync.Once
+}
+
+func newMultiCloseChannel() *multiCloseChannel {
+	return &multiCloseChannel{c: make(chan struct{})}
+}
+
+func (mc *multiCloseChannel) close() {
+	mc.once.Do(func() {
+		close(mc.c)
+	})
+}
 
 // ServiceData keeps data required for service work
 type ServiceData struct {
@@ -27,7 +43,7 @@ type ServiceData struct {
 type prFunc func(message *messages.QueueMessage, data *ServiceData, d *amqp.Delivery) error
 
 //StartWorkerService starts the event queue listener service to listen for events
-func StartWorkerService(data *ServiceData) (<-chan bool, error) {
+func StartWorkerService(data *ServiceData) (<-chan struct{}, error) {
 	if data.ResultSaver == nil {
 		return nil, errors.New("Result saver not provided")
 	}
@@ -37,7 +53,7 @@ func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 
 	cmdapp.Log.Infof("Starting listen for messages")
 
-	fc := make(chan bool)
+	fc := newMultiCloseChannel()
 
 	go listenQueue(data.DecodeCh, decode, data, fc)
 	go listenQueue(data.AudioConvertCh, audioConvertFinish, data, fc)
@@ -45,10 +61,10 @@ func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 	go listenQueue(data.TranscriptionCh, transcriptionFinish, data, fc)
 	go listenQueue(data.ResultMakeCh, resultMakeFinish, data, fc)
 
-	return fc, nil
+	return fc.c, nil
 }
 
-func listenQueue(q <-chan amqp.Delivery, f prFunc, data *ServiceData, fc chan<- bool) {
+func listenQueue(q <-chan amqp.Delivery, f prFunc, data *ServiceData, fc *multiCloseChannel) {
 	for d := range q {
 		redeliver, err := processMsg(&d, f, data)
 		if err != nil {
@@ -60,7 +76,7 @@ func listenQueue(q <-chan amqp.Delivery, f prFunc, data *ServiceData, fc chan<- 
 		}
 	}
 	cmdapp.Log.Infof("Stopped listening queue")
-	fc <- true
+	fc.close()
 }
 
 //processMsg return true if message can be retried
