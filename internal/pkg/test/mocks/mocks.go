@@ -15,6 +15,10 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=publisher.go -m bitbucket.org/airenas/listgo/internal/pkg/messages Publisher
 
+//go:generate pegomock generate --package=mocks --output=wsConn.go -m bitbucket.org/airenas/listgo/internal/app/status WsConn
+
+//go:generate pegomock generate --package=mocks --output=statusProvider.go -m bitbucket.org/airenas/listgo/internal/app/status Provider
+
 //AttachMockToConvey register pegomock verification to be passed to Convey
 func AttachMockToConvey(t *testing.T) {
 	pegomock.RegisterMockFailHandler(handleByConvey(t))

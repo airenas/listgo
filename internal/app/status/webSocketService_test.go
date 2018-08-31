@@ -149,3 +149,7 @@ func (f *wsConnMock) Close() error {
 	f.closedCount++
 	return nil
 }
+
+func (f *wsConnMock) WriteJSON(v interface{}) error {
+	return nil
+}
