@@ -62,21 +62,21 @@ func (h statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	id := mux.Vars(r)["id"]
 	if id == "" {
-		setError(w, "No ID", http.StatusBadRequest)
+		http.Error(w, "No ID", http.StatusBadRequest)
 		cmdapp.Log.Errorf("No ID")
 		return
 	}
 
 	result, err := h.data.StatusProvider.Get(id)
 	if err != nil {
-		setError(w, "Cannot get status for ID: "+id, http.StatusBadRequest)
+		http.Error(w, "Cannot get status for ID: "+id, http.StatusBadRequest)
 		cmdapp.Log.Errorf("Cannot get status for ID: " + id)
 		return
 	}
 
 	resultBytes, err := json.Marshal(result)
 	if err != nil {
-		setError(w, "Can not prepare result", http.StatusBadRequest)
+		http.Error(w, "Can not prepare result", http.StatusBadRequest)
 		cmdapp.Log.Error(err)
 		return
 	}
@@ -94,14 +94,9 @@ func (h websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	c, err := wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
-		setError(w, "Can not init ws connection", http.StatusBadRequest)
+		http.Error(w, "Can not init ws connection", http.StatusBadRequest)
 		cmdapp.Log.Error(err)
 		return
 	}
 	go handleConnection(c)
-}
-
-func setError(w http.ResponseWriter, message string, statusCode int) {
-	w.WriteHeader(statusCode)
-	w.Write([]byte(message))
 }

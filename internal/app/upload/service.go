@@ -59,7 +59,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.ParseMultipartForm(32 << 20)
 	email := r.FormValue("email")
 	if email == "" {
-		setError(w, "No email", http.StatusBadRequest)
+		http.Error(w, "No email", http.StatusBadRequest)
 		cmdapp.Log.Errorf("No email")
 		return
 	}
@@ -67,14 +67,14 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	err := h.data.StatusSaver.Save(id, status.Uploaded)
 	if err != nil {
-		setError(w, "Can not save file", http.StatusBadRequest)
+		http.Error(w, "Can not save file", http.StatusBadRequest)
 		cmdapp.Log.Error(err)
 		return
 	}
 
 	file, handler, err := r.FormFile("file")
 	if err != nil {
-		setError(w, "No file", http.StatusBadRequest)
+		http.Error(w, "No file", http.StatusBadRequest)
 		cmdapp.Log.Error(err)
 		return
 	}
@@ -85,14 +85,14 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	err = h.data.FileSaver.Save(fileName, file)
 	if err != nil {
-		setError(w, "Can not save file", http.StatusBadRequest)
+		http.Error(w, "Can not save file", http.StatusBadRequest)
 		cmdapp.Log.Error(err)
 		return
 	}
 
 	err = h.data.MessageSender.Send(messages.NewQueueMessage(id), messages.Decode, "")
 	if err != nil {
-		setError(w, "Can not send decode message", http.StatusBadRequest)
+		http.Error(w, "Can not send decode message", http.StatusBadRequest)
 		cmdapp.Log.Error(err)
 		return
 	}
@@ -100,16 +100,11 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	result := FileResult{id}
 	resultBytes, err := json.Marshal(result)
 	if err != nil {
-		setError(w, "Can not prepare result", http.StatusBadRequest)
+		http.Error(w, "Can not prepare result", http.StatusBadRequest)
 		cmdapp.Log.Error(err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(resultBytes)
-}
-
-func setError(w http.ResponseWriter, message string, statusCode int) {
-	w.WriteHeader(statusCode)
-	w.Write([]byte(message))
 }
