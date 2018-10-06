@@ -98,13 +98,12 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := FileResult{id}
-	resultBytes, err := json.Marshal(result)
+	w.Header().Set("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	err = encoder.Encode(&result)
 	if err != nil {
 		http.Error(w, "Can not prepare result", http.StatusBadRequest)
 		cmdapp.Log.Error(err)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(resultBytes)
 }
