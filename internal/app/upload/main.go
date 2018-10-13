@@ -59,13 +59,14 @@ func run(cmd *cobra.Command, args []string) {
 	defer mongoSessionProvider.Close()
 
 	statusSaver, err := mongo.NewStatusSaver(mongoSessionProvider)
-	if err != nil {
-		panic(err)
-	}
-	err = StartWebServer(&ServiceData{fileSaver, msgSender, statusSaver, cmdapp.Config.GetInt("port")})
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "Can't init status saver")
+
+	requestSaver, err := mongo.NewRequestSaver(mongoSessionProvider)
+	cmdapp.CheckOrPanic(err, "Can't init request saver")
+
+	err = StartWebServer(&ServiceData{fileSaver, msgSender, statusSaver,
+		requestSaver, cmdapp.Config.GetInt("port")})
+	cmdapp.CheckOrPanic(err, "Can't start web server")
 }
 
 func initQueues(prv *rabbit.ChannelProvider) error {

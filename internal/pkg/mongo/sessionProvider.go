@@ -8,10 +8,23 @@ import (
 	"github.com/pkg/errors"
 )
 
+//IndexData keeps index creation data
+type IndexData struct {
+	Table  string
+	Field  string
+	Unique bool
+}
+
+//NewIndexData creates index data
+func newIndexData(table string, field string, unique bool) IndexData {
+	return IndexData{Table: table, Field: field, Unique: unique}
+}
+
 //SessionProvider connects and provides session for mongo DB
 type SessionProvider struct {
 	session *mgo.Session
 	URL     string
+	indexes []IndexData
 	m       sync.Mutex // struct field mutex
 }
 
@@ -21,7 +34,7 @@ func NewSessionProvider() (*SessionProvider, error) {
 	if url == "" {
 		return nil, errors.New("No Mongo url provided")
 	}
-	return &SessionProvider{URL: url}, nil
+	return &SessionProvider{URL: url, indexes: indexData}, nil
 }
 
 //Close closes mongo session
@@ -42,11 +55,7 @@ func (sp *SessionProvider) NewSession() (*mgo.Session, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "Can't dial to mongo")
 		}
-		err = checkIndex(session, statusTable)
-		if err != nil {
-			return nil, errors.Wrap(err, "Can't create index: "+statusTable)
-		}
-		err = checkIndex(session, resultTable)
+		err = checkIndexes(session, sp.indexes)
 		if err != nil {
 			return nil, errors.Wrap(err, "Can't create index: "+resultTable)
 		}
@@ -55,13 +64,23 @@ func (sp *SessionProvider) NewSession() (*mgo.Session, error) {
 	return sp.session.Copy(), nil
 }
 
-func checkIndex(s *mgo.Session, table string) error {
+func checkIndexes(s *mgo.Session, indexes []IndexData) error {
 	session := s.Copy()
 	defer session.Close()
-	c := session.DB(store).C(table)
+	for _, index := range indexes {
+		err := checkIndex(s, index)
+		if err != nil {
+			return errors.Wrap(err, "Can't create index: "+index.Table+":"+index.Field)
+		}
+	}
+	return nil
+}
+
+func checkIndex(s *mgo.Session, indexData IndexData) error {
+	c := s.DB(store).C(indexData.Table)
 	index := mgo.Index{
-		Key:        []string{"ID"},
-		Unique:     true,
+		Key:        []string{indexData.Field},
+		Unique:     indexData.Unique,
 		DropDups:   true,
 		Background: true,
 		Sparse:     true,

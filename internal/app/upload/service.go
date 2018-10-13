@@ -20,6 +20,7 @@ type ServiceData struct {
 	FileSaver     FileSaver
 	MessageSender messages.Sender
 	StatusSaver   status.Saver
+	RequestSaver  RequestSaver
 	Port          int
 }
 
@@ -65,7 +66,14 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	id := uuid.New().String()
 
-	err := h.data.StatusSaver.Save(id, status.Uploaded)
+	err := h.data.RequestSaver.Save(id, email)
+	if err != nil {
+		http.Error(w, "Can not save request to DB", http.StatusBadRequest)
+		cmdapp.Log.Error(err)
+		return
+	}
+
+	err = h.data.StatusSaver.Save(id, status.Uploaded)
 	if err != nil {
 		http.Error(w, "Can not save file", http.StatusBadRequest)
 		cmdapp.Log.Error(err)
