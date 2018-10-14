@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
+	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
-	"bitbucket.org/airenas/listgo/internal/pkg/test"
 	"github.com/petergtz/pegomock"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
@@ -69,6 +69,7 @@ func AttachToConvey(t *testing.T) pegomock.FailHandler {
 
 var ackMock *mocks.MockAcknowledger
 var message amqp.Delivery
+var msgSenderMock *mocks.MockSender
 
 func initTest(t *testing.T) {
 	mocks.AttachMockToConvey(t)
@@ -76,6 +77,7 @@ func initTest(t *testing.T) {
 	msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
 	message = amqp.Delivery{Body: msgdata}
 	message.Acknowledger = ackMock
+	msgSenderMock = mocks.NewMockSender()
 }
 
 func TestHandlesMessages(t *testing.T) {
@@ -87,8 +89,7 @@ func TestHandlesMessages(t *testing.T) {
 		data.Command = "ls -la"
 		data.WorkingDir = "."
 		data.TaskName = "olia"
-		ts := &test.Sender{Msgs: make([]test.Msg, 0)}
-		data.MessageSender = ts
+		data.MessageSender = msgSenderMock
 		data.WorkCh = wc
 		fc, _ := StartWorkerService(&data)
 		Convey("When wrong msg is put", func() {
@@ -97,7 +98,7 @@ func TestHandlesMessages(t *testing.T) {
 			close(wc)
 			<-fc // wait for complete
 			Convey("No msg sent", func() {
-				So(cap(ts.Msgs), ShouldEqual, 0)
+				msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
 			})
 			Convey("Nack is called", func() {
 				ackMock.VerifyWasCalledOnce().Nack(pegomock.AnyUint64(), pegomock.AnyBool(), pegomock.AnyBool())
@@ -109,7 +110,8 @@ func TestHandlesMessages(t *testing.T) {
 			close(wc)
 			<-fc // wait for complete
 			Convey("msg replied", func() {
-				So(cap(ts.Msgs), ShouldEqual, 1)
+				msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
+					pegomock.AnyString(), pegomock.AnyString())
 			})
 			Convey("Ack is called", func() {
 				ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
@@ -120,7 +122,7 @@ func TestHandlesMessages(t *testing.T) {
 			close(wc)
 			<-fc // wait for complete
 			Convey("No msg replied", func() {
-				So(cap(ts.Msgs), ShouldEqual, 0)
+				msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
 			})
 			Convey("Ack is called", func() {
 				ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
@@ -133,8 +135,9 @@ func TestHandlesMessages(t *testing.T) {
 			close(wc)
 			<-fc // wait for complete
 			Convey("msg replied", func() {
-				So(cap(ts.Msgs), ShouldEqual, 1)
-				So(ts.Msgs[0].M.Error, ShouldNotBeEmpty)
+				cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
+					pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
+				So(cMsg.(*messages.QueueMessage).Error, ShouldNotBeEmpty)
 			})
 			Convey("Ack is called", func() {
 				ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
@@ -151,8 +154,9 @@ func TestHandlesMessages(t *testing.T) {
 			close(wc)
 			<-fc // wait for complete
 			Convey("msg replied with result", func() {
-				So(cap(ts.Msgs), ShouldEqual, 1)
-				So(ts.Msgs[0].M.Result, ShouldEqual, "olia")
+				cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
+					pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
+				So(cMsg.(*messages.ResultMessage).Result, ShouldEqual, "olia")
 			})
 			Convey("Ack is called", func() {
 				ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
@@ -169,8 +173,9 @@ func TestHandlesMessages(t *testing.T) {
 			close(wc)
 			<-fc // wait for completeBuildTestingFailHandler
 			Convey("msg replied with error", func() {
-				So(cap(ts.Msgs), ShouldEqual, 1)
-				So(ts.Msgs[0].M.Error, ShouldNotBeEmpty)
+				cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
+					pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
+				So(cMsg.(*messages.ResultMessage).Error, ShouldNotBeEmpty)
 			})
 			Convey("Ack is called", func() {
 				ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())

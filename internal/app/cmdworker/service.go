@@ -86,7 +86,7 @@ func listenQueue(data *ServiceData, fc chan<- bool) {
 	fc <- true
 }
 
-func processMsg(d *amqp.Delivery, data *ServiceData) (*messages.QueueMessage, error) {
+func processMsg(d *amqp.Delivery, data *ServiceData) (messages.Message, error) {
 	var message messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
 		return nil, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
@@ -94,15 +94,19 @@ func processMsg(d *amqp.Delivery, data *ServiceData) (*messages.QueueMessage, er
 	err := work(data, message.ID)
 	cmdapp.Log.Infof("Msg processed")
 	result := messages.NewQueueMessage(message.ID)
+	var res string
 	if err != nil {
 		result.Error = err.Error()
 	} else {
 		if data.ResultFile != "" && d.ReplyTo != "" {
-			result.Result, err = data.ReadFunc(data.ResultFile, message.ID)
+			res, err = data.ReadFunc(data.ResultFile, message.ID)
 			if err != nil {
 				result.Error = err.Error()
 			}
 		}
+	}
+	if data.ResultFile != "" {
+		return &messages.ResultMessage{QueueMessage: *result, Result: res}, nil
 	}
 	return result, nil
 }
