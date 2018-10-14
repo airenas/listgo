@@ -23,8 +23,8 @@ func NewSender(provider *ChannelProvider) *Sender {
 }
 
 //Send sends the message
-func (sender *Sender) Send(message *messages.QueueMessage, queue string, replyQueue string) error {
-	cmdapp.Log.Infof("Sending message %s(%s)", queue, message.ID)
+func (sender *Sender) Send(message messages.Message, queue string, replyQueue string) error {
+	cmdapp.Log.Infof("Sending message to %s", queue)
 
 	msgBytes, err := json.Marshal(message)
 	if err != nil {

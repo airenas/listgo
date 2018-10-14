@@ -13,7 +13,6 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 	"github.com/gorilla/mux"
 	"github.com/petergtz/pegomock"
@@ -24,9 +23,12 @@ var statusSaverMock *mocks.MockSaver
 
 var requestSaverMock *mocks.MockRequestSaver
 
+var msgSenderMock *mocks.MockSender
+
 func initTest() {
 	statusSaverMock = mocks.NewMockSaver()
 	requestSaverMock = mocks.NewMockRequestSaver()
+	msgSenderMock = mocks.NewMockSender()
 }
 
 func TestWrongPath(t *testing.T) {
@@ -129,7 +131,7 @@ func newReq(file string, email string) *http.Request {
 
 func newRouter() *mux.Router {
 	return NewRouter(&ServiceData{StatusSaver: statusSaverMock,
-		MessageSender: testSender{},
+		MessageSender: msgSenderMock,
 		RequestSaver:  requestSaverMock,
 		FileSaver:     testSaver{}})
 }
@@ -171,10 +173,7 @@ func TestPOST_Sender(t *testing.T) {
 		req := newReq("filename", "a@a.a")
 		resp := httptest.NewRecorder()
 		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{MessageSender: testSenderFunc(
-				func(m *messages.QueueMessage, q string, rq string) error {
-					return nil
-				}), StatusSaver: statusSaverMock,
+			NewRouter(&ServiceData{MessageSender: msgSenderMock, StatusSaver: statusSaverMock,
 				RequestSaver: requestSaverMock,
 				FileSaver:    testSaver{}}).ServeHTTP(resp, req)
 
@@ -190,11 +189,12 @@ func TestPOST_SenderFails(t *testing.T) {
 	Convey("Given a HTTP request", t, func() {
 		req := newReq("filename", "a@a.a")
 		resp := httptest.NewRecorder()
+		pegomock.When(msgSenderMock.Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
+			pegomock.AnyString())).ThenReturn(errors.New("Can not send"))
+
 		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{MessageSender: testSenderFunc(
-				func(m *messages.QueueMessage, q string, rq string) error {
-					return errors.New("Can not send")
-				}), StatusSaver: statusSaverMock,
+			NewRouter(&ServiceData{MessageSender: msgSenderMock,
+				StatusSaver:  statusSaverMock,
 				RequestSaver: requestSaverMock,
 				FileSaver:    testSaver{}}).ServeHTTP(resp, req)
 
@@ -212,10 +212,7 @@ func TestPOST_SaverFails(t *testing.T) {
 		resp := httptest.NewRecorder()
 
 		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{MessageSender: testSenderFunc(
-				func(m *messages.QueueMessage, q string, rq string) error {
-					return nil
-				}), StatusSaver: statusSaverMock,
+			NewRouter(&ServiceData{MessageSender: msgSenderMock, StatusSaver: statusSaverMock,
 				RequestSaver: requestSaverMock,
 				FileSaver: testSaverFunc(
 					func(id string, reader io.Reader) error {
@@ -267,12 +264,6 @@ func TestPOST_RequestSaverFails(t *testing.T) {
 	})
 }
 
-type testSenderFunc func(m *messages.QueueMessage, q string, rq string) error
-
-func (f testSenderFunc) Send(m *messages.QueueMessage, q string, rq string) error {
-	return f(m, q, rq)
-}
-
 type testSaverFunc func(name string, reader io.Reader) error
 
 func (f testSaverFunc) Save(name string, reader io.Reader) error {
@@ -283,12 +274,5 @@ type testSaver struct{}
 
 func (saver testSaver) Save(name string, reader io.Reader) error {
 	log.Printf("Saving file %s\n", name)
-	return nil
-}
-
-type testSender struct{}
-
-func (sender testSender) Send(m *messages.QueueMessage, q string, rq string) error {
-	log.Printf("Sending msg %s\n", m.ID)
 	return nil
 }

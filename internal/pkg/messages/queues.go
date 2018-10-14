@@ -3,8 +3,8 @@ package messages
 const (
 	// Decode queue
 	Decode string = "Decode"
-	// StartedDecode queue
-	StartedDecode string = "StartedDecode"
+	// Inform queue
+	Inform string = "Inform"
 	// AudioConvert queue
 	AudioConvert string = "AudioConvert"
 	// Diarization queue
@@ -13,8 +13,13 @@ const (
 	Transcription string = "Transcription"
 	// ResultMake queue
 	ResultMake string = "ResultMake"
-	// FinishDecode queue
-	FinishDecode string = "FinishDecode"
+)
+
+const (
+	// InformType_Started type when process started
+	InformType_Started string = "Started"
+	// InformType_Finished type when process started
+	InformType_Finished string = "Finished"
 )
 
 const (

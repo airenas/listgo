@@ -81,12 +81,11 @@ func makeQChannel(ch *amqp.Channel, qname string) <-chan amqp.Delivery {
 func initQueues(prv *rabbit.ChannelProvider) error {
 	cmdapp.Log.Info("Initializing queues")
 	return prv.RunOnChannelWithRetry(func(ch *amqp.Channel) error {
-		queues := []string{messages.Decode, messages.StartedDecode,
+		queues := []string{messages.Decode, messages.Inform,
 			messages.AudioConvert, messages.ResultQueueFor(messages.AudioConvert),
 			messages.Diarization, messages.ResultQueueFor(messages.Diarization),
 			messages.Transcription, messages.ResultQueueFor(messages.Transcription),
-			messages.ResultMake, messages.ResultQueueFor(messages.ResultMake),
-			messages.FinishDecode}
+			messages.ResultMake, messages.ResultQueueFor(messages.ResultMake)}
 		for _, queue := range queues {
 			_, err := rabbit.DeclareQueue(ch, queue)
 			if err != nil {

@@ -1,10 +1,26 @@
 package messages
 
+import (
+	"time"
+)
+
 //QueueMessage message going throuht broker
 type QueueMessage struct {
-	ID     string `json:"id"`
-	Error  string `json:"error"`
+	ID    string `json:"id"`
+	Error string `json:"error"`
+}
+
+//ResultMessage message going throuht broker with result
+type ResultMessage struct {
+	QueueMessage
 	Result string `json:"result"`
+}
+
+//InformMessage message with inform information
+type InformMessage struct {
+	QueueMessage
+	Type string    `json:"type"`
+	At   time.Time `json:"at"`
 }
 
 //NewQueueMessage creates the message with id
