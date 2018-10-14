@@ -20,8 +20,11 @@ import (
 
 var statusSaverMock *mocks.MockSaver
 
+var requestSaverMock *mocks.MockRequestSaver
+
 func initTest() {
 	statusSaverMock = mocks.NewMockSaver()
+	requestSaverMock = mocks.NewMockRequestSaver()
 }
 
 func TestWrongPath(t *testing.T) {
@@ -88,8 +91,9 @@ func TestPOST(t *testing.T) {
 
 		Convey("When the request is handled by the Router", func() {
 			NewRouter(&ServiceData{MessageSender: testSender{},
-				FileSaver:   testSaver{},
-				StatusSaver: statusSaverMock}).ServeHTTP(resp, req)
+				FileSaver:    testSaver{},
+				RequestSaver: requestSaverMock,
+				StatusSaver:  statusSaverMock}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 200", func() {
 				So(resp.Code, ShouldEqual, 200)
@@ -118,7 +122,9 @@ func TestPOSTNoFile(t *testing.T) {
 
 		Convey("When the request is handled by the Router", func() {
 			NewRouter(&ServiceData{StatusSaver: statusSaverMock,
-				MessageSender: testSender{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
+				MessageSender: testSender{},
+				RequestSaver:  requestSaverMock,
+				FileSaver:     testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
@@ -144,7 +150,10 @@ func TestPOST_NoEmail(t *testing.T) {
 		resp := httptest.NewRecorder()
 
 		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{StatusSaver: statusSaverMock, MessageSender: testSender{}, FileSaver: testSaver{}}).ServeHTTP(resp, req)
+			NewRouter(&ServiceData{StatusSaver: statusSaverMock,
+				MessageSender: testSender{},
+				RequestSaver:  requestSaverMock,
+				FileSaver:     testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
@@ -174,7 +183,9 @@ func TestPOST_Sender(t *testing.T) {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
 				func(m *messages.QueueMessage, q string, rq string) error {
 					return nil
-				}), StatusSaver: statusSaverMock, FileSaver: testSaver{}}).ServeHTTP(resp, req)
+				}), StatusSaver: statusSaverMock,
+				RequestSaver: requestSaverMock,
+				FileSaver:    testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 200", func() {
 				So(resp.Code, ShouldEqual, 200)
@@ -204,7 +215,9 @@ func TestPOST_SenderFails(t *testing.T) {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
 				func(m *messages.QueueMessage, q string, rq string) error {
 					return errors.New("Can not send")
-				}), StatusSaver: statusSaverMock, FileSaver: testSaver{}}).ServeHTTP(resp, req)
+				}), StatusSaver: statusSaverMock,
+				RequestSaver: requestSaverMock,
+				FileSaver:    testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
@@ -235,6 +248,7 @@ func TestPOST_SaverFails(t *testing.T) {
 				func(m *messages.QueueMessage, q string, rq string) error {
 					return nil
 				}), StatusSaver: statusSaverMock,
+				RequestSaver: requestSaverMock,
 				FileSaver: testSaverFunc(
 					func(id string, reader io.Reader) error {
 						return errors.New("Can not send")
@@ -269,8 +283,42 @@ func TestPOST_StatusSaverFails(t *testing.T) {
 				matchers.AnyStatusStatus())).ThenReturn(errors.New("error"))
 
 			NewRouter(&ServiceData{MessageSender: testSender{},
-				StatusSaver: statusSaverMock,
-				FileSaver:   testSaver{}}).ServeHTTP(resp, req)
+				StatusSaver:  statusSaverMock,
+				RequestSaver: requestSaverMock,
+				FileSaver:    testSaver{}}).ServeHTTP(resp, req)
+
+			Convey("Then the response should be a 400", func() {
+				So(resp.Code, ShouldEqual, 400)
+			})
+		})
+	})
+}
+
+func TestPOST_RequestSaverFails(t *testing.T) {
+	initTest()
+	Convey("Given a HTTP request without email", t, func() {
+
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		part, _ := writer.CreateFormFile("file", "fileName")
+		_, _ = io.Copy(part, strings.NewReader("body"))
+		writer.WriteField("email", "a@a.a")
+
+		writer.Close()
+
+		req := httptest.NewRequest("POST", "/upload", body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+
+		resp := httptest.NewRecorder()
+
+		Convey("When the request is handled by the Router", func() {
+			pegomock.When(requestSaverMock.Save(pegomock.AnyString(),
+				pegomock.AnyString())).ThenReturn(errors.New("error"))
+
+			NewRouter(&ServiceData{MessageSender: testSender{},
+				StatusSaver:  statusSaverMock,
+				RequestSaver: requestSaverMock,
+				FileSaver:    testSaver{}}).ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
