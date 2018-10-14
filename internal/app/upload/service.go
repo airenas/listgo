@@ -10,6 +10,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/badoux/checkmail"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -64,9 +65,15 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		cmdapp.Log.Errorf("No email")
 		return
 	}
+	err := checkmail.ValidateFormat(email)
+	if err != nil {
+		http.Error(w, "Wrong email", http.StatusBadRequest)
+		cmdapp.Log.Errorf("Wrong email")
+		return
+	}
 	id := uuid.New().String()
 
-	err := h.data.RequestSaver.Save(id, email)
+	err = h.data.RequestSaver.Save(id, email)
 	if err != nil {
 		http.Error(w, "Can not save request to DB", http.StatusBadRequest)
 		cmdapp.Log.Error(err)

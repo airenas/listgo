@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"mime/multipart"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -14,6 +15,7 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/gorilla/mux"
 	"github.com/petergtz/pegomock"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -76,24 +78,11 @@ func TestNoFilePOST(t *testing.T) {
 func TestPOST(t *testing.T) {
 	initTest()
 	Convey("Given a HTTP request for /upload", t, func() {
-		body := &bytes.Buffer{}
-		writer := multipart.NewWriter(body)
-		part, _ := writer.CreateFormFile("file", "fileName")
-		_, _ = io.Copy(part, strings.NewReader("body"))
-
-		writer.WriteField("email", "a@a.a")
-		writer.Close()
-
-		req := httptest.NewRequest("POST", "/upload", body)
-		req.Header.Set("Content-Type", writer.FormDataContentType())
-
+		req := newReq("filename", "a@a.a")
 		resp := httptest.NewRecorder()
 
 		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{MessageSender: testSender{},
-				FileSaver:    testSaver{},
-				RequestSaver: requestSaverMock,
-				StatusSaver:  statusSaverMock}).ServeHTTP(resp, req)
+			newRouter().ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 200", func() {
 				So(resp.Code, ShouldEqual, 200)
@@ -108,23 +97,10 @@ func TestPOST(t *testing.T) {
 func TestPOSTNoFile(t *testing.T) {
 	initTest()
 	Convey("Given a HTTP request for /upload", t, func() {
-
-		body := &bytes.Buffer{}
-		writer := multipart.NewWriter(body)
-
-		writer.WriteField("email", "a@a.a")
-		writer.Close()
-
-		req := httptest.NewRequest("POST", "/upload", body)
-		req.Header.Set("Content-Type", writer.FormDataContentType())
-
+		req := newReq("", "a@a.a")
 		resp := httptest.NewRecorder()
-
 		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{StatusSaver: statusSaverMock,
-				MessageSender: testSender{},
-				RequestSaver:  requestSaverMock,
-				FileSaver:     testSaver{}}).ServeHTTP(resp, req)
+			newRouter().ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
@@ -133,28 +109,55 @@ func TestPOSTNoFile(t *testing.T) {
 	})
 }
 
-func TestPOST_NoEmail(t *testing.T) {
-	initTest()
-	Convey("Given a HTTP request without email", t, func() {
-
-		body := &bytes.Buffer{}
-		writer := multipart.NewWriter(body)
+func newReq(file string, email string) *http.Request {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	if file != "" {
 		part, _ := writer.CreateFormFile("file", "fileName")
 		_, _ = io.Copy(part, strings.NewReader("body"))
 
-		writer.Close()
+	}
+	if email != "" {
+		writer.WriteField("email", email)
 
-		req := httptest.NewRequest("POST", "/upload", body)
-		req.Header.Set("Content-Type", writer.FormDataContentType())
+	}
+	writer.Close()
+	req := httptest.NewRequest("POST", "/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	return req
+}
 
+func newRouter() *mux.Router {
+	return NewRouter(&ServiceData{StatusSaver: statusSaverMock,
+		MessageSender: testSender{},
+		RequestSaver:  requestSaverMock,
+		FileSaver:     testSaver{}})
+}
+
+func TestPOST_WrongEmail(t *testing.T) {
+	initTest()
+	Convey("Given a test", t, func() {
 		resp := httptest.NewRecorder()
-
-		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{StatusSaver: statusSaverMock,
-				MessageSender: testSender{},
-				RequestSaver:  requestSaverMock,
-				FileSaver:     testSaver{}}).ServeHTTP(resp, req)
-
+		Convey("When no email is given", func() {
+			newRouter().ServeHTTP(resp, newReq("file", ""))
+			Convey("Then the response should be a 400", func() {
+				So(resp.Code, ShouldEqual, 400)
+			})
+		})
+		Convey("When wrong email is given", func() {
+			newRouter().ServeHTTP(resp, newReq("file", "a@"))
+			Convey("Then the response should be a 400", func() {
+				So(resp.Code, ShouldEqual, 400)
+			})
+		})
+		Convey("When wrong email(1) is given", func() {
+			newRouter().ServeHTTP(resp, newReq("file", "@a"))
+			Convey("Then the response should be a 400", func() {
+				So(resp.Code, ShouldEqual, 400)
+			})
+		})
+		Convey("When wrong email(2) is given", func() {
+			newRouter().ServeHTTP(resp, newReq("file", "a_a"))
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
 			})
@@ -164,21 +167,9 @@ func TestPOST_NoEmail(t *testing.T) {
 
 func TestPOST_Sender(t *testing.T) {
 	initTest()
-	Convey("Given a HTTP request without email", t, func() {
-
-		body := &bytes.Buffer{}
-		writer := multipart.NewWriter(body)
-		part, _ := writer.CreateFormFile("file", "fileName")
-		_, _ = io.Copy(part, strings.NewReader("body"))
-		writer.WriteField("email", "a@a.a")
-
-		writer.Close()
-
-		req := httptest.NewRequest("POST", "/upload", body)
-		req.Header.Set("Content-Type", writer.FormDataContentType())
-
+	Convey("Given a HTTP request", t, func() {
+		req := newReq("filename", "a@a.a")
 		resp := httptest.NewRecorder()
-
 		Convey("When the request is handled by the Router", func() {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
 				func(m *messages.QueueMessage, q string, rq string) error {
@@ -196,21 +187,9 @@ func TestPOST_Sender(t *testing.T) {
 
 func TestPOST_SenderFails(t *testing.T) {
 	initTest()
-	Convey("Given a HTTP request without email", t, func() {
-
-		body := &bytes.Buffer{}
-		writer := multipart.NewWriter(body)
-		part, _ := writer.CreateFormFile("file", "fileName")
-		_, _ = io.Copy(part, strings.NewReader("body"))
-		writer.WriteField("email", "a@a.a")
-
-		writer.Close()
-
-		req := httptest.NewRequest("POST", "/upload", body)
-		req.Header.Set("Content-Type", writer.FormDataContentType())
-
+	Convey("Given a HTTP request", t, func() {
+		req := newReq("filename", "a@a.a")
 		resp := httptest.NewRecorder()
-
 		Convey("When the request is handled by the Router", func() {
 			NewRouter(&ServiceData{MessageSender: testSenderFunc(
 				func(m *messages.QueueMessage, q string, rq string) error {
@@ -228,19 +207,8 @@ func TestPOST_SenderFails(t *testing.T) {
 
 func TestPOST_SaverFails(t *testing.T) {
 	initTest()
-	Convey("Given a HTTP request without email", t, func() {
-
-		body := &bytes.Buffer{}
-		writer := multipart.NewWriter(body)
-		part, _ := writer.CreateFormFile("file", "fileName")
-		_, _ = io.Copy(part, strings.NewReader("body"))
-		writer.WriteField("email", "a@a.a")
-
-		writer.Close()
-
-		req := httptest.NewRequest("POST", "/upload", body)
-		req.Header.Set("Content-Type", writer.FormDataContentType())
-
+	Convey("Given a HTTP request", t, func() {
+		req := newReq("filename", "a@a.a")
 		resp := httptest.NewRecorder()
 
 		Convey("When the request is handled by the Router", func() {
@@ -263,29 +231,15 @@ func TestPOST_SaverFails(t *testing.T) {
 
 func TestPOST_StatusSaverFails(t *testing.T) {
 	initTest()
-	Convey("Given a HTTP request without email", t, func() {
-
-		body := &bytes.Buffer{}
-		writer := multipart.NewWriter(body)
-		part, _ := writer.CreateFormFile("file", "fileName")
-		_, _ = io.Copy(part, strings.NewReader("body"))
-		writer.WriteField("email", "a@a.a")
-
-		writer.Close()
-
-		req := httptest.NewRequest("POST", "/upload", body)
-		req.Header.Set("Content-Type", writer.FormDataContentType())
-
+	Convey("Given a HTTP request", t, func() {
+		req := newReq("filename", "a@a.a")
 		resp := httptest.NewRecorder()
 
 		Convey("When the request is handled by the Router", func() {
 			pegomock.When(statusSaverMock.Save(pegomock.AnyString(),
 				matchers.AnyStatusStatus())).ThenReturn(errors.New("error"))
 
-			NewRouter(&ServiceData{MessageSender: testSender{},
-				StatusSaver:  statusSaverMock,
-				RequestSaver: requestSaverMock,
-				FileSaver:    testSaver{}}).ServeHTTP(resp, req)
+			newRouter().ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
@@ -296,29 +250,15 @@ func TestPOST_StatusSaverFails(t *testing.T) {
 
 func TestPOST_RequestSaverFails(t *testing.T) {
 	initTest()
-	Convey("Given a HTTP request without email", t, func() {
-
-		body := &bytes.Buffer{}
-		writer := multipart.NewWriter(body)
-		part, _ := writer.CreateFormFile("file", "fileName")
-		_, _ = io.Copy(part, strings.NewReader("body"))
-		writer.WriteField("email", "a@a.a")
-
-		writer.Close()
-
-		req := httptest.NewRequest("POST", "/upload", body)
-		req.Header.Set("Content-Type", writer.FormDataContentType())
-
+	Convey("Given a HTTP request", t, func() {
+		req := newReq("filename", "a@a.a")
 		resp := httptest.NewRecorder()
 
 		Convey("When the request is handled by the Router", func() {
 			pegomock.When(requestSaverMock.Save(pegomock.AnyString(),
 				pegomock.AnyString())).ThenReturn(errors.New("error"))
 
-			NewRouter(&ServiceData{MessageSender: testSender{},
-				StatusSaver:  statusSaverMock,
-				RequestSaver: requestSaverMock,
-				FileSaver:    testSaver{}}).ServeHTTP(resp, req)
+			newRouter().ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
