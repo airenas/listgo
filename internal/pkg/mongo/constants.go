@@ -8,6 +8,8 @@ const (
 	emailTable   = "emailLock"
 )
 
-var indexData = []IndexData{newIndexData(statusTable, "ID", true),
-	newIndexData(resultTable, "ID", true), newIndexData(requestTable, "ID", true),
-	newIndexData(requestTable, "ID", false)}
+var indexData = []IndexData{
+	newIndexData(statusTable, "ID", true),
+	newIndexData(resultTable, "ID", true),
+	newIndexData(requestTable, "ID", true),
+	newIndexData(emailTable, "ID", false)}
