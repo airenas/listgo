@@ -220,5 +220,5 @@ func publishStatusChange(message *messages.QueueMessage, data *ServiceData) {
 }
 
 func newInformMessage(id string, it string) *messages.InformMessage {
-	return &messages.InformMessage{QueueMessage: messages.QueueMessage{ID: id}, Type: it, At: time.Now()}
+	return &messages.InformMessage{QueueMessage: messages.QueueMessage{ID: id}, Type: it, At: time.Now().UTC()}
 }
