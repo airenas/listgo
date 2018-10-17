@@ -8,6 +8,7 @@ import (
 	"github.com/jordan-wright/email"
 )
 
+//SimpleEmailSender uses standard esmtp lib to send emails
 type SimpleEmailSender struct {
 	sendPool *email.Pool
 }
@@ -23,6 +24,7 @@ func newSimpleEmailSender() (*SimpleEmailSender, error) {
 	return &r, nil
 }
 
+//Send sends email
 func (s *SimpleEmailSender) Send(email *email.Email) error {
 	return s.sendPool.Send(email, 10*time.Second)
 }
