@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"bitbucket.org/airenas/listgo/internal/pkg/inform"
+
 	"github.com/spf13/viper"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -38,11 +40,11 @@ func TestEmail(t *testing.T) {
 		v.Set("mail.x.subject", "subject")
 		v.Set("mail.x.text", "text")
 		m, _ := newSimpleEmailMaker(v)
-		data := Data{}
-		data.email = "email"
-		data.id = "id"
-		data.msgType = "x"
-		data.msgTime = time.Now()
+		data := inform.Data{}
+		data.Email = "email"
+		data.ID = "id"
+		data.MsgType = "x"
+		data.MsgTime = time.Now()
 		Convey("Mail should be made", func() {
 			e, _ := m.Make(&data)
 			So(e.Subject, ShouldEqual, "subject")
@@ -72,7 +74,7 @@ func TestEmail(t *testing.T) {
 		Convey("Should change Date", func() {
 			v.Set("mail.x.text", "{{DATE}}")
 			e, _ := m.Make(&data)
-			So(string(e.Text), ShouldStartWith, data.msgTime.Format("2006-01-02 15:04:05"))
+			So(string(e.Text), ShouldStartWith, data.MsgTime.Format("2006-01-02 15:04:05"))
 		})
 	})
 }

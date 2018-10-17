@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"bitbucket.org/airenas/listgo/internal/pkg/inform"
+
 	"github.com/jordan-wright/email"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
@@ -12,8 +14,6 @@ import (
 	"github.com/streadway/amqp"
 )
 
-type readFunc func(file string, id string) (string, error)
-
 //Sender send emails
 type Sender interface {
 	Send(email *email.Email) error
@@ -21,7 +21,7 @@ type Sender interface {
 
 //EmailMaker prepares the email
 type EmailMaker interface {
-	Make(data *Data) (*email.Email, error)
+	Make(data *inform.Data) (*email.Email, error)
 }
 
 //EmailRetriever return the email by ID
@@ -34,14 +34,6 @@ type EmailRetriever interface {
 type Locker interface {
 	Lock(id string, lockKey string) error
 	UnLock(id string, lockKey string, value *int) error
-}
-
-//Data keeps data for email generation
-type Data struct {
-	id      string
-	msgType string
-	email   string
-	msgTime time.Time
 }
 
 // ServiceData keeps data required for service work
@@ -67,6 +59,21 @@ func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 	if data.TaskName == "" {
 		return nil, errors.New("No Task Name")
 	}
+	if data.emailMaker == nil {
+		return nil, errors.New("No email maker")
+	}
+	if data.emailRetriever == nil {
+		return nil, errors.New("No email retriever")
+	}
+	if data.emailSender == nil {
+		return nil, errors.New("No sender")
+	}
+	if data.locker == nil {
+		return nil, errors.New("No locker")
+	}
+	if data.WorkCh == nil {
+		return nil, errors.New("No work channel")
+	}
 
 	fc := make(chan bool)
 
@@ -78,13 +85,13 @@ func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 func work(data *ServiceData, message *messages.InformMessage) error {
 	cmdapp.Log.Infof("Got task %s for ID: %s", data.TaskName, message.ID)
 
-	mailData := Data{}
-	mailData.id = message.ID
-	mailData.msgTime = toLocalTime(data, message.At)
-	mailData.msgType = message.Type
+	mailData := inform.Data{}
+	mailData.ID = message.ID
+	mailData.MsgTime = toLocalTime(data, message.At)
+	mailData.MsgType = message.Type
 
 	var err error
-	mailData.email, err = data.emailRetriever.Get(message.ID)
+	mailData.Email, err = data.emailRetriever.Get(message.ID)
 	if err != nil {
 		cmdapp.Log.Error(err)
 		return errors.Wrap(err, "Can't retrieve email")
@@ -96,13 +103,13 @@ func work(data *ServiceData, message *messages.InformMessage) error {
 		return errors.Wrap(err, "Can't prepare email")
 	}
 
-	err = data.locker.Lock(mailData.id, mailData.msgType)
+	err = data.locker.Lock(mailData.ID, mailData.MsgType)
 	if err != nil {
 		cmdapp.Log.Error(err)
 		return errors.Wrap(err, "Can't lock mail table")
 	}
 	var unlockValue = 0
-	defer data.locker.UnLock(mailData.id, mailData.msgType, &unlockValue)
+	defer data.locker.UnLock(mailData.ID, mailData.MsgType, &unlockValue)
 
 	err = data.emailSender.Send(email)
 	if err != nil {

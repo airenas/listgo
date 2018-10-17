@@ -11,3 +11,4 @@ internal/pkg/test/mocks/mock_*.*
 internal/pkg/test/mocks/matchers/**
 internal/pkg/test/mocks/**
 cmd/informService/config.yaml
+internal/pkg/test/mocks1/**
