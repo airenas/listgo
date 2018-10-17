@@ -32,32 +32,26 @@ func Execute() {
 func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Info("Starting " + appName)
 	err := validateConfig()
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "")
+
 	data := ServiceData{}
 
 	msgChannelProvider, err := rabbit.NewChannelProvider()
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "Can't init rabbit channel")
 	defer msgChannelProvider.Close()
 
 	ch, err := msgChannelProvider.Channel()
-	if err != nil {
-		panic(errors.Wrap(err, "Can't open channel"))
-	}
+	cmdapp.CheckOrPanic(err, "Can't open channel")
+
 	err = ch.Qos(1, 0, false)
-	if err != nil {
-		panic(errors.Wrap(err, "Can't set Qos"))
-	}
+	cmdapp.CheckOrPanic(err, "Can't set Qos")
 
 	data.TaskName = cmdapp.Config.GetString("worker.taskName")
 
 	data.WorkCh, err = rabbit.NewChannel(ch, data.TaskName)
 	cmdapp.CheckOrPanic(err, "Can't listen to "+data.TaskName+" channel")
 
-	data.emailMaker, err = newSimpleEmailMaker()
+	data.emailMaker, err = newSimpleEmailMaker(cmdapp.Config)
 	cmdapp.CheckOrPanic(err, "Can't init email maker")
 
 	location := cmdapp.Config.GetString("worker.location")
@@ -80,9 +74,8 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't init mongo email retriever")
 
 	fc, err := StartWorkerService(&data)
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "Can't start service")
+
 	<-fc
 	cmdapp.Log.Infof("Exiting service")
 }

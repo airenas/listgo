@@ -89,7 +89,11 @@ func Execute(cmd *cobra.Command) {
 //CheckOrPanic panics if err != nil
 func CheckOrPanic(err error, msg string) {
 	if err != nil {
-		panic(errors.Wrap(err, msg))
+		if msg == "" {
+			panic(err)
+		} else {
+			panic(errors.Wrap(err, msg))
+		}
 	}
 }
 

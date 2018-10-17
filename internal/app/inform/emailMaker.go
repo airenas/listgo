@@ -6,23 +6,27 @@ import (
 
 	"github.com/spf13/viper"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/jordan-wright/email"
 )
 
 type SimpleEmailMaker struct {
 	url string
+	c   *viper.Viper
 }
 
-func newSimpleEmailMaker() (*SimpleEmailMaker, error) {
-	r := SimpleEmailMaker{}
-	r.url = cmdapp.Config.GetString("mail.url")
+func newSimpleEmailMaker(c *viper.Viper) (*SimpleEmailMaker, error) {
+	r := SimpleEmailMaker{c: c}
+	var err error
+	r.url, err = getStringNonNil(c, "mail.url")
+	if err != nil {
+		return nil, err
+	}
 	return &r, nil
 }
 
 //Make prepares the email for ID
 func (maker *SimpleEmailMaker) Make(data *Data) (*email.Email, error) {
-	return maker.make(data, cmdapp.Config)
+	return maker.make(data, maker.c)
 }
 
 func (maker *SimpleEmailMaker) getText(data *Data, c *viper.Viper) (string, error) {
