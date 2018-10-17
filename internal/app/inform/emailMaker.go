@@ -9,6 +9,7 @@ import (
 	"github.com/jordan-wright/email"
 )
 
+//SimpleEmailMaker makes email from config
 type SimpleEmailMaker struct {
 	url string
 	c   *viper.Viper
