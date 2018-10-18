@@ -46,10 +46,10 @@ func run(cmd *cobra.Command, args []string) {
 	err = ch.Qos(1, 0, false)
 	cmdapp.CheckOrPanic(err, "Can't set Qos")
 
-	data.TaskName = cmdapp.Config.GetString("worker.taskName")
+	data.taskName = cmdapp.Config.GetString("worker.taskName")
 
-	data.WorkCh, err = rabbit.NewChannel(ch, data.TaskName)
-	cmdapp.CheckOrPanic(err, "Can't listen to "+data.TaskName+" channel")
+	data.workCh, err = rabbit.NewChannel(ch, data.taskName)
+	cmdapp.CheckOrPanic(err, "Can't listen to "+data.taskName+" channel")
 
 	data.emailMaker, err = newSimpleEmailMaker(cmdapp.Config)
 	cmdapp.CheckOrPanic(err, "Can't init email maker")

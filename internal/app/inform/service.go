@@ -38,8 +38,8 @@ type Locker interface {
 
 // ServiceData keeps data required for service work
 type ServiceData struct {
-	TaskName       string
-	WorkCh         <-chan amqp.Delivery
+	taskName       string
+	workCh         <-chan amqp.Delivery
 	emailSender    Sender
 	emailMaker     EmailMaker
 	emailRetriever EmailRetriever
@@ -56,7 +56,7 @@ type ServiceData struct {
 // <-fc // waits for finish
 func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 	cmdapp.Log.Infof("Starting listen for messages")
-	if data.TaskName == "" {
+	if data.taskName == "" {
 		return nil, errors.New("No Task Name")
 	}
 	if data.emailMaker == nil {
@@ -71,7 +71,7 @@ func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 	if data.locker == nil {
 		return nil, errors.New("No locker")
 	}
-	if data.WorkCh == nil {
+	if data.workCh == nil {
 		return nil, errors.New("No work channel")
 	}
 
@@ -83,7 +83,7 @@ func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 
 //work is main method to send the message
 func work(data *ServiceData, message *messages.InformMessage) error {
-	cmdapp.Log.Infof("Got task %s for ID: %s", data.TaskName, message.ID)
+	cmdapp.Log.Infof("Got task %s for ID: %s", data.taskName, message.ID)
 
 	mailData := inform.Data{}
 	mailData.ID = message.ID
@@ -121,11 +121,11 @@ func work(data *ServiceData, message *messages.InformMessage) error {
 }
 
 func listenQueue(data *ServiceData, fc chan<- bool) {
-	for d := range data.WorkCh {
-		err := processMsg(&d, data)
+	for d := range data.workCh {
+		redeliver, err := processMsg(&d, data)
 		if err != nil {
 			cmdapp.Log.Error("Message error", err)
-			d.Nack(false, false)
+			d.Nack(false, redeliver && !d.Redelivered) // try redeliver for the first time
 			continue
 		}
 		d.Ack(false)
@@ -141,12 +141,13 @@ func toLocalTime(data *ServiceData, t time.Time) time.Time {
 	return t
 }
 
-func processMsg(d *amqp.Delivery, data *ServiceData) error {
+//processMsg returns true if it needs to retry on error again
+func processMsg(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	var message messages.InformMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
-		return errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
+		return false, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
 	}
 	err := work(data, &message)
 	cmdapp.Log.Infof("Msg processed")
-	return err
+	return true, err
 }

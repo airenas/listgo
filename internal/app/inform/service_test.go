@@ -3,11 +3,15 @@ package inform
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks1"
+	"github.com/pkg/errors"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
+	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
+	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks1"
+
 	"github.com/petergtz/pegomock"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/streadway/amqp"
@@ -15,7 +19,6 @@ import (
 
 var senderMock *mocks1.MockSender
 var message amqp.Delivery
-var msgSenderMock *mocks1.MockSender
 var emailMakerMock *mocks.MockEmailMaker
 var emailRetrieverMock *mocks.MockEmailRetriever
 var lockerMock *mocks.MockLocker
@@ -24,7 +27,7 @@ var ackMock *mocks.MockAcknowledger
 func initTest(t *testing.T) {
 	mocks.AttachMockToConvey(t)
 	ackMock = mocks.NewMockAcknowledger()
-	msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
+	msgdata, _ := json.Marshal(messages.InformMessage{QueueMessage: messages.QueueMessage{ID: "id"}, Type: "it", At: time.Now().UTC()})
 	message = amqp.Delivery{Body: msgdata}
 	message.Acknowledger = ackMock
 
@@ -40,8 +43,8 @@ func TestHandlesMessages(t *testing.T) {
 		// init worker service
 		wc := make(chan amqp.Delivery)
 		data := ServiceData{}
-		data.TaskName = "x"
-		data.WorkCh = wc
+		data.taskName = "x"
+		data.workCh = wc
 		data.emailSender = senderMock
 		data.emailMaker = emailMakerMock
 		data.emailRetriever = emailRetrieverMock
@@ -56,83 +59,73 @@ func TestHandlesMessages(t *testing.T) {
 				ackMock.VerifyWasCalledOnce().Nack(pegomock.AnyUint64(), pegomock.AnyBool(), pegomock.AnyBool())
 			})
 		})
-		// Convey("When good msg is put with reply", func() {
-		// 	message.ReplyTo = "rt"
-		// 	wc <- message
-		// 	close(wc)
-		// 	<-fc // wait for complete
-		// 	Convey("msg replied", func() {
-		// 		msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-		// 			pegomock.AnyString(), pegomock.AnyString())
-		// 	})
-		// 	Convey("Ack is called", func() {
-		// 		ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
-		// 	})
-		// })
-		// Convey("When good msg is put with no reply", func() {
-		// 	wc <- message
-		// 	close(wc)
-		// 	<-fc // wait for complete
-		// 	Convey("No msg replied", func() {
-		// 		msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
-		// 	})
-		// 	Convey("Ack is called", func() {
-		// 		ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
-		// 	})
-		// })
-		// Convey("When task fails", func() {
-		// 	data.Command = "lsss"
-		// 	message.ReplyTo = "rt"
-		// 	wc <- message
-		// 	close(wc)
-		// 	<-fc // wait for complete
-		// 	Convey("msg replied", func() {
-		// 		cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-		// 			pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
-		// 		So(cMsg.(*messages.QueueMessage).Error, ShouldNotBeEmpty)
-		// 	})
-		// 	Convey("Ack is called", func() {
-		// 		ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
-		// 	})
-		// })
-		// Convey("When good msg is put with result required", func() {
-		// 	data.ReadFunc = func(file string, id string) (string, error) {
-		// 		return "olia", nil
-		// 	}
-		// 	data.ResultFile = "rFile"
-		// 	message.ReplyTo = "rt"
+		Convey("When good msg is put", func() {
+			wc <- message
+			close(wc)
+			<-fc // wait for complete
+			Convey("email send", func() {
+				senderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyPtrToEmailEmail())
+			})
+			Convey("Ack is called", func() {
+				ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
+			})
+			Convey("Lock is called ", func() {
+				lockerMock.VerifyWasCalledOnce().Lock(pegomock.EqString("id"), pegomock.EqString("it"))
+			})
+			Convey("UnLock is called ", func() {
+				_, _, ut := lockerMock.VerifyWasCalledOnce().UnLock(pegomock.EqString("id"),
+					pegomock.EqString("it"), matchers.AnyPtrToInt()).GetCapturedArguments()
+				So(*ut, ShouldEqual, 2)
+			})
+		})
+		Convey("When Maker fails", func() {
+			pegomock.When(emailMakerMock.Make(matchers.AnyPtrToInformData())).ThenReturn(nil, errors.New("error"))
 
-		// 	wc <- message
-		// 	close(wc)
-		// 	<-fc // wait for complete
-		// 	Convey("msg replied with result", func() {
-		// 		cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-		// 			pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
-		// 		So(cMsg.(*messages.ResultMessage).Result, ShouldEqual, "olia")
-		// 	})
-		// 	Convey("Ack is called", func() {
-		// 		ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
-		// 	})
-		// })
-		// Convey("When good msg is put with result failing", func() {
-		// 	data.ReadFunc = func(file string, id string) (string, error) {
-		// 		return "", errors.New("error")
-		// 	}
-		// 	data.ResultFile = "rFile"
-		// 	message.ReplyTo = "rt"
+			wc <- message
+			close(wc)
+			<-fc // wait for complete
+			Convey("Nack is called", func() {
+				ackMock.VerifyWasCalledOnce().Nack(pegomock.AnyUint64(), pegomock.AnyBool(), pegomock.AnyBool())
+			})
+		})
+		Convey("When EmailRetriever fails", func() {
+			pegomock.When(emailRetrieverMock.Get(pegomock.AnyString())).ThenReturn("", errors.New("error"))
 
-		// 	wc <- message
-		// 	close(wc)
-		// 	<-fc // wait for completeBuildTestingFailHandler
-		// 	Convey("msg replied with error", func() {
-		// 		cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-		// 			pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
-		// 		So(cMsg.(*messages.ResultMessage).Error, ShouldNotBeEmpty)
-		// 	})
-		// 	Convey("Ack is called", func() {
-		// 		ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
-		// 	})
-		// })
+			wc <- message
+			close(wc)
+			<-fc // wait for complete
+			Convey("Nack is called", func() {
+				ackMock.VerifyWasCalledOnce().Nack(pegomock.AnyUint64(), pegomock.AnyBool(), pegomock.AnyBool())
+			})
+		})
+		Convey("When Sender fails", func() {
+			pegomock.When(senderMock.Send(matchers.AnyPtrToEmailEmail())).ThenReturn(errors.New("error"))
+
+			wc <- message
+			close(wc)
+			<-fc // wait for complete
+			Convey("Nack is called", func() {
+				ackMock.VerifyWasCalledOnce().Nack(pegomock.AnyUint64(), pegomock.AnyBool(), pegomock.AnyBool())
+			})
+			Convey("Lock is called ", func() {
+				lockerMock.VerifyWasCalledOnce().Lock(pegomock.EqString("id"), pegomock.EqString("it"))
+			})
+			Convey("UnLock is called ", func() {
+				_, _, ut := lockerMock.VerifyWasCalledOnce().UnLock(pegomock.EqString("id"),
+					pegomock.EqString("it"), matchers.AnyPtrToInt()).GetCapturedArguments()
+				So(*ut, ShouldEqual, 0)
+			})
+		})
+		Convey("When Locker fails", func() {
+			pegomock.When(lockerMock.Lock(pegomock.AnyString(), pegomock.AnyString())).ThenReturn(errors.New("error"))
+
+			wc <- message
+			close(wc)
+			<-fc // wait for complete
+			Convey("Nack is called", func() {
+				ackMock.VerifyWasCalledOnce().Nack(pegomock.AnyUint64(), pegomock.AnyBool(), pegomock.AnyBool())
+			})
+		})
 	})
 }
 
@@ -141,8 +134,8 @@ func TestCheckInputParameters(t *testing.T) {
 		initTest(t)
 		wc := make(chan amqp.Delivery)
 		data := ServiceData{}
-		data.TaskName = "x"
-		data.WorkCh = wc
+		data.taskName = "x"
+		data.workCh = wc
 		data.emailSender = senderMock
 		data.emailMaker = emailMakerMock
 		data.emailRetriever = emailRetrieverMock
@@ -155,7 +148,7 @@ func TestCheckInputParameters(t *testing.T) {
 			})
 		})
 		Convey("Given no channel", func() {
-			data.WorkCh = nil
+			data.workCh = nil
 			_, error := StartWorkerService(&data)
 			Convey("Should return error", func() {
 				So(error, ShouldNotBeNil)
@@ -177,6 +170,13 @@ func TestCheckInputParameters(t *testing.T) {
 		})
 		Convey("Given no locker", func() {
 			data.locker = nil
+			_, error := StartWorkerService(&data)
+			Convey("Should return error", func() {
+				So(error, ShouldNotBeNil)
+			})
+		})
+		Convey("Given no TaskName", func() {
+			data.taskName = ""
 			_, error := StartWorkerService(&data)
 			Convey("Should return error", func() {
 				So(error, ShouldNotBeNil)
