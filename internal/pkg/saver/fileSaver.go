@@ -54,7 +54,7 @@ func (fs LocalFileSaver) Save(name string, reader io.Reader) error {
 	if err != nil {
 		return errors.New("Can not save file " + fileName + ". " + err.Error())
 	}
-	cmdapp.Log.Infof("Saved file %s. Size = %d b", fileName, strconv.FormatInt(savedBytes, 10))
+	cmdapp.Log.Infof("Saved file %s. Size = %s b", fileName, strconv.FormatInt(savedBytes, 10))
 	return nil
 }
 
