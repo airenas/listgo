@@ -40,7 +40,7 @@ For deploy options see [bitbucket.org/airenas/list](https://bitbucket.org/airena
 ---
 ### License
 
-Copyright © 2018, [Airenas Vaičiūnas](https://bitbucket.org/airenas).
+Copyright © 2019, [Airenas Vaičiūnas](https://bitbucket.org/airenas).
 Released under the [The 3-Clause BSD License](LICENSE).
 
 ---
