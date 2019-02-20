@@ -29,6 +29,12 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=locker.go -m bitbucket.org/airenas/listgo/internal/app/inform Locker
 
+//go:generate pegomock generate --package=mocks --output=file.go -m bitbucket.org/airenas/listgo/internal/app/result/api File
+
+//go:generate pegomock generate --package=mocks --output=fileLoader.go -m bitbucket.org/airenas/listgo/internal/app/result FileLoader
+
+//go:generate pegomock generate --package=mocks --output=fileNameProvider.go -m bitbucket.org/airenas/listgo/internal/app/result FileNameProvider
+
 //AttachMockToConvey register pegomock verification to be passed to Convey
 func AttachMockToConvey(t *testing.T) {
 	pegomock.RegisterMockFailHandler(handleByConvey(t))
