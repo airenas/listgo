@@ -1,6 +1,7 @@
 package mongo
 
 import (
+	"bitbucket.org/airenas/listgo/internal/app/upload/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/globalsign/mgo/bson"
 )
@@ -17,8 +18,8 @@ func NewRequestSaver(sessionProvider *SessionProvider) (*RequestSaver, error) {
 }
 
 // Save saves resquest to DB
-func (ss *RequestSaver) Save(id string, email string) error {
-	cmdapp.Log.Infof("Saving request %s: %s", id, email)
+func (ss *RequestSaver) Save(data api.RequestData) error {
+	cmdapp.Log.Infof("Saving request %s: %s", data.ID, data.Email)
 
 	session, err := ss.SessionProvider.NewSession()
 	if err != nil {
@@ -27,6 +28,6 @@ func (ss *RequestSaver) Save(id string, email string) error {
 	defer session.Close()
 
 	c := session.DB(store).C(requestTable)
-	_, err = c.Upsert(bson.M{"ID": id}, bson.M{"$set": bson.M{"email": email}})
+	_, err = c.Upsert(bson.M{"ID": data.ID}, bson.M{"$set": bson.M{"email": data.Email, "file": data.File}})
 	return err
 }

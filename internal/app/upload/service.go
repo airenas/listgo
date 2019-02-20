@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"bitbucket.org/airenas/listgo/internal/app/upload/api"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
 
@@ -73,20 +75,6 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	id := uuid.New().String()
 
-	err = h.data.RequestSaver.Save(id, email)
-	if err != nil {
-		http.Error(w, "Can not save request to DB", http.StatusBadRequest)
-		cmdapp.Log.Error(err)
-		return
-	}
-
-	err = h.data.StatusSaver.Save(id, status.Uploaded)
-	if err != nil {
-		http.Error(w, "Can not save file", http.StatusBadRequest)
-		cmdapp.Log.Error(err)
-		return
-	}
-
 	file, handler, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, "No file", http.StatusBadRequest)
@@ -97,6 +85,20 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ext := filepath.Ext(handler.Filename)
 	fileName := id + ext
+
+	err = h.data.RequestSaver.Save(api.RequestData{id, email, fileName})
+	if err != nil {
+		http.Error(w, "Can not save request to DB", http.StatusBadRequest)
+		cmdapp.Log.Error(err)
+		return
+	}
+
+	err = h.data.StatusSaver.Save(id, status.Uploaded)
+	if err != nil {
+		http.Error(w, "Can not save status", http.StatusBadRequest)
+		cmdapp.Log.Error(err)
+		return
+	}
 
 	err = h.data.FileSaver.Save(fileName, file)
 	if err != nil {

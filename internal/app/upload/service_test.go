@@ -25,7 +25,8 @@ var requestSaverMock *mocks.MockRequestSaver
 
 var msgSenderMock *mocks.MockSender
 
-func initTest() {
+func initTest(t *testing.T) {
+	mocks.AttachMockToConvey(t)
 	statusSaverMock = mocks.NewMockSaver()
 	requestSaverMock = mocks.NewMockRequestSaver()
 	msgSenderMock = mocks.NewMockSender()
@@ -78,7 +79,7 @@ func TestNoFilePOST(t *testing.T) {
 }
 
 func TestPOST(t *testing.T) {
-	initTest()
+	initTest(t)
 	Convey("Given a HTTP request for /upload", t, func() {
 		req := newReq("filename", "a@a.a")
 		resp := httptest.NewRecorder()
@@ -97,7 +98,7 @@ func TestPOST(t *testing.T) {
 }
 
 func TestPOSTNoFile(t *testing.T) {
-	initTest()
+	initTest(t)
 	Convey("Given a HTTP request for /upload", t, func() {
 		req := newReq("", "a@a.a")
 		resp := httptest.NewRecorder()
@@ -115,7 +116,7 @@ func newReq(file string, email string) *http.Request {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	if file != "" {
-		part, _ := writer.CreateFormFile("file", "fileName")
+		part, _ := writer.CreateFormFile("file", file)
 		_, _ = io.Copy(part, strings.NewReader("body"))
 
 	}
@@ -137,7 +138,7 @@ func newRouter() *mux.Router {
 }
 
 func TestPOST_WrongEmail(t *testing.T) {
-	initTest()
+	initTest(t)
 	Convey("Given a test", t, func() {
 		resp := httptest.NewRecorder()
 		Convey("When no email is given", func() {
@@ -168,7 +169,7 @@ func TestPOST_WrongEmail(t *testing.T) {
 }
 
 func TestPOST_Sender(t *testing.T) {
-	initTest()
+	initTest(t)
 	Convey("Given a HTTP request", t, func() {
 		req := newReq("filename", "a@a.a")
 		resp := httptest.NewRecorder()
@@ -185,7 +186,7 @@ func TestPOST_Sender(t *testing.T) {
 }
 
 func TestPOST_SenderFails(t *testing.T) {
-	initTest()
+	initTest(t)
 	Convey("Given a HTTP request", t, func() {
 		req := newReq("filename", "a@a.a")
 		resp := httptest.NewRecorder()
@@ -206,7 +207,7 @@ func TestPOST_SenderFails(t *testing.T) {
 }
 
 func TestPOST_SaverFails(t *testing.T) {
-	initTest()
+	initTest(t)
 	Convey("Given a HTTP request", t, func() {
 		req := newReq("filename", "a@a.a")
 		resp := httptest.NewRecorder()
@@ -227,7 +228,7 @@ func TestPOST_SaverFails(t *testing.T) {
 }
 
 func TestPOST_StatusSaverFails(t *testing.T) {
-	initTest()
+	initTest(t)
 	Convey("Given a HTTP request", t, func() {
 		req := newReq("filename", "a@a.a")
 		resp := httptest.NewRecorder()
@@ -246,19 +247,36 @@ func TestPOST_StatusSaverFails(t *testing.T) {
 }
 
 func TestPOST_RequestSaverFails(t *testing.T) {
-	initTest()
+	initTest(t)
 	Convey("Given a HTTP request", t, func() {
 		req := newReq("filename", "a@a.a")
 		resp := httptest.NewRecorder()
 
 		Convey("When the request is handled by the Router", func() {
-			pegomock.When(requestSaverMock.Save(pegomock.AnyString(),
-				pegomock.AnyString())).ThenReturn(errors.New("error"))
-
+			pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(errors.New("error"))
 			newRouter().ServeHTTP(resp, req)
 
 			Convey("Then the response should be a 400", func() {
 				So(resp.Code, ShouldEqual, 400)
+			})
+		})
+	})
+}
+
+func TestPOST_RequestSaverCalled(t *testing.T) {
+	initTest(t)
+	Convey("Given a HTTP request", t, func() {
+		req := newReq("filename.wav", "a@a.a")
+		resp := httptest.NewRecorder()
+
+		Convey("When the request is handled by the Router", func() {
+			pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(nil)
+			newRouter().ServeHTTP(resp, req)
+			Convey("Then request saver is invoked", func() {
+				rd := requestSaverMock.VerifyWasCalled(pegomock.Once()).Save(matchers.AnyApiRequestData()).GetCapturedArguments()
+				So(rd.Email, ShouldEqual, "a@a.a")
+				So(strings.HasSuffix(rd.File, ".wav"), ShouldBeTrue)
+				So(rd.ID, ShouldNotBeEmpty)
 			})
 		})
 	})
