@@ -39,9 +39,12 @@ func run(cmd *cobra.Command, args []string) {
 	fileNameProvider, err := mongo.NewFileNameProvider(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "Can't init fileName provider")
 
-	fileLoader, err := loader.NewLocalFileLoader(cmdapp.Config.GetString("fileStorage.audio"))
-	cmdapp.CheckOrPanic(err, "Can't init fileLoader provider")
+	audioFileLoader, err := loader.NewLocalFileLoader(cmdapp.Config.GetString("fileStorage.audio"))
+	cmdapp.CheckOrPanic(err, "Can't init audioFileLoader provider")
 
-	err = StartWebServer(&ServiceData{fileLoader, fileNameProvider, cmdapp.Config.GetInt("port")})
+	resultFileLoader, err := loader.NewLocalFileLoader(cmdapp.Config.GetString("fileStorage.results"))
+	cmdapp.CheckOrPanic(err, "Can't init resultFileLoader provider")
+
+	err = StartWebServer(&ServiceData{audioFileLoader, resultFileLoader, fileNameProvider, cmdapp.Config.GetInt("port")})
 	cmdapp.CheckOrPanic(err, "Can't start web server")
 }
