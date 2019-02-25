@@ -86,7 +86,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ext := filepath.Ext(handler.Filename)
 	fileName := id + ext
 
-	err = h.data.RequestSaver.Save(api.RequestData{id, email, fileName})
+	err = h.data.RequestSaver.Save(api.RequestData{ID: id, Email: email, File: fileName})
 	if err != nil {
 		http.Error(w, "Can not save request to DB", http.StatusBadRequest)
 		cmdapp.Log.Error(err)
