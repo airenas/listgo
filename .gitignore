@@ -14,3 +14,5 @@ cmd/informService/config.yaml
 internal/pkg/test/mocks1/**
 cmd/informService/informService
 cmd/resultService/**
+go.sum
+.idea/**
