@@ -12,30 +12,21 @@ import (
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/streadway/amqp"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRun_NoParameter_Fail(t *testing.T) {
-	Convey("Given a command", t, func() {
-		cmd := "ls"
-		Convey("When the command is executed", func() {
-			err := RunCommand(cmd, "/", "id")
-			Convey("Then the result should not be nil", func() {
-				So(err, ShouldNotBeNil)
-			})
-		})
-	})
+	cmd := "ls"
+	err := RunCommand(cmd, "/", "id")
+
+	assert.NotNil(t, err, "Error expected")
 }
 
 func TestRun_WrongParameter_Fail(t *testing.T) {
-	Convey("Given a command", t, func() {
-		cmd := "ls -{olia}"
-		Convey("When the command is executed", func() {
-			err := RunCommand(cmd, "/", "id")
-			Convey("Then the result should not be nil", func() {
-				So(err, ShouldNotBeNil)
-			})
-		})
-	})
+	cmd := "ls -{olia}"
+	err := RunCommand(cmd, "/", "id")
+
+	assert.NotNil(t, err, "Error expected")
 }
 func TestRun(t *testing.T) {
 	Convey("Given a command", t, func() {
