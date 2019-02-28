@@ -6,64 +6,39 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSaves(t *testing.T) {
-	Convey("Given an input with body", t, func() {
-		fakeFile := fakeWriterCloser{bytes.NewBufferString(""), "", false}
-		fileSaver := LocalFileSaver{StoragePath: "/data/",
-			OpenFileFunc: func(file string) (WriterCloser, error) {
-				fakeFile.Name = file
-				return &fakeFile, nil
-			}}
-		Convey("When file is saved", func() {
-			err := fileSaver.Save("file", strings.NewReader("body"))
-			Convey("Then no error is returned", func() {
-				So(err, ShouldBeNil)
-			})
-			Convey("Then the file content should be body", func() {
-				So(fakeFile.String(), ShouldEqual, "body")
-			})
-			Convey("Then the file name should be /data/file", func() {
-				So(fakeFile.Name, ShouldEqual, "/data/file")
-			})
-			Convey("Then the file should be closed", func() {
-				So(fakeFile.Closed, ShouldBeTrue)
-			})
-		})
-	})
+	fakeFile := fakeWriterCloser{bytes.NewBufferString(""), "", false}
+	fileSaver := LocalFileSaver{StoragePath: "/data/",
+		OpenFileFunc: func(file string) (WriterCloser, error) {
+			fakeFile.Name = file
+			return &fakeFile, nil
+		}}
+	err := fileSaver.Save("file", strings.NewReader("body"))
+	assert.Nil(t, err)
+	assert.Equal(t, fakeFile.String(), "body")
+	assert.Equal(t, fakeFile.Name, "/data/file")
+	assert.True(t, fakeFile.Closed)
 }
 
 func TestFailsOnNoOpen(t *testing.T) {
-	Convey("Given an input", t, func() {
-		fakeFile := fakeWriterCloser{bytes.NewBufferString(""), "", false}
-		fileSaver := LocalFileSaver{StoragePath: "",
-			OpenFileFunc: func(file string) (WriterCloser, error) {
-				return &fakeFile, errors.New("olia")
-			}}
-		Convey("When error is returned on open", func() {
-			err := fileSaver.Save("file", strings.NewReader("body"))
-			Convey("Then error is returned", func() {
-				So(err, ShouldNotBeNil)
-			})
-		})
-	})
+	fakeFile := fakeWriterCloser{bytes.NewBufferString(""), "", false}
+	fileSaver := LocalFileSaver{StoragePath: "",
+		OpenFileFunc: func(file string) (WriterCloser, error) {
+			return &fakeFile, errors.New("olia")
+		}}
+	err := fileSaver.Save("file", strings.NewReader("body"))
+	assert.NotNil(t, err)
 }
 
 func TestChecksDirOnInit(t *testing.T) {
-	Convey("Given non empty input", t, func() {
-		_, err := NewLocalFileSaver("./")
-		Convey("Then no error is returned", func() {
-			So(err, ShouldBeNil)
-		})
-	})
-	Convey("Given empty input", t, func() {
-		_, err := NewLocalFileSaver("")
-		Convey("Then error is returned", func() {
-			So(err, ShouldNotBeNil)
-		})
-	})
+	_, err := NewLocalFileSaver("./")
+	assert.Nil(t, err)
+
+	_, err = NewLocalFileSaver("")
+	assert.NotNil(t, err)
 }
 
 type fakeWriterCloser struct {

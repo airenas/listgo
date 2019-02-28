@@ -1,26 +1,20 @@
-package progress
+package progress_test
 
 import (
 	"testing"
 
+	"bitbucket.org/airenas/listgo/internal/pkg/progress"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
-
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConvert(t *testing.T) {
-	Convey("Given a status", t, func() {
-		Convey("progress is calculated", func() {
-			pr := Convert(status.AudioConvert.Name)
-			So(pr, ShouldBeGreaterThan, 0)
-		})
-		Convey("unknown == 0", func() {
-			pr := Convert("olia")
-			So(pr, ShouldEqual, 0)
-		})
-		Convey("COMPLETED == 100", func() {
-			pr := Convert(status.Completed.Name)
-			So(pr, ShouldEqual, 100)
-		})
-	})
+	pr := progress.Convert(status.AudioConvert.Name)
+	assert.True(t, pr > 0)
+
+	pr = progress.Convert("olia")
+	assert.Equal(t, pr, int32(0))
+
+	pr = progress.Convert(status.Completed.Name)
+	assert.Equal(t, pr, int32(100))
 }
