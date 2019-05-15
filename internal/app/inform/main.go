@@ -48,7 +48,7 @@ func run(cmd *cobra.Command, args []string) {
 
 	data.taskName = cmdapp.Config.GetString("worker.taskName")
 
-	data.workCh, err = rabbit.NewChannel(ch, data.taskName)
+	data.workCh, err = rabbit.NewChannel(ch, msgChannelProvider.QueueName(data.taskName))
 	cmdapp.CheckOrPanic(err, "Can't listen to "+data.taskName+" channel")
 
 	data.emailMaker, err = newSimpleEmailMaker(cmdapp.Config)

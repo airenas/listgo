@@ -53,7 +53,7 @@ func run(cmd *cobra.Command, args []string) {
 
 	data.TaskName = cmdapp.Config.GetString("worker.taskName")
 
-	data.WorkCh, err = rabbit.NewChannel(ch, data.TaskName)
+	data.WorkCh, err = rabbit.NewChannel(ch, msgChannelProvider.QueueName(data.TaskName))
 	if err != nil {
 		panic(errors.Wrap(err, "Can't listen "+data.TaskName+" channel"))
 	}

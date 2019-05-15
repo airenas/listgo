@@ -72,7 +72,7 @@ func run(cmd *cobra.Command, args []string) {
 func initQueues(prv *rabbit.ChannelProvider) error {
 	cmdapp.Log.Info("Initializing queues")
 	return prv.RunOnChannelWithRetry(func(ch *amqp.Channel) error {
-		_, err := rabbit.DeclareQueue(ch, messages.Decode)
+		_, err := rabbit.DeclareQueue(ch, prv.QueueName(messages.Decode))
 		return err
 	})
 }

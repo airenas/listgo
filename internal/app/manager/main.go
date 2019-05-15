@@ -54,11 +54,11 @@ func run(cmd *cobra.Command, args []string) {
 	err = ch.Qos(1, 0, false)
 	cmdapp.CheckOrPanic(err, "Can't set Qos")
 
-	data.DecodeCh = makeQChannel(ch, messages.Decode)
-	data.AudioConvertCh = makeQChannel(ch, messages.ResultQueueFor(messages.AudioConvert))
-	data.DiarizationCh = makeQChannel(ch, messages.ResultQueueFor(messages.Diarization))
-	data.TranscriptionCh = makeQChannel(ch, messages.ResultQueueFor(messages.Transcription))
-	data.ResultMakeCh = makeQChannel(ch, messages.ResultQueueFor(messages.ResultMake))
+	data.DecodeCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.Decode))
+	data.AudioConvertCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.ResultQueueFor(messages.AudioConvert)))
+	data.DiarizationCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.ResultQueueFor(messages.Diarization)))
+	data.TranscriptionCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.ResultQueueFor(messages.Transcription)))
+	data.ResultMakeCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.ResultQueueFor(messages.ResultMake)))
 
 	data.StatusSaver, err = mongo.NewStatusSaver(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "Can't init status saver")
@@ -87,7 +87,7 @@ func initQueues(prv *rabbit.ChannelProvider) error {
 			messages.Transcription, messages.ResultQueueFor(messages.Transcription),
 			messages.ResultMake, messages.ResultQueueFor(messages.ResultMake)}
 		for _, queue := range queues {
-			_, err := rabbit.DeclareQueue(ch, queue)
+			_, err := rabbit.DeclareQueue(ch, prv.QueueName(queue))
 			if err != nil {
 				return err
 			}
@@ -99,6 +99,6 @@ func initQueues(prv *rabbit.ChannelProvider) error {
 func initEventExchange(prv *rabbit.ChannelProvider) error {
 	cmdapp.Log.Info("Initializing exchanges")
 	return prv.RunOnChannelWithRetry(func(ch *amqp.Channel) error {
-		return rabbit.DeclareExchange(ch, messages.TopicStatusChange)
+		return rabbit.DeclareExchange(ch, prv.QueueName(messages.TopicStatusChange))
 	})
 }

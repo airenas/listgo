@@ -24,7 +24,8 @@ func NewSender(provider *ChannelProvider) *Sender {
 
 //Send sends the message
 func (sender *Sender) Send(message messages.Message, queue string, replyQueue string) error {
-	cmdapp.Log.Infof("Sending message to %s", queue)
+	realQueue := sender.ChannelProvider.QueueName(queue)
+	cmdapp.Log.Infof("Sending message to %s", realQueue)
 
 	msgBytes, err := json.Marshal(message)
 	if err != nil {
@@ -34,7 +35,7 @@ func (sender *Sender) Send(message messages.Message, queue string, replyQueue st
 	err = sender.ChannelProvider.RunOnChannelWithRetry(func(ch *amqp.Channel) error {
 		return ch.Publish(
 			"", // exchange
-			queue,
+			realQueue,
 			false, // mandatory
 			false,
 			amqp.Publishing{

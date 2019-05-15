@@ -19,11 +19,12 @@ func NewPublisher(provider *ChannelProvider) *Publisher {
 
 //Publish publish the message
 func (sender *Publisher) Publish(id string, topic string) error {
-	cmdapp.Log.Infof("Publishing event %s(%s)", topic, id)
+	realTopic := sender.ChannelProvider.QueueName(topic)
+	cmdapp.Log.Infof("Publishing event %s(%s)", realTopic, id)
 
 	err := sender.ChannelProvider.RunOnChannelWithRetry(func(ch *amqp.Channel) error {
 		return ch.Publish(
-			topic, // exchange
+			realTopic, // exchange
 			"",
 			false, // mandatory
 			false,

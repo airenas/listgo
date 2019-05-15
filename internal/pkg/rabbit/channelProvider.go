@@ -11,10 +11,11 @@ import (
 
 //ChannelProvider provider amqp channel
 type ChannelProvider struct {
-	url  string
-	conn *amqp.Connection
-	ch   *amqp.Channel
-	m    sync.Mutex // struct field mutex
+	url     string
+	conn    *amqp.Connection
+	ch      *amqp.Channel
+	m       sync.Mutex // struct field mutex
+	qPrefix string
 }
 
 type runOnChannelFunc func(*amqp.Channel) error
@@ -35,7 +36,11 @@ func NewChannelProvider() (*ChannelProvider, error) {
 		finalURL = finalURL + user + ":" + pass + "@"
 	}
 	finalURL = finalURL + url
-	return &ChannelProvider{url: finalURL}, nil
+	prefix := cmdapp.Config.GetString("messageServer.prefix")
+	if prefix == "" {
+		cmdapp.Log.Warning("No queue prefix 'messageServer.prefix' configured!")
+	}
+	return &ChannelProvider{url: finalURL, qPrefix: prefix}, nil
 }
 
 //Channel return cached channel or tries to connect to rabbit broker
@@ -92,4 +97,16 @@ func (pr *ChannelProvider) Close() {
 	}
 	pr.ch = nil
 	pr.conn = nil
+}
+
+//QueueName return queue name for channel, may append prefix
+func (pr *ChannelProvider) QueueName(name string) string {
+	if (name == ""){
+		return ""
+	}
+	s := ""
+	if pr.qPrefix != "" {
+		s = "_"
+	}
+	return pr.qPrefix + s + name
 }
