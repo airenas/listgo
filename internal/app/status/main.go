@@ -68,7 +68,7 @@ func initEventChannel(provider *rabbit.ChannelProvider) (<-chan amqp.Delivery, e
 		q, err = ch.QueueDeclare(
 			"",    // name
 			false, // durable
-			false, // delete when usused
+			true,  // delete when usused
 			true,  // exclusive
 			false, // no-wait
 			nil,   // arguments
@@ -95,5 +95,6 @@ func initEventChannel(provider *rabbit.ChannelProvider) (<-chan amqp.Delivery, e
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't open channel")
 	}
+	cmdapp.Log.Info("Channel opened succesfully")
 	return msgs, nil
 }

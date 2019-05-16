@@ -24,7 +24,6 @@ func listenQueue(channel <-chan amqp.Delivery, data *ServiceData, fc chan<- bool
 }
 
 func registerQueue(data *ServiceData, quitChan <-chan bool, initialWait time.Duration) {
-	fc := make(chan bool)
 	wait := initialWait
 	for {
 		select {
@@ -32,6 +31,7 @@ func registerQueue(data *ServiceData, quitChan <-chan bool, initialWait time.Dur
 			cmdapp.Log.Infof("Quit listening queue")
 			return
 		default:
+			fc := make(chan bool)
 			cmdapp.Log.Infof("Trying listening queue")
 			msgs, err := data.EventChannelFunc()
 			if err != nil {
