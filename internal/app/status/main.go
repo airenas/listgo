@@ -78,7 +78,7 @@ func initEventChannel(provider *rabbit.ChannelProvider) (<-chan amqp.Delivery, e
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't init queue")
 	}
-	err = ch.QueueBind(q.Name, "", messages.TopicStatusChange, false, nil)
+	err = ch.QueueBind(q.Name, "", provider.QueueName(messages.TopicStatusChange), false, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't bing to topic queue")
 	}
