@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/petergtz/pegomock"
-	"github.com/smartystreets/goconvey/convey"
 )
 
 //go:generate pegomock generate --package=mocks --output=saver.go -m bitbucket.org/airenas/listgo/internal/pkg/status Saver
@@ -35,13 +34,15 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=fileNameProvider.go -m bitbucket.org/airenas/listgo/internal/app/result FileNameProvider
 
-//AttachMockToConvey register pegomock verification to be passed to Convey
-func AttachMockToConvey(t *testing.T) {
-	pegomock.RegisterMockFailHandler(handleByConvey(t))
+//AttachMockToTest register pegomock verification to be passed to testing engine
+func AttachMockToTest(t *testing.T) {
+	pegomock.RegisterMockFailHandler(handleByTest(t))
 }
 
-func handleByConvey(t *testing.T) pegomock.FailHandler {
+func handleByTest(t *testing.T) pegomock.FailHandler {
 	return func(message string, callerSkip ...int) {
-		convey.So(message, convey.ShouldBeEmpty)
+		if message != "" {
+			t.Error(message)
+		}
 	}
 }
