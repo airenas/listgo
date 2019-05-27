@@ -19,7 +19,7 @@ var statusProviderMock *mocks.MockProvider
 var connMock *mocks.MockWsConn
 
 func initTest(t *testing.T) {
-	mocks.AttachMockToConvey(t)
+	mocks.AttachMockToTest(t)
 	statusProviderMock = mocks.NewMockProvider()
 	connMock = mocks.NewMockWsConn()
 }

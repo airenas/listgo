@@ -24,7 +24,7 @@ var publisherMock *mocks.MockPublisher
 var msgSenderMock *mocks.MockSender
 
 func initTest(t *testing.T) {
-	mocks.AttachMockToConvey(t)
+	mocks.AttachMockToTest(t)
 	statusSaverMock = mocks.NewMockSaver()
 	resultSaverMock = mocks.NewMockResultSaver()
 	publisherMock = mocks.NewMockPublisher()
