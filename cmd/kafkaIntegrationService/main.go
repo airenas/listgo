@@ -1,0 +1,9 @@
+package main
+
+import (
+	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration"
+)
+
+func main() {
+	kafkaintegration.Execute()
+}

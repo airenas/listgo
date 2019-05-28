@@ -1,0 +1,20 @@
+messageServer: 
+    broker: amqp://list:list@localhost:5672/
+
+mongo:
+    url: localhost:27018  
+    
+kafka:
+    brokers: aserver:9092
+    group: gr1
+    topic: test    
+    
+jobs: 4
+
+logger:
+    level: debug
+    formatter:
+        name: text
+        options: 
+            full_timestamp: true
+            timestamp_format: "2006-01-02T15:04:05.000"

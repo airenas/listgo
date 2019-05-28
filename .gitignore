@@ -16,3 +16,4 @@ cmd/informService/informService
 cmd/resultService/**
 go.sum
 .idea/**
+cmd/kafkaIntegrationService/kafkaIntegrationService
