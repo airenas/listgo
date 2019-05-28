@@ -23,7 +23,6 @@ require (
 	github.com/petergtz/pegomock v2.0.3+incompatible
 	github.com/pkg/errors v0.8.1
 	github.com/sirupsen/logrus v1.3.0
-	github.com/smartystreets/goconvey v0.0.0-20190222223459-a17d461953aa
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.3.1
 	github.com/streadway/amqp v0.0.0-20190225234609-30f8ed68076e

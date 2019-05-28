@@ -11,12 +11,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 	"github.com/gorilla/mux"
 	"github.com/petergtz/pegomock"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var statusSaverMock *mocks.MockSaver
@@ -33,83 +34,31 @@ func initTest(t *testing.T) {
 }
 
 func TestWrongPath(t *testing.T) {
+	req := httptest.NewRequest("GET", "/invalid", nil)
+	resp := httptest.NewRecorder()
 
-	Convey("Given a HTTP request for /invalid", t, func() {
-		req := httptest.NewRequest("GET", "/invalid", nil)
-		resp := httptest.NewRecorder()
+	NewRouter(&ServiceData{}).ServeHTTP(resp, req)
 
-		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{}).ServeHTTP(resp, req)
-
-			Convey("Then the response should be a 404", func() {
-				So(resp.Code, ShouldEqual, 404)
-			})
-		})
-	})
-}
-
-func TestNoFile(t *testing.T) {
-	Convey("Given a HTTP request for /upload", t, func() {
-		req := httptest.NewRequest("POST", "/upload", nil)
-		resp := httptest.NewRecorder()
-
-		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{}).ServeHTTP(resp, req)
-
-			Convey("Then the response should be a 400", func() {
-				So(resp.Code, ShouldEqual, 400)
-			})
-		})
-	})
+	assert.Equal(t, resp.Code, 404)
 }
 
 func TestNoFilePOST(t *testing.T) {
-	Convey("Given a HTTP request for /upload", t, func() {
-		req := httptest.NewRequest("POST", "/upload", nil)
-		resp := httptest.NewRecorder()
-
-		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{}).ServeHTTP(resp, req)
-
-			Convey("Then the response should be a 400", func() {
-				So(resp.Code, ShouldEqual, 400)
-			})
-		})
-	})
+	test400(t, httptest.NewRequest("POST", "/upload", nil))
 }
 
 func TestPOST(t *testing.T) {
 	initTest(t)
-	Convey("Given a HTTP request for /upload", t, func() {
-		req := newReq("filename", "a@a.a")
-		resp := httptest.NewRecorder()
+	req := newReq("filename", "a@a.a")
+	resp := httptest.NewRecorder()
 
-		Convey("When the request is handled by the Router", func() {
-			newRouter().ServeHTTP(resp, req)
+	newRouter().ServeHTTP(resp, req)
 
-			Convey("Then the response should be a 200", func() {
-				So(resp.Code, ShouldEqual, 200)
-			})
-			Convey("Then the response body should start with id", func() {
-				So(resp.Body.String(), ShouldStartWith, `{"id":"`)
-			})
-		})
-	})
+	assert.Equal(t, resp.Code, 200)
+	assert.True(t, strings.HasPrefix(resp.Body.String(), `{"id":"`))
 }
 
 func TestPOSTNoFile(t *testing.T) {
-	initTest(t)
-	Convey("Given a HTTP request for /upload", t, func() {
-		req := newReq("", "a@a.a")
-		resp := httptest.NewRecorder()
-		Convey("When the request is handled by the Router", func() {
-			newRouter().ServeHTTP(resp, req)
-
-			Convey("Then the response should be a 400", func() {
-				So(resp.Code, ShouldEqual, 400)
-			})
-		})
-	})
+	test400(t, newReq("", "a@a.a"))
 }
 
 func newReq(file string, email string) *http.Request {
@@ -118,11 +67,9 @@ func newReq(file string, email string) *http.Request {
 	if file != "" {
 		part, _ := writer.CreateFormFile("file", file)
 		_, _ = io.Copy(part, strings.NewReader("body"))
-
 	}
 	if email != "" {
 		writer.WriteField("email", email)
-
 	}
 	writer.Close()
 	req := httptest.NewRequest("POST", "/upload", body)
@@ -137,149 +84,98 @@ func newRouter() *mux.Router {
 		FileSaver:     testSaver{}})
 }
 
-func TestPOST_WrongEmail(t *testing.T) {
+func test400(t *testing.T, req *http.Request) {
 	initTest(t)
-	Convey("Given a test", t, func() {
-		resp := httptest.NewRecorder()
-		Convey("When no email is given", func() {
-			newRouter().ServeHTTP(resp, newReq("file", ""))
-			Convey("Then the response should be a 400", func() {
-				So(resp.Code, ShouldEqual, 400)
-			})
-		})
-		Convey("When wrong email is given", func() {
-			newRouter().ServeHTTP(resp, newReq("file", "a@"))
-			Convey("Then the response should be a 400", func() {
-				So(resp.Code, ShouldEqual, 400)
-			})
-		})
-		Convey("When wrong email(1) is given", func() {
-			newRouter().ServeHTTP(resp, newReq("file", "@a"))
-			Convey("Then the response should be a 400", func() {
-				So(resp.Code, ShouldEqual, 400)
-			})
-		})
-		Convey("When wrong email(2) is given", func() {
-			newRouter().ServeHTTP(resp, newReq("file", "a_a"))
-			Convey("Then the response should be a 400", func() {
-				So(resp.Code, ShouldEqual, 400)
-			})
-		})
-	})
+	resp := httptest.NewRecorder()
+
+	newRouter().ServeHTTP(resp, req)
+
+	assert.Equal(t, resp.Code, 400)
+}
+func TestPOST_WrongEmail(t *testing.T) {
+	test400(t, newReq("file", ""))
+	test400(t, newReq("file", "a@"))
+	test400(t, newReq("file", "@a"))
+	test400(t, newReq("file", "a_a"))
 }
 
 func TestPOST_Sender(t *testing.T) {
 	initTest(t)
-	Convey("Given a HTTP request", t, func() {
-		req := newReq("filename", "a@a.a")
-		resp := httptest.NewRecorder()
-		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{MessageSender: msgSenderMock, StatusSaver: statusSaverMock,
-				RequestSaver: requestSaverMock,
-				FileSaver:    testSaver{}}).ServeHTTP(resp, req)
+	req := newReq("filename", "a@a.a")
+	resp := httptest.NewRecorder()
 
-			Convey("Then the response should be a 200", func() {
-				So(resp.Code, ShouldEqual, 200)
-			})
-		})
-	})
+	NewRouter(&ServiceData{MessageSender: msgSenderMock, StatusSaver: statusSaverMock,
+		RequestSaver: requestSaverMock,
+		FileSaver:    testSaver{}}).ServeHTTP(resp, req)
+
+	assert.Equal(t, resp.Code, 200)
 }
 
 func TestPOST_SenderFails(t *testing.T) {
 	initTest(t)
-	Convey("Given a HTTP request", t, func() {
-		req := newReq("filename", "a@a.a")
-		resp := httptest.NewRecorder()
-		pegomock.When(msgSenderMock.Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
-			pegomock.AnyString())).ThenReturn(errors.New("Can not send"))
+	req := newReq("filename", "a@a.a")
+	resp := httptest.NewRecorder()
+	pegomock.When(msgSenderMock.Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
+		pegomock.AnyString())).ThenReturn(errors.New("Can not send"))
 
-		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{MessageSender: msgSenderMock,
-				StatusSaver:  statusSaverMock,
-				RequestSaver: requestSaverMock,
-				FileSaver:    testSaver{}}).ServeHTTP(resp, req)
+	NewRouter(&ServiceData{MessageSender: msgSenderMock,
+		StatusSaver:  statusSaverMock,
+		RequestSaver: requestSaverMock,
+		FileSaver:    testSaver{}}).ServeHTTP(resp, req)
 
-			Convey("Then the response should be a 400", func() {
-				So(resp.Code, ShouldEqual, 400)
-			})
-		})
-	})
+	assert.Equal(t, resp.Code, 400)
 }
 
 func TestPOST_SaverFails(t *testing.T) {
 	initTest(t)
-	Convey("Given a HTTP request", t, func() {
-		req := newReq("filename", "a@a.a")
-		resp := httptest.NewRecorder()
+	req := newReq("filename", "a@a.a")
+	resp := httptest.NewRecorder()
 
-		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{MessageSender: msgSenderMock, StatusSaver: statusSaverMock,
-				RequestSaver: requestSaverMock,
-				FileSaver: testSaverFunc(
-					func(id string, reader io.Reader) error {
-						return errors.New("Can not send")
-					})}).ServeHTTP(resp, req)
+	NewRouter(&ServiceData{MessageSender: msgSenderMock, StatusSaver: statusSaverMock,
+		RequestSaver: requestSaverMock,
+		FileSaver: testSaverFunc(
+			func(id string, reader io.Reader) error {
+				return errors.New("Can not send")
+			})}).ServeHTTP(resp, req)
 
-			Convey("Then the response should be a 400", func() {
-				So(resp.Code, ShouldEqual, 400)
-			})
-		})
-	})
+	assert.Equal(t, resp.Code, 400)
 }
 
 func TestPOST_StatusSaverFails(t *testing.T) {
 	initTest(t)
-	Convey("Given a HTTP request", t, func() {
-		req := newReq("filename", "a@a.a")
-		resp := httptest.NewRecorder()
+	req := newReq("filename", "a@a.a")
+	resp := httptest.NewRecorder()
+	pegomock.When(statusSaverMock.Save(pegomock.AnyString(),
+		matchers.AnyStatusStatus())).ThenReturn(errors.New("error"))
 
-		Convey("When the request is handled by the Router", func() {
-			pegomock.When(statusSaverMock.Save(pegomock.AnyString(),
-				matchers.AnyStatusStatus())).ThenReturn(errors.New("error"))
+	newRouter().ServeHTTP(resp, req)
 
-			newRouter().ServeHTTP(resp, req)
-
-			Convey("Then the response should be a 400", func() {
-				So(resp.Code, ShouldEqual, 400)
-			})
-		})
-	})
+	assert.Equal(t, resp.Code, 400)
 }
 
 func TestPOST_RequestSaverFails(t *testing.T) {
 	initTest(t)
-	Convey("Given a HTTP request", t, func() {
-		req := newReq("filename", "a@a.a")
-		resp := httptest.NewRecorder()
+	req := newReq("filename", "a@a.a")
+	resp := httptest.NewRecorder()
+	pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(errors.New("error"))
 
-		Convey("When the request is handled by the Router", func() {
-			pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(errors.New("error"))
-			newRouter().ServeHTTP(resp, req)
+	newRouter().ServeHTTP(resp, req)
 
-			Convey("Then the response should be a 400", func() {
-				So(resp.Code, ShouldEqual, 400)
-			})
-		})
-	})
+	assert.Equal(t, resp.Code, 400)
 }
 
 func TestPOST_RequestSaverCalled(t *testing.T) {
 	initTest(t)
-	Convey("Given a HTTP request", t, func() {
-		req := newReq("filename.wav", "a@a.a")
-		resp := httptest.NewRecorder()
+	req := newReq("filename.wav", "a@a.a")
+	resp := httptest.NewRecorder()
+	pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(nil)
 
-		Convey("When the request is handled by the Router", func() {
-			pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(nil)
-			newRouter().ServeHTTP(resp, req)
-			Convey("Then request saver is invoked", func() {
-				rd := requestSaverMock.VerifyWasCalled(pegomock.Once()).Save(matchers.AnyApiRequestData()).GetCapturedArguments()
-				So(rd.Email, ShouldEqual, "a@a.a")
-				So(strings.HasSuffix(rd.File, ".wav"), ShouldBeTrue)
-				So(rd.ID, ShouldNotBeEmpty)
-			})
-		})
-	})
+	newRouter().ServeHTTP(resp, req)
+
+	rd := requestSaverMock.VerifyWasCalled(pegomock.Once()).Save(matchers.AnyApiRequestData()).GetCapturedArguments()
+	assert.Equal(t, rd.Email, "a@a.a")
+	assert.True(t, strings.HasSuffix(rd.File, ".wav"))
+	assert.NotEmpty(t, rd.ID)
 }
 
 type testSaverFunc func(name string, reader io.Reader) error
