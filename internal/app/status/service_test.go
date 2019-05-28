@@ -4,26 +4,19 @@ import (
 	"errors"
 	"log"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"bitbucket.org/airenas/listgo/internal/app/status/api"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestWrongPath(t *testing.T) {
-
-	Convey("Given a HTTP request for /invalid", t, func() {
-		req := httptest.NewRequest("GET", "/invalid", nil)
-		resp := httptest.NewRecorder()
-
-		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{}).ServeHTTP(resp, req)
-
-			Convey("Then the response should be a 404", func() {
-				So(resp.Code, ShouldEqual, 404)
-			})
-		})
-	})
+	req := httptest.NewRequest("GET", "/invalid", nil)
+	resp := httptest.NewRecorder()
+	NewRouter(&ServiceData{}).ServeHTTP(resp, req)
+	assert.Equal(t, resp.Code, 404)
 }
 
 func TestNoID(t *testing.T) {
@@ -32,54 +25,31 @@ func TestNoID(t *testing.T) {
 }
 
 func test400(t *testing.T, path string) {
-	Convey("Given a HTTP request for " + path, t, func() {
-		req := httptest.NewRequest("GET", path, nil)
-		resp := httptest.NewRecorder()
-		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{}).ServeHTTP(resp, req)
-
-			Convey("Then the response should be a 400", func() {
-				So(resp.Code, ShouldEqual, 400)
-			})
-		})
-	})
+	req := httptest.NewRequest("GET", path, nil)
+	resp := httptest.NewRecorder()
+	NewRouter(&ServiceData{}).ServeHTTP(resp, req)
+	assert.Equal(t, resp.Code, 400)
 }
 
 func Test_ReturnsResult(t *testing.T) {
-	Convey("Given a HTTP request for ID x", t, func() {
 
-		req := httptest.NewRequest("GET", "/result/x", nil)
-		resp := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/result/x", nil)
+	resp := httptest.NewRecorder()
 
-		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{StatusProvider: testStatusProvider{}}).ServeHTTP(resp, req)
-
-			Convey("Then the response should be a 200", func() {
-				So(resp.Code, ShouldEqual, 200)
-			})
-			Convey("Then the response body should start with id", func() {
-				So(resp.Body.String(), ShouldStartWith, `{"id":"`)
-			})
-		})
-	})
+	NewRouter(&ServiceData{StatusProvider: testStatusProvider{}}).ServeHTTP(resp, req)
+	assert.Equal(t, resp.Code, 200)
+	assert.True(t, strings.HasPrefix(resp.Body.String(), `{"id":"`))
 }
 
 func Test_ProviderFails(t *testing.T) {
-	Convey("Given a HTTP request", t, func() {
-		req := httptest.NewRequest("GET", "/result/x", nil)
-		resp := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/result/x", nil)
+	resp := httptest.NewRecorder()
 
-		Convey("When the request is handled by the Router", func() {
-			NewRouter(&ServiceData{StatusProvider: testStatusFunc(
-				func(ID string) (*api.TranscriptionResult, error) {
-					return nil, errors.New("Can not get")
-				})}).ServeHTTP(resp, req)
-
-			Convey("Then the response should be a 400", func() {
-				So(resp.Code, ShouldEqual, 400)
-			})
-		})
-	})
+	NewRouter(&ServiceData{StatusProvider: testStatusFunc(
+		func(ID string) (*api.TranscriptionResult, error) {
+			return nil, errors.New("Can not get")
+		})}).ServeHTTP(resp, req)
+	assert.Equal(t, resp.Code, 400)
 }
 
 type testStatusFunc func(ID string) (*api.TranscriptionResult, error)

@@ -5,129 +5,130 @@ import (
 	"fmt"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestHandleConnection(t *testing.T) {
-	Convey("Given a mock connection", t, func() {
-		ch := make(chan string)
-		readCh := make(chan bool)
-		fc := make(chan bool)
-		conn := &wsConnMock{valueCh: ch, sCh: readCh}
-		go func() {
-			handleConnection(conn)
-			fc <- true
-		}()
-		Convey("When read fails", func() {
-			close(ch)
-			<-fc
-			Convey("Then the connection is closed", func() {
-				So(conn.closedCount, ShouldEqual, 1)
-			})
-		})
+type testdataWS struct {
+	ch     chan string
+	readCh chan bool
+	fc     chan bool
+	f      func()
+	conn   *wsConnMock
+}
 
-		Convey("When read succeeds", func() {
-			ch <- "id1"
-			close(ch)
-			<-fc
-			Convey("Then the connection is closed", func() {
-				So(conn.closedCount, ShouldEqual, 1)
-			})
-			Convey("Maps are empty", func() {
-				So(len(idConnectionMap), ShouldEqual, 0)
-				So(len(connectionIDMap), ShouldEqual, 0)
-			})
-		})
-		Convey("When read succeeds several times", func() {
-			ch <- "ids"
-			ch <- "ids2"
-			ch <- "ids1"
-			close(ch)
-			<-fc
-			Convey("Then the connection is closed", func() {
-				So(conn.closedCount, ShouldEqual, 1)
-			})
-			Convey("Maps are empty", func() {
-				So(len(idConnectionMap), ShouldEqual, 0)
-				So(len(connectionIDMap), ShouldEqual, 0)
-			})
-		})
-		Convey("When read succeeds 2", func() {
-			ch <- "id3"
-			<-readCh
-			<-readCh // wait for next read
-			c, ok := getConnections("id3")
-			Convey("Then return conn by id3", func() {
-				So(ok, ShouldBeTrue)
-				So(c[conn], ShouldBeTrue)
-			})
-			Convey("Then maps are not empty", func() {
-				So(len(idConnectionMap), ShouldEqual, 1)
-				So(len(connectionIDMap), ShouldEqual, 1)
-			})
-			close(ch)
-		})
-		Convey("When Connection with same id arrives", func() {
-			ch <- "id4"
-			ch1 := make(chan string)
-			readCh1 := make(chan bool)
-			fc1 := make(chan bool)
-			conn1 := &wsConnMock{valueCh: ch1, sCh: readCh1}
-			go func() {
-				handleConnection(conn1)
-				fc1 <- true
-			}()
-			ch1 <- "id4"
-			<-readCh1
-			<-readCh1 // wait for next read
-			c, ok := getConnections("id4")
-			So(ok, ShouldBeTrue)
+func initTestDataWS(t *testing.T) *testdataWS {
+	initTest(t)
+	res := testdataWS{}
+	res.ch = make(chan string)
+	res.fc = make(chan bool)
+	res.readCh = make(chan bool)
+	res.conn = &wsConnMock{valueCh: res.ch, sCh: res.readCh}
+	res.f = func() {
+		handleConnection(res.conn)
+		res.fc <- true
+	}
+	return &res
+}
 
-			Convey("Then return conn by id", func() {
-				So(c[conn], ShouldBeTrue)
-			})
-			Convey("Then return conn1 by id", func() {
-				So(c[conn1], ShouldBeTrue)
-			})
-			Convey("Then id map contains 1 value", func() {
-				So(len(idConnectionMap), ShouldEqual, 1)
-			})
-			Convey("Then connection map contains two value", func() {
-				fmt.Println(connectionIDMap)
-				So(len(connectionIDMap), ShouldEqual, 2)
-			})
-			Convey("Then the connection is not closed", func() {
-				So(conn.closedCount, ShouldEqual, 0)
-			})
-			Convey("Then the new connection is not closed", func() {
-				So(conn.closedCount, ShouldEqual, 0)
-			})
-			close(ch1)
-			close(ch)
-			<-fc
-			<-fc1
-			Convey("Then connections are closed", func() {
-				_, ok := getConnections("id4")
+func TestHandleConnection_ReadFails_Closed(t *testing.T) {
+	td := initTestDataWS(t)
+	go td.f()
 
-				Convey("No conn by id", func() {
-					So(ok, ShouldBeFalse)
-				})
-				Convey("Then id map should be empty", func() {
-					So(len(idConnectionMap), ShouldEqual, 0)
-				})
-				Convey("Then connection map should be empty", func() {
-					So(len(connectionIDMap), ShouldEqual, 0)
-				})
-				Convey("Then the connection is closed", func() {
-					So(conn.closedCount, ShouldEqual, 1)
-				})
-				Convey("Then the new connection is closed", func() {
-					So(conn.closedCount, ShouldEqual, 1)
-				})
-			})
-		})
+	close(td.ch)
+	<-td.fc
+	assert.Equal(t, td.conn.closedCount, 1)
+}
 
-	})
+func TestHandleConnection_ReadOK_Closed(t *testing.T) {
+	td := initTestDataWS(t)
+	go td.f()
+
+	td.ch <- "id1"
+	close(td.ch)
+	<-td.fc
+	assert.Equal(t, td.conn.closedCount, 1)
+
+	assert.Equal(t, len(idConnectionMap), 0)
+	assert.Equal(t, len(connectionIDMap), 0)
+}
+
+func TestHandleConnection_SeveralReadOK_Closed(t *testing.T) {
+	td := initTestDataWS(t)
+	go td.f()
+
+	td.ch <- "ids"
+	td.ch <- "ids2"
+	td.ch <- "ids1"
+	close(td.ch)
+	<-td.fc
+
+	assert.Equal(t, td.conn.closedCount, 1)
+
+	assert.Equal(t, len(idConnectionMap), 0)
+	assert.Equal(t, len(connectionIDMap), 0)
+}
+
+func TestHandleConnection_SeveralReadOK_Waiting(t *testing.T) {
+	td := initTestDataWS(t)
+	go td.f()
+
+	td.ch <- "id3"
+	<-td.readCh
+	<-td.readCh // wait for next read
+	c, ok := getConnections("id3")
+
+	assert.True(t, ok)
+	assert.True(t, c[td.conn])
+
+	assert.Equal(t, len(idConnectionMap), 1)
+	assert.Equal(t, len(connectionIDMap), 1)
+
+	close(td.ch)
+	<-td.fc
+}
+
+func TestHandleConnection_SeveralConnections(t *testing.T) {
+	td := initTestDataWS(t)
+	go td.f()
+
+	td.ch <- "id4"
+
+	ch1 := make(chan string)
+	readCh1 := make(chan bool)
+	fc1 := make(chan bool)
+	conn1 := &wsConnMock{valueCh: ch1, sCh: readCh1}
+	go func() {
+		handleConnection(conn1)
+		fc1 <- true
+	}()
+	ch1 <- "id4"
+	<-readCh1
+	<-readCh1 // wait for next read
+	c, ok := getConnections("id4")
+	assert.True(t, ok)
+	assert.True(t, c[td.conn])
+	assert.True(t, c[conn1])
+
+	assert.Equal(t, len(idConnectionMap), 1)
+	fmt.Println(connectionIDMap)
+	assert.Equal(t, len(connectionIDMap), 2)
+
+	assert.Equal(t, td.conn.closedCount, 0)
+	assert.Equal(t, conn1.closedCount, 0)
+
+	close(ch1)
+	close(td.ch)
+	<-td.fc
+	<-fc1
+
+	_, ok = getConnections("id4")
+	assert.False(t, ok)
+	assert.Equal(t, len(idConnectionMap), 0)
+	fmt.Println(connectionIDMap)
+	assert.Equal(t, len(connectionIDMap), 0)
+
+	assert.Equal(t, td.conn.closedCount, 1)
+	assert.Equal(t, conn1.closedCount, 1)
 }
 
 type wsConnMock struct {
