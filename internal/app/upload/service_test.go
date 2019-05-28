@@ -26,7 +26,7 @@ var requestSaverMock *mocks.MockRequestSaver
 var msgSenderMock *mocks.MockSender
 
 func initTest(t *testing.T) {
-	mocks.AttachMockToConvey(t)
+	mocks.AttachMockToTest(t)
 	statusSaverMock = mocks.NewMockSaver()
 	requestSaverMock = mocks.NewMockRequestSaver()
 	msgSenderMock = mocks.NewMockSender()

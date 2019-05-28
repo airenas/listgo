@@ -7,15 +7,15 @@ import (
 	"testing"
 
 	"github.com/petergtz/pegomock"
-
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/streadway/amqp"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var statusSaverMock *mocks.MockSaver
@@ -31,237 +31,222 @@ func initTest(t *testing.T) {
 	msgSenderMock = mocks.NewMockSender()
 }
 
-func TestInitManager(t *testing.T) {
-	Convey("Given a manager", t, func() {
-		initTest(t)
-		data := ServiceData{}
-		data.ResultSaver = resultSaverMock
-		data.Publisher = publisherMock
-		Convey("When no result Saver", func() {
-			data.ResultSaver = nil
-			_, err := StartWorkerService(&data)
-			So(err, ShouldNotBeNil)
-		})
-		Convey("When ResultSaver Provided", func() {
-			_, err := StartWorkerService(&data)
-			So(err, ShouldBeNil)
-		})
-		Convey("When no Publisher", func() {
-			data.Publisher = nil
-			_, err := StartWorkerService(&data)
-			So(err, ShouldNotBeNil)
-		})
-		Convey("When Publisher Provided", func() {
-			_, err := StartWorkerService(&data)
-			So(err, ShouldBeNil)
-		})
-	})
+func TestInitManagerNoResultSaver(t *testing.T) {
+	initTest(t)
+	data := ServiceData{}
+	data.Publisher = publisherMock
+	_, err := StartWorkerService(&data)
+	assert.NotNil(t, err)
 }
 
-func TestHandlesMessages(t *testing.T) {
-	Convey("Given a manager", t, func() {
-		initTest(t)
-		dc := make(chan amqp.Delivery)
-		ac := make(chan amqp.Delivery)
-		diac := make(chan amqp.Delivery)
-		tc := make(chan amqp.Delivery)
-		rc := make(chan amqp.Delivery)
-		data := ServiceData{}
-		data.StatusSaver = statusSaverMock
-		data.MessageSender = msgSenderMock
-		data.DecodeCh = dc
-		data.AudioConvertCh = ac
-		data.DiarizationCh = diac
-		data.TranscriptionCh = tc
-		data.ResultMakeCh = rc
-		data.ResultSaver = resultSaverMock
-		data.Publisher = publisherMock
-		fc, _ := StartWorkerService(&data)
-		Convey("When wrong Decode msg is put", func() {
-			dc <- amqp.Delivery{}
-			close(dc)
-			<-fc
-			Convey("Status must not be changed", func() {
-				statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
-			})
-			Convey("No msg sent", func() {
-				msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
-			})
-		})
-		Convey("When good Decode msg is put", func() {
-			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
-			dc <- amqp.Delivery{Body: msgdata}
-			close(dc)
-			<-fc
-			Convey("Status must be changed", func() {
-				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.AudioConvert))
-			})
-			Convey("AudioConvert msg sent", func() {
-				msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-					pegomock.EqString(messages.AudioConvert), pegomock.AnyString())
-			})
-			Convey("Inform msg sent", func() {
-				msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-					pegomock.EqString(messages.Inform), pegomock.AnyString())
-			})
-		})
-		Convey("When wrong AudioConvertResult msg is put", func() {
-			ac <- amqp.Delivery{}
-			close(ac)
-			<-fc
-			Convey("Status must not be changed", func() {
-				statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
-			})
-			Convey("No msg sent", func() {
-				msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
-			})
-		})
-		Convey("When good AudioConvertResult msg is put", func() {
-			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
-			ac <- amqp.Delivery{Body: msgdata}
-			close(ac)
-			<-fc
-			Convey("Status must be changed", func() {
-				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.Diarization))
-			})
-			Convey("Diarization msg sent", func() {
-				msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-					pegomock.EqString(messages.Diarization), pegomock.AnyString())
-			})
-		})
-		Convey("When good AudioConvertResult msg with error is put", func() {
-			msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
-			ac <- amqp.Delivery{Body: msgdata}
-			close(ac)
-			<-fc
-			Convey("Status must be changed", func() {
-				statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
-				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
-					pegomock.EqString("error"))
-			})
-			Convey("No msg sent", func() {
-				msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
-			})
-		})
-		Convey("When wrong DiarizationResult msg is put", func() {
-			diac <- amqp.Delivery{}
-			close(diac)
-			Convey("Status must not be changed", func() {
-				statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
-			})
-			Convey("No msg sent", func() {
-				msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
-			})
-		})
-		Convey("When good DiarizationResult msg is put", func() {
-			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
-			diac <- amqp.Delivery{Body: msgdata}
-			close(diac)
-			<-fc
-			Convey("Status must be changed", func() {
-				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.Transcription))
-			})
-			Convey("Transcription msg sent", func() {
-				msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-					pegomock.EqString(messages.Transcription), pegomock.AnyString())
-			})
-		})
-		Convey("When good DiarizationResult msg with error is put", func() {
-			msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
-			diac <- amqp.Delivery{Body: msgdata}
-			close(diac)
-			<-fc
-			Convey("Status must be changed", func() {
-				statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
-				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
-					pegomock.EqString("error"))
-			})
-			Convey("No msg sent", func() {
-				msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
-			})
-		})
-		Convey("When good TranscriptionResult msg is put", func() {
-			msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
-			tc <- amqp.Delivery{Body: msgdata}
-			close(tc)
-			<-fc
-			Convey("Status must be changed", func() {
-				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.ResultMake))
-			})
-			Convey("Transcription msg sent", func() {
-				msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-					pegomock.EqString(messages.ResultMake), pegomock.AnyString())
-			})
-		})
-		Convey("When good TranscriptionResult msg with error is put", func() {
-			msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
-			tc <- amqp.Delivery{Body: msgdata}
-			close(tc)
-			<-fc
-			Convey("Status must be changed", func() {
-				statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
-				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
-					pegomock.EqString("error"))
-			})
-			Convey("No msg sent", func() {
-				msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
-			})
-		})
-		Convey("When good ResultMakeResult msg is put", func() {
-			msg := messages.ResultMessage{QueueMessage: messages.QueueMessage{ID: "1"}, Result: "result"}
-			msgdata, _ := json.Marshal(msg)
-			rc <- amqp.Delivery{Body: msgdata}
-			close(rc)
-			<-fc
-			Convey("Status must be changed", func() {
-				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.Completed))
-			})
-			Convey("Inform msg sent", func() {
-				msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-					pegomock.EqString(messages.Inform), pegomock.AnyString())
-			})
-			Convey("result save is called", func() {
-				resultSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), pegomock.AnyString())
-			})
-		})
-		Convey("When good ResultMakeResult msg with error is put", func() {
-			msg := messages.NewQueueMsgWithError("1", "error")
-			msgdata, _ := json.Marshal(msg)
-			rc <- amqp.Delivery{Body: msgdata}
-			close(rc)
-			<-fc
-			Convey("Status must be changed", func() {
-				statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
-				statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
-					pegomock.EqString("error"))
-			})
-			Convey("No msg sent", func() {
-				msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
-			})
-			Convey("result save is not called", func() {
-				resultSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), pegomock.AnyString())
-			})
-		})
-		Convey("When good ResultMakeResult msg is put and", func() {
-			Convey("Result save fails", func() {
-				pegomock.When(resultSaverMock.Save(pegomock.AnyString(), pegomock.AnyString())).ThenReturn(errors.New("Fail"))
-				msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", ""))
-				rc <- amqp.Delivery{Body: msgdata}
-				close(rc)
-				<-fc
-				Convey("Status must not be changed", func() {
-					statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
-				})
-				Convey("No msg sent", func() {
-					msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
-				})
-				Convey("result save is called", func() {
-					resultSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), pegomock.AnyString())
-				})
-			})
+func TestInitManagerOK(t *testing.T) {
+	initTest(t)
+	data := ServiceData{}
+	data.ResultSaver = resultSaverMock
+	data.Publisher = publisherMock
+	_, err := StartWorkerService(&data)
+	assert.Nil(t, err)
+}
 
-		})
-	})
+func TestInitManagerNoPublisher(t *testing.T) {
+	initTest(t)
+	data := ServiceData{}
+	data.ResultSaver = resultSaverMock
+	_, err := StartWorkerService(&data)
+	assert.NotNil(t, err)
+}
+
+type testdata struct {
+	dc   chan amqp.Delivery
+	ac   chan amqp.Delivery
+	diac chan amqp.Delivery
+	tc   chan amqp.Delivery
+	rc   chan amqp.Delivery
+	data *ServiceData
+	fc   <-chan struct{}
+}
+
+func initTestData(t *testing.T) *testdata {
+	initTest(t)
+	res := testdata{}
+	res.dc = make(chan amqp.Delivery)
+	res.ac = make(chan amqp.Delivery)
+	res.diac = make(chan amqp.Delivery)
+	res.tc = make(chan amqp.Delivery)
+	res.rc = make(chan amqp.Delivery)
+	res.data = &ServiceData{}
+	res.data.StatusSaver = statusSaverMock
+	res.data.MessageSender = msgSenderMock
+	res.data.DecodeCh = res.dc
+	res.data.AudioConvertCh = res.ac
+	res.data.DiarizationCh = res.diac
+	res.data.TranscriptionCh = res.tc
+	res.data.ResultMakeCh = res.rc
+	res.data.ResultSaver = resultSaverMock
+	res.data.Publisher = publisherMock
+	res.fc, _ = StartWorkerService(res.data)
+	return &res
+}
+
+func TestHandlesMessagesWrongMsg(t *testing.T) {
+	td := initTestData(t)
+	td.dc <- amqp.Delivery{}
+	close(td.dc)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+}
+
+func TestHandlesMessagesDecodeMsg(t *testing.T) {
+	td := initTestData(t)
+
+	msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
+	td.dc <- amqp.Delivery{Body: msgdata}
+	close(td.dc)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.AudioConvert))
+	msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
+		pegomock.EqString(messages.AudioConvert), pegomock.AnyString())
+	msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
+		pegomock.EqString(messages.Inform), pegomock.AnyString())
+}
+
+func TestHandlesMessagesWrongAudioConvertMsg(t *testing.T) {
+	td := initTestData(t)
+
+	td.ac <- amqp.Delivery{}
+	close(td.ac)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+}
+
+func TestHandlesMessagesAudioConvertMsg(t *testing.T) {
+	td := initTestData(t)
+
+	msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
+	td.ac <- amqp.Delivery{Body: msgdata}
+	close(td.ac)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.Diarization))
+	msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
+		pegomock.EqString(messages.Diarization), pegomock.AnyString())
+}
+
+func TestHandlesMessagesAudioConvertWithError(t *testing.T) {
+	td := initTestData(t)
+
+	msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
+	td.ac <- amqp.Delivery{Body: msgdata}
+	close(td.ac)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
+		pegomock.EqString("error"))
+	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+}
+
+func TestHandlesMessagesWrongDiariazationMsg(t *testing.T) {
+	td := initTestData(t)
+
+	td.diac <- amqp.Delivery{}
+	close(td.diac)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+
+}
+
+func TestHandlesMessagesDiarizationMsg(t *testing.T) {
+	td := initTestData(t)
+
+	msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
+	td.diac <- amqp.Delivery{Body: msgdata}
+	close(td.diac)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.Transcription))
+	msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
+		pegomock.EqString(messages.Transcription), pegomock.AnyString())
+}
+
+func TestHandlesMessagesDiarizationWithError(t *testing.T) {
+	td := initTestData(t)
+
+	msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
+	td.diac <- amqp.Delivery{Body: msgdata}
+	close(td.diac)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
+		pegomock.EqString("error"))
+	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+}
+
+func TestHandlesMessagesTranscriptionMsg(t *testing.T) {
+	td := initTestData(t)
+
+	msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
+	td.tc <- amqp.Delivery{Body: msgdata}
+	close(td.tc)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.ResultMake))
+	msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
+		pegomock.EqString(messages.ResultMake), pegomock.AnyString())
+}
+
+func TestHandlesMessagesTranscriptionWithError(t *testing.T) {
+	td := initTestData(t)
+
+	msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
+	td.tc <- amqp.Delivery{Body: msgdata}
+	close(td.tc)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
+		pegomock.EqString("error"))
+	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+}
+
+func TestHandlesMessagesResultMakeMsgSaveFails(t *testing.T) {
+	td := initTestData(t)
+
+	pegomock.When(resultSaverMock.Save(pegomock.AnyString(), pegomock.AnyString())).ThenReturn(errors.New("Fail"))
+	msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", ""))
+	td.rc <- amqp.Delivery{Body: msgdata}
+	close(td.rc)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+	resultSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), pegomock.AnyString())
+}
+
+func TestHandlesMessagesResultMakeMsg(t *testing.T) {
+	td := initTestData(t)
+
+	msg := messages.ResultMessage{QueueMessage: messages.QueueMessage{ID: "1"}, Result: "result"}
+	msgdata, _ := json.Marshal(msg)
+	td.rc <- amqp.Delivery{Body: msgdata}
+	close(td.rc)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.Completed))
+	msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
+		pegomock.EqString(messages.Inform), pegomock.AnyString())
+	resultSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), pegomock.AnyString())
+}
+
+func TestHandlesMessagesResultMakeWithError(t *testing.T) {
+	td := initTestData(t)
+
+	msg := messages.NewQueueMsgWithError("1", "error")
+	msgdata, _ := json.Marshal(msg)
+	td.rc <- amqp.Delivery{Body: msgdata}
+	close(td.rc)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
+		pegomock.EqString("error"))
+	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+	resultSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), pegomock.AnyString())
 }
 
 type testSaverFunc func(name string, reader io.Reader) error

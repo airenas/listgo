@@ -24,6 +24,45 @@ func initTest(t *testing.T) {
 	connMock = mocks.NewMockWsConn()
 }
 
+func Test_ListenQueue_MsgSent(t *testing.T) {
+	initTest(t)
+	data := &ServiceData{}
+	data.StatusProvider = statusProviderMock
+	c := make(chan amqp.Delivery)
+	fc := make(chan bool)
+	waitc := make(chan bool)
+	f := func() {
+		listenQueue(c, data, fc)
+		waitc <- true
+	}
+	go f()
+	d := amqp.Delivery{Body: []byte("id")}
+	c <- d
+	close(c)
+	<-waitc
+}
+
+func Test_ListenQueue_MsgSentWithID(t *testing.T) {
+	initTest(t)
+	data := &ServiceData{}
+	data.StatusProvider = statusProviderMock
+	c := make(chan amqp.Delivery)
+	fc := make(chan bool)
+	waitc := make(chan bool)
+	f := func() {
+		listenQueue(c, data, fc)
+		waitc <- true
+	}
+	saveConnection(connMock, "id")
+	pegomock.When(statusProviderMock.Get(pegomock.AnyString())).ThenReturn(&api.TranscriptionResult{}, nil)
+	go f()
+	d := amqp.Delivery{Body: []byte("id")}
+	c <- d
+	close(c)
+	<-waitc
+	deleteConnection(connMock)
+}
+
 func Test_ListenQueue(t *testing.T) {
 	Convey("Invoking the listen function", t, func() {
 		initTest(t)
@@ -36,16 +75,6 @@ func Test_ListenQueue(t *testing.T) {
 			listenQueue(c, data, fc)
 			waitc <- true
 		}
-		Convey("When msg is send", func() {
-			go f()
-			d := amqp.Delivery{Body: []byte("id")}
-			c <- d
-			close(c)
-			<-waitc
-			Convey("msg is processed", func() {
-				So(true, ShouldBeTrue) // no error
-			})
-		})
 		Convey("When msg is send with existing id", func() {
 			saveConnection(connMock, "id")
 			pegomock.When(statusProviderMock.Get(pegomock.AnyString())).ThenReturn(&api.TranscriptionResult{}, nil)

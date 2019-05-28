@@ -18,7 +18,7 @@ require (
 	github.com/hoisie/redis v0.0.0-20160730154456-b5c6e81454e0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jordan-wright/email v0.0.0-20190218024454-3ea4d25e7cf8
-	github.com/onsi/ginkgo v1.7.0
+	github.com/onsi/ginkgo v1.8.0
 	github.com/onsi/gomega v1.4.3
 	github.com/petergtz/pegomock v2.0.3+incompatible
 	github.com/pkg/errors v0.8.1
@@ -27,7 +27,8 @@ require (
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.3.1
 	github.com/streadway/amqp v0.0.0-20190225234609-30f8ed68076e
-	github.com/stretchr/testify v1.2.2
+	github.com/stretchr/testify v1.3.0
 	golang.org/x/tools v0.0.0-20190227232517-f0a709d59f0f // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6 // indirect
+	gotest.tools/gotestsum v0.3.4 // indirect
 )
