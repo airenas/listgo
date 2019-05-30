@@ -1,8 +1,9 @@
 package api
 
-// TranscriptionResult - get method response in JSON
+// TranscriptionResult - status method response in JSON
 type TranscriptionResult struct {
 	ID             string `json:"id"`
+	ErrorCode      string `json:"errorCode"`
 	Error          string `json:"error"`
 	Status         string `json:"status"`
 	RecognizedText string `json:"recognizedText"`

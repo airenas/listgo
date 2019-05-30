@@ -42,9 +42,9 @@ func StartWebServer(data *ServiceData) error {
 //NewRouter creates the router for HTTP service
 func NewRouter(data *ServiceData) *mux.Router {
 	router := mux.NewRouter()
-	router.Methods("GET").Path("/result/{id}").Handler(statusHandler{data: data})
-	router.Methods("GET").Path("/result").Handler(statusHandler{data: data})
-	router.Methods("GET").Path("/result/").Handler(statusHandler{data: data})
+	router.Methods("GET").Path("/status/{id}").Handler(statusHandler{data: data})
+	router.Methods("GET").Path("/status").Handler(statusHandler{data: data})
+	router.Methods("GET").Path("/status/").Handler(statusHandler{data: data})
 	router.Handle("/subscribe", websocketHandler{data: data})
 	return router
 }

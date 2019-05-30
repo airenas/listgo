@@ -20,8 +20,8 @@ func TestWrongPath(t *testing.T) {
 }
 
 func TestNoID(t *testing.T) {
-	test400(t, "/result")
-	test400(t, "/result/")
+	test400(t, "/status")
+	test400(t, "/status/")
 }
 
 func test400(t *testing.T, path string) {
@@ -33,7 +33,7 @@ func test400(t *testing.T, path string) {
 
 func Test_ReturnsResult(t *testing.T) {
 
-	req := httptest.NewRequest("GET", "/result/x", nil)
+	req := httptest.NewRequest("GET", "/status/x", nil)
 	resp := httptest.NewRecorder()
 
 	NewRouter(&ServiceData{StatusProvider: testStatusProvider{}}).ServeHTTP(resp, req)
@@ -42,7 +42,7 @@ func Test_ReturnsResult(t *testing.T) {
 }
 
 func Test_ProviderFails(t *testing.T) {
-	req := httptest.NewRequest("GET", "/result/x", nil)
+	req := httptest.NewRequest("GET", "/status/x", nil)
 	resp := httptest.NewRecorder()
 
 	NewRouter(&ServiceData{StatusProvider: testStatusFunc(

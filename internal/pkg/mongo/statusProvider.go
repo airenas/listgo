@@ -49,6 +49,10 @@ func (fs StatusProvider) Get(id string) (*api.TranscriptionResult, error) {
 	if ok {
 		result.Status = st
 	}
+	errorCodeStr, ok := m["errorCode"].(string)
+	if ok {
+		result.ErrorCode = errorCodeStr
+	}
 	errorStr, ok := m["error"].(string)
 	if ok {
 		result.Error = errorStr
