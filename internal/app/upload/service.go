@@ -61,17 +61,16 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cmdapp.Log.Infof("Saving file from %s", r.Host)
 
 	r.ParseMultipartForm(32 << 20)
+	externalID := r.FormValue("externalID")
+
 	email := r.FormValue("email")
-	if email == "" {
-		http.Error(w, "No email", http.StatusBadRequest)
-		cmdapp.Log.Errorf("No email")
-		return
-	}
-	err := checkmail.ValidateFormat(email)
-	if err != nil {
-		http.Error(w, "Wrong email", http.StatusBadRequest)
-		cmdapp.Log.Errorf("Wrong email")
-		return
+	if email != "" {
+		err := checkmail.ValidateFormat(email)
+		if err != nil {
+			http.Error(w, "Wrong email", http.StatusBadRequest)
+			cmdapp.Log.Errorf("Wrong email")
+			return
+		}
 	}
 	id := uuid.New().String()
 
@@ -86,7 +85,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ext := filepath.Ext(handler.Filename)
 	fileName := id + ext
 
-	err = h.data.RequestSaver.Save(api.RequestData{ID: id, Email: email, File: fileName})
+	err = h.data.RequestSaver.Save(api.RequestData{ID: id, Email: email, File: fileName, ExternalID: externalID})
 	if err != nil {
 		http.Error(w, "Can not save request to DB", http.StatusBadRequest)
 		cmdapp.Log.Error(err)

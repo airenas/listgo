@@ -35,11 +35,7 @@ func initTest(t *testing.T) {
 
 func TestWrongPath(t *testing.T) {
 	req := httptest.NewRequest("GET", "/invalid", nil)
-	resp := httptest.NewRecorder()
-
-	NewRouter(&ServiceData{}).ServeHTTP(resp, req)
-
-	assert.Equal(t, resp.Code, 404)
+	testCode(t, req, 404)
 }
 
 func TestNoFilePOST(t *testing.T) {
@@ -48,7 +44,7 @@ func TestNoFilePOST(t *testing.T) {
 
 func TestPOST(t *testing.T) {
 	initTest(t)
-	req := newReq("filename", "a@a.a")
+	req := newReq("filename", "a@a.a", "")
 	resp := httptest.NewRecorder()
 
 	newRouter().ServeHTTP(resp, req)
@@ -58,10 +54,10 @@ func TestPOST(t *testing.T) {
 }
 
 func TestPOSTNoFile(t *testing.T) {
-	test400(t, newReq("", "a@a.a"))
+	test400(t, newReq("", "a@a.a", ""))
 }
 
-func newReq(file string, email string) *http.Request {
+func newReq(file string, email string, externalID string) *http.Request {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	if file != "" {
@@ -70,6 +66,9 @@ func newReq(file string, email string) *http.Request {
 	}
 	if email != "" {
 		writer.WriteField("email", email)
+	}
+	if externalID != "" {
+		writer.WriteField("externalID", externalID)
 	}
 	writer.Close()
 	req := httptest.NewRequest("POST", "/upload", body)
@@ -85,23 +84,30 @@ func newRouter() *mux.Router {
 }
 
 func test400(t *testing.T, req *http.Request) {
+	testCode(t, req, 400)
+}
+
+func testCode(t *testing.T, req *http.Request, code int) {
 	initTest(t)
 	resp := httptest.NewRecorder()
 
 	newRouter().ServeHTTP(resp, req)
 
-	assert.Equal(t, resp.Code, 400)
+	assert.Equal(t, resp.Code, code)
 }
 func TestPOST_WrongEmail(t *testing.T) {
-	test400(t, newReq("file", ""))
-	test400(t, newReq("file", "a@"))
-	test400(t, newReq("file", "@a"))
-	test400(t, newReq("file", "a_a"))
+	test400(t, newReq("file", "a@", ""))
+	test400(t, newReq("file", "@a", ""))
+	test400(t, newReq("file", "a_a", ""))
+}
+
+func TestPOST_EmptyEmail(t *testing.T) {
+	testCode(t, newReq("file", "", ""), 200)
 }
 
 func TestPOST_Sender(t *testing.T) {
 	initTest(t)
-	req := newReq("filename", "a@a.a")
+	req := newReq("filename", "a@a.a", "")
 	resp := httptest.NewRecorder()
 
 	NewRouter(&ServiceData{MessageSender: msgSenderMock, StatusSaver: statusSaverMock,
@@ -113,7 +119,7 @@ func TestPOST_Sender(t *testing.T) {
 
 func TestPOST_SenderFails(t *testing.T) {
 	initTest(t)
-	req := newReq("filename", "a@a.a")
+	req := newReq("filename", "a@a.a", "")
 	resp := httptest.NewRecorder()
 	pegomock.When(msgSenderMock.Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
 		pegomock.AnyString())).ThenReturn(errors.New("Can not send"))
@@ -128,7 +134,7 @@ func TestPOST_SenderFails(t *testing.T) {
 
 func TestPOST_SaverFails(t *testing.T) {
 	initTest(t)
-	req := newReq("filename", "a@a.a")
+	req := newReq("filename", "a@a.a", "")
 	resp := httptest.NewRecorder()
 
 	NewRouter(&ServiceData{MessageSender: msgSenderMock, StatusSaver: statusSaverMock,
@@ -143,7 +149,7 @@ func TestPOST_SaverFails(t *testing.T) {
 
 func TestPOST_StatusSaverFails(t *testing.T) {
 	initTest(t)
-	req := newReq("filename", "a@a.a")
+	req := newReq("filename", "a@a.a", "")
 	resp := httptest.NewRecorder()
 	pegomock.When(statusSaverMock.Save(pegomock.AnyString(),
 		matchers.AnyStatusStatus())).ThenReturn(errors.New("error"))
@@ -155,7 +161,7 @@ func TestPOST_StatusSaverFails(t *testing.T) {
 
 func TestPOST_RequestSaverFails(t *testing.T) {
 	initTest(t)
-	req := newReq("filename", "a@a.a")
+	req := newReq("filename", "a@a.a", "")
 	resp := httptest.NewRecorder()
 	pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(errors.New("error"))
 
@@ -166,7 +172,7 @@ func TestPOST_RequestSaverFails(t *testing.T) {
 
 func TestPOST_RequestSaverCalled(t *testing.T) {
 	initTest(t)
-	req := newReq("filename.wav", "a@a.a")
+	req := newReq("filename.wav", "a@a.a", "externalID")
 	resp := httptest.NewRecorder()
 	pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(nil)
 
@@ -174,6 +180,7 @@ func TestPOST_RequestSaverCalled(t *testing.T) {
 
 	rd := requestSaverMock.VerifyWasCalled(pegomock.Once()).Save(matchers.AnyApiRequestData()).GetCapturedArguments()
 	assert.Equal(t, rd.Email, "a@a.a")
+	assert.Equal(t, rd.ExternalID, "externalID")
 	assert.True(t, strings.HasSuffix(rd.File, ".wav"))
 	assert.NotEmpty(t, rd.ID)
 }
