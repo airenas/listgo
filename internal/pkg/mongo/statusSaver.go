@@ -2,18 +2,24 @@ package mongo
 
 import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/err"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
 	"github.com/globalsign/mgo/bson"
 )
 
+type errCodeExtractor interface {
+	Get(string) string
+}
+
 // StatusSaver saves process status to mongo db
 type StatusSaver struct {
-	SessionProvider *SessionProvider
+	SessionProvider  *SessionProvider
+	errCodeExtractor errCodeExtractor
 }
 
 //NewStatusSaver creates StatusSaver instance
 func NewStatusSaver(sessionProvider *SessionProvider) (*StatusSaver, error) {
-	f := StatusSaver{SessionProvider: sessionProvider}
+	f := StatusSaver{SessionProvider: sessionProvider, errCodeExtractor: err.ErrCodeExtractor{}}
 	return &f, nil
 }
 
@@ -28,11 +34,8 @@ func (ss *StatusSaver) Save(ID string, status status.Status) error {
 	defer session.Close()
 
 	c := session.DB(store).C(statusTable)
-	_, err = c.Upsert(
-		bson.M{"ID": ID},
-		//bson.M{"$set": bson.M{"status": status, "error": errorStr}},
-		bson.M{"$set": bson.M{"status": status.Name}, "$unset": bson.M{"error": 1}},
-	)
+	_, err = c.Upsert(bson.M{"ID": ID},
+		bson.M{"$set": bson.M{"status": status.Name}, "$unset": bson.M{"error": 1, "errorCode": 1}})
 	return err
 }
 
@@ -45,11 +48,11 @@ func (ss *StatusSaver) SaveError(id string, errorStr string) error {
 		return err
 	}
 	defer session.Close()
-
+	errorCode := ss.errCodeExtractor.Get(errorStr)
 	c := session.DB(store).C(statusTable)
 	_, err = c.Upsert(
 		bson.M{"ID": id},
-		bson.M{"$set": bson.M{"error": errorStr}},
+		bson.M{"$set": bson.M{"error": errorStr, "errorCode": errorCode}},
 	)
 	return err
 }
