@@ -34,6 +34,7 @@ func NewReader(stopChannel <-chan os.Signal) (*Reader, error) {
 	res := Reader{}
 	res.stopChannel = stopChannel
 
+	cmdapp.Log.Infof("Connecting to Kafka on %s\n", brokers)
 	var err error
 	res.consumer, err = ckafka.NewConsumer(&ckafka.ConfigMap{
 		"bootstrap.servers":     brokers,
@@ -47,6 +48,7 @@ func NewReader(stopChannel <-chan os.Signal) (*Reader, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't connetc to kafka brokers: "+brokers)
 	}
+	cmdapp.Log.Infof("Subscribing to Kafka topic %s\n", topic)
 	err = res.consumer.SubscribeTopics([]string{topic}, nil)
 
 	return &res, nil
