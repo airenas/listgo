@@ -28,6 +28,6 @@ func (ss *RequestSaver) Save(data api.RequestData) error {
 	defer session.Close()
 
 	c := session.DB(store).C(requestTable)
-	_, err = c.Upsert(bson.M{"ID": data.ID}, bson.M{"$set": bson.M{"email": data.Email, "file": data.File}})
+	_, err = c.Upsert(bson.M{"ID": data.ID}, bson.M{"$set": bson.M{"email": data.Email, "file": data.File, "externalID": data.ExternalID}})
 	return err
 }
