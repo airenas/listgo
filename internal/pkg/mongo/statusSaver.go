@@ -19,7 +19,7 @@ type StatusSaver struct {
 
 //NewStatusSaver creates StatusSaver instance
 func NewStatusSaver(sessionProvider *SessionProvider) (*StatusSaver, error) {
-	f := StatusSaver{SessionProvider: sessionProvider, errCodeExtractor: err.ErrCodeExtractor{}}
+	f := StatusSaver{SessionProvider: sessionProvider, errCodeExtractor: err.CodeExtractor{}}
 	return &f, nil
 }
 
