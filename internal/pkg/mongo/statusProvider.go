@@ -3,6 +3,7 @@ package mongo
 import (
 	"bitbucket.org/airenas/listgo/internal/app/status/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/err"
 	"bitbucket.org/airenas/listgo/internal/pkg/progress"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
 	"github.com/globalsign/mgo"
@@ -90,6 +91,7 @@ func getResultText(session *mgo.Session, id string) (string, error) {
 func newNotFoundResult(ID string) *api.TranscriptionResult {
 	result := api.TranscriptionResult{ID: ID}
 	result.Status = "NOT_FOUND"
+	result.ErrorCode = err.NotFoundCode
 	result.Error = "Nežinomas ID: " + ID
 	return &result
 }

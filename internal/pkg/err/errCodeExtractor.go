@@ -6,7 +6,9 @@ import (
 
 const (
 	// DefaultCode is a default service error code
-	DefaultCode    string = "SERVICE_ERROR"
+	DefaultCode string = "SERVICE_ERROR"
+	// NotFoundCode is used for response when transcription ID is nof found
+	NotFoundCode   string = "NOT_FOUND"
 	errorCodeStart string = "[[[ErrorCode:"
 	errorCodeEnd   string = "]]]"
 )
