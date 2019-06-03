@@ -1,8 +1,8 @@
 package kafkaintegration
 
 import (
+	"bitbucket.org/airenas/listgo/internal/pkg/fs"
 	"bitbucket.org/airenas/listgo/internal/pkg/kafka"
-	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/spf13/cobra"
@@ -28,10 +28,7 @@ func Execute() {
 
 func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Info("Starting " + appName)
-
-	mongoSessionProvider, err := mongo.NewSessionProvider()
-	cmdapp.CheckOrPanic(err, "")
-	defer mongoSessionProvider.Close()
+	var err error
 
 	data := ServiceData{}
 	data.fc = cmdapp.NewSignalChannel()
@@ -41,10 +38,16 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "")
 	defer data.kReader.Close()
 
-	fc, err := StartServer(&data)
+	data.kWriter, err = kafka.NewWriter()
+	cmdapp.CheckOrPanic(err, "")
+
+	data.db, err = fs.NewClient()
+	cmdapp.CheckOrPanic(err, "")
+
+	err = StartServer(&data)
 	cmdapp.CheckOrPanic(err, "")
 	cmdapp.Log.Infof("Started")
-	<-fc
+	<-data.fc
 	cmdapp.Log.Infof("Exiting service")
 }
 

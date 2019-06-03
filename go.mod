@@ -14,8 +14,9 @@ require (
 	github.com/google/uuid v1.1.0
 	github.com/gorilla/mux v1.7.0
 	github.com/gorilla/websocket v1.4.0
+	github.com/hashicorp/go-retryablehttp v0.5.3
 	github.com/heirko/go-contrib v0.0.0-20170921174445-82c95aa7d665
-	github.com/heralight/logrus_mate v1.0.1 // indirect
+	github.com/heralight/logrus_mate v1.0.1
 	github.com/hoisie/redis v0.0.0-20160730154456-b5c6e81454e0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jordan-wright/email v0.0.0-20190218024454-3ea4d25e7cf8

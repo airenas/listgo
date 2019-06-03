@@ -1,15 +1,14 @@
-messageServer: 
-    broker: amqp://list:list@localhost:5672/
-
-mongo:
-    url: localhost:27018  
-    
+   
 kafka:
     brokers: aserver:9092
     group: gr1
     topic: test    
+    resultTopic: results  
     
 jobs: 4
+
+fs:
+    url: http://127.0.0.1:9000
 
 logger:
     level: debug

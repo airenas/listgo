@@ -46,7 +46,7 @@ func NewReader(stopChannel <-chan os.Signal) (*Reader, error) {
 	})
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Can't connetc to kafka brokers: "+brokers)
+		return nil, errors.Wrap(err, "Can't connect to kafka brokers: "+brokers)
 	}
 	cmdapp.Log.Infof("Subscribing to Kafka topic %s\n", topic)
 	err = res.consumer.SubscribeTopics([]string{topic}, nil)

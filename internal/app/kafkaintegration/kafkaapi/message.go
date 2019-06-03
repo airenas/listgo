@@ -10,3 +10,16 @@ type Msg struct {
 	ID string
 	Offset kafka.TopicPartition
 }
+
+// ResponseMsg wrapped msg to be writen to kafkas AudioTextReadyEvent
+type ResponseMsg struct {
+	ID string
+	Error TranscriptionError
+}
+
+// TranscriptionError keeps error structure to put into kafkas event
+type TranscriptionError struct {
+	Status string
+	Msg string
+}
+

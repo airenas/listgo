@@ -10,3 +10,26 @@ type kafkaReader interface {
 	Close()
 }
 
+type kafkaWriter interface {
+	Write(msg *kafkaapi.ResponseMsg) error
+}
+
+type filer interface {
+	FindWorking(kafkaID string) (*kafkaapi.KafkaTrMap, error)
+	SetWorking(krIds* kafkaapi.KafkaTrMap) (error)
+	Delete(trID string) (error)
+	GetPending() ([]*kafkaapi.KafkaTrMap, error)
+}
+
+type db interface {
+	GetAudio(kafkaID string) (*kafkaapi.DBEntry, error)
+	SaveResult(data* kafkaapi.DBResultEntry) (error)
+}
+
+type transcriber interface {
+	Upload(audio *kafkaapi.UploadData) (string, error)
+	GetStatus(ID string) (*kafkaapi.Status, error)
+	GetResult(ID string) (*kafkaapi.Result, error)
+}
+
+
