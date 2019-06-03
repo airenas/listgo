@@ -1,8 +1,10 @@
 package kafkaintegration
 
 import (
+	"bitbucket.org/airenas/listgo/internal/pkg/file"
 	"bitbucket.org/airenas/listgo/internal/pkg/fs"
 	"bitbucket.org/airenas/listgo/internal/pkg/kafka"
+	transcriberapi "bitbucket.org/airenas/listgo/internal/pkg/transcriber"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/spf13/cobra"
@@ -42,6 +44,12 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "")
 
 	data.db, err = fs.NewClient()
+	cmdapp.CheckOrPanic(err, "")
+
+	data.tr, err = transcriberapi.NewClient()
+	cmdapp.CheckOrPanic(err, "")
+
+	data.filer, err = file.NewFiler()
 	cmdapp.CheckOrPanic(err, "")
 
 	err = StartServer(&data)

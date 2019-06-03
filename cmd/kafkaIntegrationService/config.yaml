@@ -5,10 +5,19 @@ kafka:
     topic: test    
     resultTopic: results  
     
-jobs: 4
+jobs: 1
 
 fs:
-    url: http://127.0.0.1:9000
+    url: http://127.0.0.1:9010
+
+transcriber:
+    url: 
+        upload: http://airenas.eu/ausis.1/transcriber/upload    
+        status: http://127.0.0.1:80/ausis/transcriber/    
+        result: http://127.0.0.1:80/ausis/transcriber/  
+
+ids:
+    path: /home/airenas/projects/listgo/cmd/kafkaIntegrationService/ids
 
 logger:
     level: debug

@@ -16,7 +16,7 @@ import (
 //Client comunicates with file server
 type Client struct {
 	httpclient *retryablehttp.Client
-	url        *url.URL
+	url        string
 }
 
 //NewClient creates a fs client
@@ -26,30 +26,44 @@ func NewClient() (*Client, error) {
 	if urlStr == "" {
 		return nil, errors.New("No fs.url provided")
 	}
-	var err error
-	res.url, err = url.Parse(urlStr)
+	url, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't parse url "+urlStr)
 	}
+	res.url = url.String()
 	res.httpclient = retryablehttp.NewClient()
 	res.httpclient.RetryMax = 3
 
 	return &res, nil
 }
 
+type getAudioResponse struct {
+	ID       string `json:"id"`
+	Data     string `json:"data"`
+	FileName string `json:"file_name"`
+	JobType  string `json:"job_type"`
+}
+
 //GetAudio loads audio from fs
 func (sp *Client) GetAudio(kafkaID string) (*kafkaapi.DBEntry, error) {
-	urlStr := path.Join(sp.url.Path, "AudioGetRequest", kafkaID)
+	u, _ := url.Parse(sp.url)
+	u.Path = path.Join(u.Path, "AudioGetRequest", kafkaID)
+	urlStr := u.String()
 	cmdapp.Log.Infof("Get audio: %s", urlStr)
 	resp, err := sp.httpclient.Get(urlStr)
 	if err != nil {
 		return nil, err
 	}
-	var result kafkaapi.DBEntry
-	err = json.NewDecoder(resp.Body).Decode(&result)
+	var respData getAudioResponse
+	err = json.NewDecoder(resp.Body).Decode(&respData)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't decode response")
 	}
+	var result kafkaapi.DBEntry
+	result.ID = respData.ID
+	result.Data = respData.Data
+	result.FileName = respData.FileName
+	result.JobType = respData.JobType
 
 	return &result, nil
 }
@@ -60,7 +74,7 @@ func (sp *Client) SaveResult(data *kafkaapi.DBResultEntry) error {
 	if err != nil {
 		return errors.Wrap(err, "Can't marshal data")
 	}
-	urlStr := path.Join(sp.url.Path, "TranscriptionPostRequest")
+	urlStr := path.Join(sp.url, "TranscriptionPostRequest")
 	cmdapp.Log.Infof("Post result audio: %s", urlStr)
 	_, err = sp.httpclient.Post(urlStr, "application/json", bytes.NewBuffer(bytesData))
 	if err != nil {
