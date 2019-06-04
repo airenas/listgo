@@ -3,18 +3,17 @@ package fs
 import (
 	"bytes"
 	"encoding/json"
+	"net/http"
 
 	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 	"github.com/pkg/errors"
-
-	"github.com/hashicorp/go-retryablehttp"
 )
 
 //Client comunicates with file server
 type Client struct {
-	httpclient *retryablehttp.Client
+	httpclient *http.Client
 	url        string
 }
 
@@ -26,8 +25,7 @@ func NewClient() (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	res.httpclient = retryablehttp.NewClient()
-	res.httpclient.RetryMax = 3
+	res.httpclient = http.DefaultClient
 
 	return &res, nil
 }
