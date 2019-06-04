@@ -47,6 +47,10 @@ func (sp *Client) GetAudio(kafkaID string) (*kafkaapi.DBEntry, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = utils.ValidateResponse(resp)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't get audio")
+	}
 	var respData getAudioResponse
 	err = json.NewDecoder(resp.Body).Decode(&respData)
 	if err != nil {
@@ -104,8 +108,9 @@ func (sp *Client) SaveResult(dataIn *kafkaapi.DBResultEntry) error {
 	if err != nil {
 		return errors.Wrap(err, "Can't send data to file server")
 	}
-	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
-		return errors.Errorf("Can't send data to file server. Code: %d", resp.StatusCode)
+	err = utils.ValidateResponse(resp)
+	if err != nil {
+		return errors.Wrap(err, "Can't save result audio")
 	}
 	return nil
 }

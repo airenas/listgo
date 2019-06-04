@@ -1,6 +1,7 @@
 package utils;
 
 import (
+	"net/http"
 	"github.com/pkg/errors"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"strings"
@@ -33,4 +34,12 @@ func validateConfigURL(urlStr, settingName string) (string, error) {
 		return "", errors.Wrap(err, "Can't parse url "+urlStr)
 	}
 	return url.String(), nil
+}
+
+//ValidateResponse returns error if code is not in [200, 299]
+func ValidateResponse(resp *http.Response) error {
+	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
+		return errors.Errorf("Wrong response code from server. Code: %d", resp.StatusCode)
+	}
+	return nil
 }

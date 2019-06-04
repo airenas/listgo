@@ -57,8 +57,9 @@ func (sp *Client) GetStatus(ID string) (*kafkaapi.Status, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
-		return nil, errors.Errorf("Can't get status. Code: %d", resp.StatusCode)
+	err = utils.ValidateResponse(resp)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't get status")
 	}
 
 	var result api.TranscriptionResult
@@ -85,6 +86,11 @@ func (sp *Client) GetResult(ID string) (*kafkaapi.Result, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	err = utils.ValidateResponse(resp)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't get status")
+	}
+
 	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
 		return nil, errors.Errorf("Can't get result. Code: %d", resp.StatusCode)
 	}
@@ -126,6 +132,7 @@ func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	resp, err := sp.httpclient.Do(req)
+	defer resp.Body.Close()
 	if err != nil {
 		return "", err
 	}
@@ -133,6 +140,9 @@ func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 	err = json.NewDecoder(resp.Body).Decode(&respData)
 	if err != nil {
 		return "", errors.Wrap(err, "Can't decode response")
+	}
+	if respData.ID == "" {
+		return "", errors.Wrap(err, "Can't get ID from response")
 	}
 	return respData.ID, nil
 }
