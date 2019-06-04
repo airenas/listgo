@@ -19,6 +19,5 @@ type Status struct {
 //Result keeps structure for transcription result
 type Result struct {
 	ID string
-	Text string
 	FileData string
 }

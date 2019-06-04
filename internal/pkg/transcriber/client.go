@@ -5,14 +5,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"mime/multipart"
-	"net/url"
-	"path"
 	"strings"
 
 	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
 	"bitbucket.org/airenas/listgo/internal/app/status/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 	"github.com/pkg/errors"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -30,15 +30,15 @@ type Client struct {
 func NewClient() (*Client, error) {
 	res := Client{}
 	var err error
-	res.uploadURL, err = getURL("transcriber.url.upload")
+	res.uploadURL, err = utils.GetURLFromConfig("transcriber.url.upload")
 	if err != nil {
 		return nil, err
 	}
-	res.statusURL, err = getURL("transcriber.url.status")
+	res.statusURL, err = utils.GetURLFromConfig("transcriber.url.status")
 	if err != nil {
 		return nil, err
 	}
-	res.resultURL, err = getURL("transcriber.url.result")
+	res.resultURL, err = utils.GetURLFromConfig("transcriber.url.result")
 	if err != nil {
 		return nil, err
 	}
@@ -50,13 +50,15 @@ func NewClient() (*Client, error) {
 
 //GetStatus get status from the server
 func (sp *Client) GetStatus(ID string) (*kafkaapi.Status, error) {
-	u, _ := url.Parse(sp.statusURL)
-	u.Path = path.Join(u.Path, ID)
-	urlStr := u.String()
+	urlStr := utils.URLJoin(sp.statusURL, ID)
 	cmdapp.Log.Infof("Get status: %s", urlStr)
 	resp, err := sp.httpclient.Get(urlStr)
 	if err != nil {
 		return nil, err
+	}
+	defer resp.Body.Close()
+	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
+		return nil, errors.Errorf("Can't get status. Code: %d", resp.StatusCode)
 	}
 
 	var result api.TranscriptionResult
@@ -77,17 +79,23 @@ func (sp *Client) GetStatus(ID string) (*kafkaapi.Status, error) {
 
 //GetResult gets result file from transcrinber
 func (sp *Client) GetResult(ID string) (*kafkaapi.Result, error) {
-	// bytesData, err := json.Marshal(data)
-	// if err != nil {
-	// 	return errors.Wrap(err, "Can't marshal data")
-	// }
-	// urlStr := path.Join(sp.url.Path, "TranscriptionPostRequest")
-	// cmdapp.Log.Infof("Post result audio: %s", urlStr)
-	// _, err = sp.httpclient.Post(urlStr, "application/json", bytes.NewBuffer(bytesData))
-	// if err != nil {
-	// 	return errors.Wrap(err, "Can't send data to file server")
-	// }
-	return nil, nil
+	urlStr := utils.URLJoin(sp.resultURL, "result", ID, "result.txt")
+	resp, err := sp.httpclient.Get(urlStr)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
+		return nil, errors.Errorf("Can't get result. Code: %d", resp.StatusCode)
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't read response")
+	}
+	var res kafkaapi.Result
+	res.ID = ID
+	res.FileData = base64.StdEncoding.EncodeToString(body)
+	return &res, nil
 }
 
 type uploadResponse struct {
@@ -127,16 +135,4 @@ func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 		return "", errors.Wrap(err, "Can't decode response")
 	}
 	return respData.ID, nil
-}
-
-func getURL(name string) (string, error) {
-	urlStr := cmdapp.Config.GetString(name)
-	if urlStr == "" {
-		return "", errors.New("No " + name + " setting provided")
-	}
-	url, err := url.Parse(urlStr)
-	if err != nil {
-		return "", errors.Wrap(err, "Can't parse url "+urlStr)
-	}
-	return url.String(), nil
 }

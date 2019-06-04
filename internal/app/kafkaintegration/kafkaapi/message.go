@@ -8,7 +8,7 @@ import (
 // Msg wrapped msg to be returned by kafka
 type Msg struct {
 	ID string
-	Offset kafka.TopicPartition
+	RealMsg *kafka.Message
 }
 
 // ResponseMsg wrapped msg to be writen to kafkas AudioTextReadyEvent

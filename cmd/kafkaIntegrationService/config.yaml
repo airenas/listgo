@@ -14,7 +14,7 @@ transcriber:
     url: 
         upload: http://airenas.eu/ausis.1/transcriber/upload    
         status: http://airenas.eu/ausis.1/status.service/status
-        result: http://127.0.0.1:80/ausis/transcriber/  
+        result: http://airenas.eu/ausis.1/result.service
 
 ids:
     path: /home/airenas/projects/listgo/cmd/kafkaIntegrationService/ids

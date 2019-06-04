@@ -3,11 +3,10 @@ package fs
 import (
 	"bytes"
 	"encoding/json"
-	"net/url"
-	"path"
 
 	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 	"github.com/pkg/errors"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -22,15 +21,11 @@ type Client struct {
 //NewClient creates a fs client
 func NewClient() (*Client, error) {
 	res := Client{}
-	urlStr := cmdapp.Config.GetString("fs.url")
-	if urlStr == "" {
-		return nil, errors.New("No fs.url provided")
-	}
-	url, err := url.Parse(urlStr)
+	var err error
+	res.url, err = utils.GetURLFromConfig("fs.url")
 	if err != nil {
-		return nil, errors.Wrap(err, "Can't parse url "+urlStr)
+		return nil, err
 	}
-	res.url = url.String()
 	res.httpclient = retryablehttp.NewClient()
 	res.httpclient.RetryMax = 3
 
@@ -46,9 +41,7 @@ type getAudioResponse struct {
 
 //GetAudio loads audio from fs
 func (sp *Client) GetAudio(kafkaID string) (*kafkaapi.DBEntry, error) {
-	u, _ := url.Parse(sp.url)
-	u.Path = path.Join(u.Path, "AudioGetRequest", kafkaID)
-	urlStr := u.String()
+	urlStr := utils.URLJoin(sp.url, "AudioGetRequest", kafkaID)
 	cmdapp.Log.Infof("Get audio: %s", urlStr)
 	resp, err := sp.httpclient.Get(urlStr)
 	if err != nil {
@@ -88,9 +81,7 @@ type trError struct {
 
 //SaveResult saves result to fs
 func (sp *Client) SaveResult(dataIn *kafkaapi.DBResultEntry) error {
-	u, _ := url.Parse(sp.url)
-	u.Path = path.Join(u.Path, "TranscriptionPostRequest")
-	urlStr := u.String()
+	urlStr := utils.URLJoin(sp.url, "TranscriptionPostRequest")
 
 	var data transcriptionPostRequest
 	data.ID = dataIn.ID

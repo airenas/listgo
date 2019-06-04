@@ -64,7 +64,9 @@ func (sp *Reader) Close() {
 
 //Commit commit messahes offset
 func (sp *Reader) Commit(msg *kafkaapi.Msg) error {
-	return nil
+	cmdapp.Log.Infof("Commit message %s", msg.RealMsg.TopicPartition.String())
+	_, err := sp.consumer.CommitMessage(msg.RealMsg)
+	return err
 }
 
 //Get read next message from kafka topic
@@ -84,7 +86,7 @@ func (sp *Reader) Get() (*kafkaapi.Msg, error) {
 				cmdapp.Log.Debugf("Kafka message on %s:\t%s\n", e.TopicPartition, string(e.Value))
 				msg := kafkaapi.Msg{}
 				msg.ID = string(e.Value)
-				msg.Offset = e.TopicPartition
+				msg.RealMsg = e
 				return &msg, nil
 			case ckafka.Error:
 				cmdapp.Log.Warnf("Kafka warning: %v: %v\n", e.Code(), e)
