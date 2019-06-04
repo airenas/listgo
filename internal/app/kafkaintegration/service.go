@@ -91,11 +91,15 @@ func readProcessKafkaMsg(data *ServiceData) {
 	}
 	cmdapp.Log.Infof("Got kafka msg %s", msg.ID)
 
-	err = processMsg(data, msg)
-	if err != nil {
-		cmdapp.Log.Error(err)
-		data.fc <- syscall.SIGINT
-		return
+	if msg.ID == "" {
+		cmdapp.Log.Warn("Empty kafka msg ID!")
+	} else {
+		err = processMsg(data, msg)
+		if err != nil {
+			cmdapp.Log.Error(err)
+			data.fc <- syscall.SIGINT
+			return
+		}
 	}
 	err = data.kReader.Commit(msg)
 	if err != nil {
@@ -137,7 +141,7 @@ func processMsgInt(data *ServiceData, msg *kafkaapi.Msg) error {
 	if err != nil {
 		return errors.Wrap(err, "Can't start transcription")
 	}
-	
+
 	var idsmap kafkaapi.KafkaTrMap
 	idsmap.TrID = id
 	idsmap.KafkaID = msg.ID
@@ -145,7 +149,7 @@ func processMsgInt(data *ServiceData, msg *kafkaapi.Msg) error {
 	if err != nil {
 		return errors.Wrap(err, "Can't mark as working")
 	}
-	
+
 	go listenTranscription(data, &idsmap)
 	return nil
 }
