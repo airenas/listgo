@@ -59,6 +59,7 @@ func (sp *Reader) Close() {
 	if sp.consumer != nil {
 		cmdapp.Log.Info("Closing kafka consumer")
 		sp.consumer.Close()
+		cmdapp.Log.Info("Closed kafka consumer")
 	}
 }
 

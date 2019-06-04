@@ -56,6 +56,7 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "")
 	cmdapp.Log.Infof("Started")
 	<-data.fc
+	close(data.fc)
 	cmdapp.Log.Infof("Exiting service")
 }
 
