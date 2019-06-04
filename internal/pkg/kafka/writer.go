@@ -41,7 +41,8 @@ func (sp *Writer) Write(msg *kafkaapi.ResponseMsg) error {
 	deliveryChan := make(chan ckafka.Event)
 	defer close(deliveryChan)
 
-	value := "Hello Go!"
+	value := msg.ID // use json
+
 	err := sp.producer.Produce(&ckafka.Message{
 		TopicPartition: ckafka.TopicPartition{Topic: &sp.topic, Partition: ckafka.PartitionAny},
 		Value:          []byte(value),

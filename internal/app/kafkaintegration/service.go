@@ -5,6 +5,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 
 	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
@@ -61,9 +62,7 @@ func initPreviousWork(data *ServiceData) error {
 		return errors.Wrap(err, "Can't get working list")
 	}
 	for _, we := range wlist {
-		cmdapp.Log.Info("Waiting for free work slot")
-		data.parallelWorkSemaphore <- struct{}{}
-		cmdapp.Log.Info("Got access to process working list")
+		waitForWorkAccess(data)
 		go listenTranscription(data, we)
 	}
 	return nil
@@ -71,11 +70,15 @@ func initPreviousWork(data *ServiceData) error {
 
 func listenKafka(data *ServiceData) {
 	for {
-		cmdapp.Log.Info("Waiting for free work slot")
-		data.parallelWorkSemaphore <- struct{}{}
-		cmdapp.Log.Info("Got access to process kafka messages")
+		waitForWorkAccess(data)
 		readProcessKafkaMsg(data)
 	}
+}
+
+func waitForWorkAccess(data *ServiceData) {
+	cmdapp.Log.Info("Waiting for free work slot")
+	data.parallelWorkSemaphore <- struct{}{}
+	cmdapp.Log.Info("Got access to work")
 }
 
 func readProcessKafkaMsg(data *ServiceData) {
@@ -87,18 +90,12 @@ func readProcessKafkaMsg(data *ServiceData) {
 		return
 	}
 	cmdapp.Log.Infof("Got kafka msg %s", msg.ID)
+
 	err = processMsg(data, msg)
 	if err != nil {
-		var msgE kafkaapi.ResponseMsg
-		msgE.ID = msg.ID
-		msgE.Error.Status = "SERVICE_ERROR"
-		msgE.Error.Msg = err.Error()
-		err = sendErrorMsg(data, &msgE)
-		if err != nil {
-			cmdapp.Log.Error(err)
-			data.fc <- syscall.SIGINT
-			return
-		}
+		cmdapp.Log.Error(err)
+		data.fc <- syscall.SIGINT
+		return
 	}
 	err = data.kReader.Commit(msg)
 	if err != nil {
@@ -109,6 +106,14 @@ func readProcessKafkaMsg(data *ServiceData) {
 }
 
 func processMsg(data *ServiceData, msg *kafkaapi.Msg) error {
+	op := func() error {
+		return processMsgInt(data, msg)
+	}
+
+	return backoff.Retry(op, backoff.NewExponentialBackOff())
+}
+
+func processMsgInt(data *ServiceData, msg *kafkaapi.Msg) error {
 	cmdapp.Log.Infof("Process msg: %s", msg.ID)
 	ids, err := data.filer.FindWorking(msg.ID)
 	if err != nil {
