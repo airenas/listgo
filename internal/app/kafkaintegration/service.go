@@ -127,6 +127,7 @@ func processMsgInt(data *ServiceData, msg *kafkaapi.Msg) error {
 	if err != nil {
 		return errors.Wrap(err, "Can't get audio from db")
 	}
+
 	var upload kafkaapi.UploadData
 	upload.ExternalID = msg.ID
 	upload.AudioData = audio.Data
@@ -136,6 +137,7 @@ func processMsgInt(data *ServiceData, msg *kafkaapi.Msg) error {
 	if err != nil {
 		return errors.Wrap(err, "Can't start transcription")
 	}
+	
 	var idsmap kafkaapi.KafkaTrMap
 	idsmap.TrID = id
 	idsmap.KafkaID = msg.ID
@@ -143,6 +145,7 @@ func processMsgInt(data *ServiceData, msg *kafkaapi.Msg) error {
 	if err != nil {
 		return errors.Wrap(err, "Can't mark as working")
 	}
+	
 	go listenTranscription(data, &idsmap)
 	return nil
 }
@@ -154,7 +157,7 @@ func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) {
 		time.Sleep(3 * time.Second)
 		status, err := getStatus(data, ids.TrID)
 		if err != nil {
-			cmdapp.Log.Error("Can't get status", err)
+			cmdapp.Log.Error("Can't get status. Give up", err)
 			data.fc <- syscall.SIGINT
 			return
 		}
@@ -191,23 +194,20 @@ func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) {
 				msg.Error.Msg = status.Error
 			}
 
-			err = saveSendResults(data, &result, &msg, ids.TrID)
+			err = saveSendResults(data, &result, &msg)
 			if err != nil {
 				cmdapp.Log.Error("Can't send results. Give up", err)
+				data.fc <- syscall.SIGINT
+			}
+
+			err = data.filer.Delete(ids.TrID)
+			if err != nil {
+				cmdapp.Log.Error("Can't mark as finished. Give up", err)
 				data.fc <- syscall.SIGINT
 			}
 			return
 		}
 	}
-}
-
-func sendErrorMsg(data *ServiceData, msg *kafkaapi.ResponseMsg) error {
-	cmdapp.Log.Infof("Sending error kafka msg: %s\n\t%s", msg.ID, msg.Error.Msg)
-	err := data.kWriter.Write(msg)
-	if err != nil {
-		return errors.Wrap(err, "Can't send kafka msg")
-	}
-	return nil
 }
 
 func getStatus(data *ServiceData, ID string) (*kafkaapi.Status, error) {
@@ -232,9 +232,7 @@ func getResult(data *ServiceData, ID string) (*kafkaapi.Result, error) {
 	return res, err
 }
 
-func saveSendResults(data *ServiceData, result *kafkaapi.DBResultEntry, msg *kafkaapi.ResponseMsg,
-	ID string) error {
-
+func saveSendResults(data *ServiceData, result *kafkaapi.DBResultEntry, msg *kafkaapi.ResponseMsg) error {
 	op := func() error {
 		err := data.db.SaveResult(result)
 		if err != nil {
@@ -242,11 +240,6 @@ func saveSendResults(data *ServiceData, result *kafkaapi.DBResultEntry, msg *kaf
 			return err
 		}
 		err = data.kWriter.Write(msg)
-		if err != nil {
-			cmdapp.Log.Error(err)
-			return err
-		}
-		err = data.filer.Delete(ID)
 		if err != nil {
 			cmdapp.Log.Error(err)
 			return err
