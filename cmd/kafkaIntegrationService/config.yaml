@@ -5,7 +5,7 @@ kafka:
     topic: test    
     resultTopic: results  
     
-jobs: 1
+jobs: 4
 
 fs:
     url: http://127.0.0.1:9010
@@ -13,7 +13,7 @@ fs:
 transcriber:
     url: 
         upload: http://airenas.eu/ausis.1/transcriber/upload    
-        status: http://127.0.0.1:80/ausis/transcriber/    
+        status: http://airenas.eu/ausis.1/status.service/status
         result: http://127.0.0.1:80/ausis/transcriber/  
 
 ids:

@@ -68,17 +68,53 @@ func (sp *Client) GetAudio(kafkaID string) (*kafkaapi.DBEntry, error) {
 	return &result, nil
 }
 
+type transcriptionPostRequest struct {
+	ID            string        `json:"id"`
+	Event         string        `json:"event"`
+	Status        string        `json:"status"`
+	Error         trError       `json:"error"`
+	Transcription transcription `json:"transcription"`
+}
+
+type transcription struct {
+	Text   string `json:"text"`
+	Latice string `json:"lattice"`
+}
+
+type trError struct {
+	Code         string `json:"code"`
+	DebugMessage string `json:"debug_message"`
+}
+
 //SaveResult saves result to fs
-func (sp *Client) SaveResult(data *kafkaapi.DBResultEntry) error {
+func (sp *Client) SaveResult(dataIn *kafkaapi.DBResultEntry) error {
+	u, _ := url.Parse(sp.url)
+	u.Path = path.Join(u.Path, "TranscriptionPostRequest")
+	urlStr := u.String()
+
+	var data transcriptionPostRequest
+	data.ID = dataIn.ID
+	data.Event = "AudioTextReady"
+	data.Status = dataIn.Status
+	if data.Status == "failed" {
+		data.Error.Code = dataIn.Err.Code
+		data.Error.DebugMessage = dataIn.Err.Error
+	} else {
+		data.Transcription.Text = dataIn.Transcription.Text
+		data.Transcription.Latice = dataIn.Transcription.ResultFileData
+	}
+
 	bytesData, err := json.Marshal(data)
 	if err != nil {
 		return errors.Wrap(err, "Can't marshal data")
 	}
-	urlStr := path.Join(sp.url, "TranscriptionPostRequest")
 	cmdapp.Log.Infof("Post result audio: %s", urlStr)
-	_, err = sp.httpclient.Post(urlStr, "application/json", bytes.NewBuffer(bytesData))
+	resp, err := sp.httpclient.Post(urlStr, "application/json", bytes.NewBuffer(bytesData))
 	if err != nil {
 		return errors.Wrap(err, "Can't send data to file server")
+	}
+	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
+		return errors.Errorf("Can't send data to file server. Code: %d", resp.StatusCode)
 	}
 	return nil
 }

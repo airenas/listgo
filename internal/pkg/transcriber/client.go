@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
+	"bitbucket.org/airenas/listgo/internal/app/status/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 
@@ -47,25 +48,31 @@ func NewClient() (*Client, error) {
 	return &res, nil
 }
 
-// Upload(audio *kafkaapi.UploadData) (string, error)
-// 	GetStatus(ID string) (*kafkaapi.Status, error)
-// 	GetResult(ID string) (*kafkaapi.Result, error)
-
 //GetStatus get status from the server
 func (sp *Client) GetStatus(ID string) (*kafkaapi.Status, error) {
-	urlStr := path.Join(sp.statusURL, "status", ID)
+	u, _ := url.Parse(sp.statusURL)
+	u.Path = path.Join(u.Path, ID)
+	urlStr := u.String()
 	cmdapp.Log.Infof("Get status: %s", urlStr)
 	resp, err := sp.httpclient.Get(urlStr)
 	if err != nil {
 		return nil, err
 	}
-	var result kafkaapi.Status
+
+	var result api.TranscriptionResult
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't decode response")
 	}
 
-	return &result, nil
+	var res kafkaapi.Status
+	res.ID = result.ID
+	res.ErrorCode = result.ErrorCode
+	res.Error = result.Error
+	res.Text = result.RecognizedText
+	res.Completed = result.Status == "COMPLETED"
+
+	return &res, nil
 }
 
 //GetResult gets result file from transcrinber

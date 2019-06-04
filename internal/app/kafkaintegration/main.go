@@ -66,6 +66,5 @@ func newJobsSemaphore() (chan struct{}, error) {
 	}
 	cmdapp.Log.Infof("Job count = %d", jobs)
 	res := make(chan struct{}, jobs)
-	res <- struct{}{}
 	return res, nil
 }

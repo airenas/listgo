@@ -25,5 +25,5 @@ type DBTranscriptionError struct {
 //DBTranscriptionResult keeps structure for Result
 type DBTranscriptionResult struct {
 	Text string
-	ResultFile string
+	ResultFileData string
 }

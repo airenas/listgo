@@ -186,6 +186,7 @@ func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) {
 				cmdapp.Log.Error(err)
 				break
 			}
+			break
 		}
 		if status.Completed {
 			res, err := data.tr.GetResult(ids.TrID)
@@ -198,7 +199,7 @@ func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) {
 			result.ID = ids.KafkaID
 			result.Status = "done"
 			result.Transcription.Text = status.Text
-			result.Transcription.ResultFile = res.FileData
+			result.Transcription.ResultFileData = res.FileData
 			err = data.db.SaveResult(&result)
 			if err != nil {
 				//todo repeat
@@ -219,6 +220,7 @@ func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) {
 				cmdapp.Log.Error(err)
 				break
 			}
+			break
 		}
 	}
 }
