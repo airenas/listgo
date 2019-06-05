@@ -9,6 +9,8 @@ import (
 	"mime/multipart"
 	"strings"
 
+	"bitbucket.org/airenas/listgo/internal/pkg/status"
+
 	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
 	"bitbucket.org/airenas/listgo/internal/app/status/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
@@ -73,7 +75,7 @@ func (sp *Client) GetStatus(ID string) (*kafkaapi.Status, error) {
 	res.ErrorCode = result.ErrorCode
 	res.Error = result.Error
 	res.Text = result.RecognizedText
-	res.Completed = result.Status == "COMPLETED"
+	res.Completed = result.Status == status.Completed.Name
 
 	return &res, nil
 }
@@ -91,8 +93,9 @@ func (sp *Client) GetResult(ID string) (*kafkaapi.Result, error) {
 		return nil, errors.Wrap(err, "Can't get status")
 	}
 
-	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
-		return nil, errors.Errorf("Can't get result. Code: %d", resp.StatusCode)
+	err = utils.ValidateResponse(resp)
+	if err != nil {
+		return nil, err
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
