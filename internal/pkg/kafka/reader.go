@@ -77,7 +77,7 @@ func (sp *Reader) Get() (*kafkaapi.Msg, error) {
 		case <-sp.stopChannel:
 			break
 		default:
-			ev := sp.consumer.Poll(200)
+			ev := sp.consumer.Poll(100)
 			if ev == nil {
 				continue
 			}
