@@ -15,10 +15,9 @@ type kafkaWriter interface {
 }
 
 type filer interface {
-	FindWorking(kafkaID string) (*kafkaapi.KafkaTrMap, error)
+	Find(kafkaID string) (*kafkaapi.KafkaTrMap, error)
 	SetWorking(krIds* kafkaapi.KafkaTrMap) (error)
-	Delete(trID string) (error)
-	GetPending() ([]*kafkaapi.KafkaTrMap, error)
+	Delete(kafkaID string) (error)
 }
 
 type db interface {

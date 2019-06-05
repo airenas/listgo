@@ -34,7 +34,6 @@ func run(cmd *cobra.Command, args []string) {
 
 	data := ServiceData{}
 	data.fc = cmdapp.NewSignalChannel()
-	data.parallelWorkSemaphore, _ = newJobsSemaphore()
 
 	data.kReader, err = kafka.NewReader(data.fc)
 	cmdapp.CheckOrPanic(err, "")
@@ -58,14 +57,4 @@ func run(cmd *cobra.Command, args []string) {
 	<-data.fc
 	close(data.fc)
 	cmdapp.Log.Infof("Exiting service")
-}
-
-func newJobsSemaphore() (chan struct{}, error) {
-	jobs := cmdapp.Config.GetInt("jobs")
-	if jobs <= 0 {
-		jobs = 1
-	}
-	cmdapp.Log.Infof("Job count = %d", jobs)
-	res := make(chan struct{}, jobs)
-	return res, nil
 }

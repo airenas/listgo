@@ -8,6 +8,12 @@ type DBEntry struct {
 	JobType string
 }
 
+const(
+	//DBStatusFailed is failed status
+	DBStatusFailed = "failed"
+	//DBStatusDone is done status
+	DBStatusDone = "done"
+)
 //DBResultEntry keeps structure for TranscriptionPostRequest
 type DBResultEntry struct {
 	ID string

@@ -14,13 +14,12 @@ import (
 
 // ServiceData keeps data required for service work
 type ServiceData struct {
-	fc                    chan os.Signal
-	parallelWorkSemaphore chan struct{}
-	kReader               kafkaReader
-	kWriter               kafkaWriter
-	filer                 filer
-	db                    db
-	tr                    transcriber
+	fc      chan os.Signal
+	kReader kafkaReader
+	kWriter kafkaWriter
+	filer   filer
+	db      db
+	tr      transcriber
 }
 
 //StartServer init the service to listen to kafka messages and pass it to transcrption
@@ -28,10 +27,6 @@ func StartServer(data *ServiceData) error {
 	err := validateData(data)
 	if err != nil {
 		return err
-	}
-	err = initPreviousWork(data)
-	if err != nil {
-		return errors.Wrap(err, "Can't init previous work")
 	}
 	go listenKafka(data)
 	return nil
@@ -56,38 +51,23 @@ func validateData(data *ServiceData) error {
 	return nil
 }
 
-func initPreviousWork(data *ServiceData) error {
-	wlist, err := data.filer.GetPending()
-	if err != nil {
-		return errors.Wrap(err, "Can't get working list")
-	}
-	for _, we := range wlist {
-		waitForWorkAccess(data)
-		go listenTranscription(data, we)
-	}
-	return nil
-}
-
 func listenKafka(data *ServiceData) {
-	for {
-		waitForWorkAccess(data)
-		readProcessKafkaMsg(data)
+	var err error
+	for err == nil {
+		err := readProcessKafkaMsg(data)
+		if err != nil {
+			cmdapp.Log.Error(err)
+			data.fc <- syscall.SIGINT
+			return
+		}
 	}
 }
 
-func waitForWorkAccess(data *ServiceData) {
-	cmdapp.Log.Info("Waiting for free work slot")
-	data.parallelWorkSemaphore <- struct{}{}
-	cmdapp.Log.Info("Got access to work")
-}
-
-func readProcessKafkaMsg(data *ServiceData) {
+func readProcessKafkaMsg(data *ServiceData) error {
 	cmdapp.Log.Info("Waiting for kafka msg")
 	msg, err := data.kReader.Get()
 	if err != nil {
-		cmdapp.Log.Error("Can't read kafka msg", err)
-		data.fc <- syscall.SIGINT
-		return
+		return errors.Wrap(err, "Can't read kafka msg")
 	}
 	cmdapp.Log.Infof("Got kafka msg %s", msg.ID)
 
@@ -96,74 +76,56 @@ func readProcessKafkaMsg(data *ServiceData) {
 	} else {
 		err = processMsg(data, msg)
 		if err != nil {
-			cmdapp.Log.Error(err)
-			data.fc <- syscall.SIGINT
-			return
+			return err
 		}
 	}
 	err = data.kReader.Commit(msg)
 	if err != nil {
-		cmdapp.Log.Error("Can't commit kafka msg", err)
-		data.fc <- syscall.SIGINT
-		return
+		return errors.Wrap(err, "Can't commit kafka msg")
 	}
-}
-
-func processMsg(data *ServiceData, msg *kafkaapi.Msg) error {
-	op := func() error {
-		return processMsgInt(data, msg)
-	}
-
-	return backoff.Retry(op, backoff.NewExponentialBackOff())
-}
-
-func processMsgInt(data *ServiceData, msg *kafkaapi.Msg) error {
-	cmdapp.Log.Infof("Process msg: %s", msg.ID)
-	ids, err := data.filer.FindWorking(msg.ID)
-	if err != nil {
-		return errors.Wrap(err, "Can't check ids map")
-	}
-	if ids != nil {
-		go listenTranscription(data, ids)
-		return nil
-	}
-	audio, err := data.db.GetAudio(msg.ID)
-	if err != nil {
-		return errors.Wrap(err, "Can't get audio from db")
-	}
-
-	var upload kafkaapi.UploadData
-	upload.ExternalID = msg.ID
-	upload.AudioData = audio.Data
-	upload.JobType = audio.JobType
-	upload.FileName = audio.FileName
-	id, err := data.tr.Upload(&upload)
-	if err != nil {
-		return errors.Wrap(err, "Can't start transcription")
-	}
-
-	var idsmap kafkaapi.KafkaTrMap
-	idsmap.TrID = id
-	idsmap.KafkaID = msg.ID
-	err = data.filer.SetWorking(&idsmap)
-	if err != nil {
-		return errors.Wrap(err, "Can't mark as working")
-	}
-
-	go listenTranscription(data, &idsmap)
 	return nil
 }
 
-func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) {
+func processMsg(data *ServiceData, msg *kafkaapi.Msg) error {
+	cmdapp.Log.Infof("Process msg: %s", msg.ID)
+	ids, err := data.filer.Find(msg.ID)
+	if err != nil {
+		return errors.Wrap(err, "Can't check ids map")
+	}
+	if ids == nil {
+		audio, err := getAudio(data, msg.ID)
+		if err != nil {
+			return errors.Wrap(err, "Can't get audio from db")
+		}
+
+		var upload kafkaapi.UploadData
+		upload.ExternalID = msg.ID
+		upload.AudioData = audio.Data
+		upload.JobType = audio.JobType
+		upload.FileName = audio.FileName
+		id, err := data.tr.Upload(&upload)
+		if err != nil {
+			return errors.Wrap(err, "Can't start transcription")
+		}
+
+		ids = &kafkaapi.KafkaTrMap{}
+		ids.TrID = id
+		ids.KafkaID = msg.ID
+		err = data.filer.SetWorking(ids)
+		if err != nil {
+			return errors.Wrap(err, "Can't mark as working")
+		}
+	}
+	return listenTranscription(data, ids)
+}
+
+func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) error {
 	cmdapp.Log.Infof("Waiting for transcription to complete, ID: %s", ids.KafkaID)
-	defer func() { <-data.parallelWorkSemaphore }()
 	for {
 		time.Sleep(3 * time.Second)
 		status, err := getStatus(data, ids.TrID)
 		if err != nil {
-			cmdapp.Log.Error("Can't get status. Give up", err)
-			data.fc <- syscall.SIGINT
-			return
+			return errors.Wrap(err, "Can't get status. Give up")
 		}
 		cmdapp.Log.Infof("Got status ID: %s, completed: %t, errorCode: %s", ids.KafkaID, status.Completed, status.ErrorCode)
 		if status.Completed || status.ErrorCode != "" {
@@ -177,7 +139,7 @@ func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) {
 				if err != nil {
 					// what do we do now? completed but no result!
 					cmdapp.Log.Error("Can't get result\nMarking request as failed!", err)
-					result.Status = "failed"
+					result.Status = kafkaapi.DBStatusFailed
 					result.Err.Code = status.ErrorCode
 					result.Err.Error = status.Error
 
@@ -185,12 +147,12 @@ func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) {
 					msg.Error.Msg = status.Error
 
 				} else {
-					result.Status = "done"
+					result.Status = kafkaapi.DBStatusDone
 					result.Transcription.Text = status.Text
 					result.Transcription.ResultFileData = res.FileData
 				}
 			} else {
-				result.Status = "failed"
+				result.Status = kafkaapi.DBStatusFailed
 				result.Err.Code = status.ErrorCode
 				result.Err.Error = status.Error
 
@@ -200,16 +162,14 @@ func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) {
 
 			err = saveSendResults(data, &result, &msg)
 			if err != nil {
-				cmdapp.Log.Error("Can't send results. Give up", err)
-				data.fc <- syscall.SIGINT
+				return errors.Wrap(err, "Can't send results. Give up")
 			}
 
-			err = data.filer.Delete(ids.TrID)
+			err = data.filer.Delete(ids.KafkaID)
 			if err != nil {
-				cmdapp.Log.Error("Can't mark as finished. Give up", err)
-				data.fc <- syscall.SIGINT
+				return errors.Wrap(err, "Can't mark as finished. Give up")
 			}
-			return
+			return nil
 		}
 	}
 }
@@ -221,7 +181,7 @@ func getStatus(data *ServiceData, ID string) (*kafkaapi.Status, error) {
 		res, err = data.tr.GetStatus(ID)
 		return err
 	}
-	err := backoff.Retry(op, backoff.NewExponentialBackOff())
+	err := backoff.Retry(op, newBackOff())
 	return res, err
 }
 
@@ -232,7 +192,7 @@ func getResult(data *ServiceData, ID string) (*kafkaapi.Result, error) {
 		res, err = data.tr.GetResult(ID)
 		return err
 	}
-	err := backoff.Retry(op, backoff.NewExponentialBackOff())
+	err := backoff.Retry(op, newBackOff())
 	return res, err
 }
 
@@ -250,6 +210,29 @@ func saveSendResults(data *ServiceData, result *kafkaapi.DBResultEntry, msg *kaf
 		}
 		return nil
 	}
+	return backoff.Retry(op, newBackOff())
+}
 
-	return backoff.Retry(op, backoff.NewExponentialBackOff())
+func getAudio(data *ServiceData, ID string) (*kafkaapi.DBEntry, error) {
+	var res *kafkaapi.DBEntry
+	op := func() error {
+		var err error
+		res, err = data.db.GetAudio(ID)
+		return err
+	}
+	err := backoff.Retry(op, newBackOff())
+	return res, err
+}
+
+func newBackOff() *backoff.ExponentialBackOff {
+	b := &backoff.ExponentialBackOff{
+		InitialInterval:     backoff.DefaultInitialInterval,
+		RandomizationFactor: backoff.DefaultRandomizationFactor,
+		Multiplier:          backoff.DefaultMultiplier,
+		MaxInterval:         backoff.DefaultMaxInterval,
+		MaxElapsedTime:      3 * time.Minute,
+		Clock:               backoff.SystemClock,
+	}
+	b.Reset()
+	return b
 }

@@ -26,13 +26,15 @@ func NewReader(stopChannel <-chan os.Signal) (*Reader, error) {
 	if group == "" {
 		group = "gr1"
 	}
-	topic := cmdapp.Config.GetString("kafka.topic")
+	topic := cmdapp.Config.GetString("kafka.input_topic")
 	if topic == "" {
-		return nil, errors.New("No kafka.topic provided")
+		return nil, errors.New("No kafka.input_topic provided")
 	}
 
 	res := Reader{}
 	res.stopChannel = stopChannel
+
+	//sessionTimeout := 30 * time.Minute
 
 	cmdapp.Log.Infof("Connecting to Kafka on %s\n", brokers)
 	var err error
@@ -40,9 +42,10 @@ func NewReader(stopChannel <-chan os.Signal) (*Reader, error) {
 		"bootstrap.servers":     brokers,
 		"broker.address.family": "v4",
 		"group.id":              group,
-		"session.timeout.ms":    6000,
-		"auto.offset.reset":     "earliest",
-		"enable.auto.commit":    "false",
+		"session.timeout.ms":    6000, //0int(sessionTimeout.Seconds()) * 1000,
+		//"max.poll.interval.ms":  int(sessionTimeout.Seconds()) * 1000,
+		"auto.offset.reset":  "earliest",
+		"enable.auto.commit": "false",
 	})
 
 	if err != nil {

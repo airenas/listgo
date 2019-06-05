@@ -22,9 +22,9 @@ func NewWriter() (*Writer, error) {
 		return nil, errors.New("No kafka.brokers provided")
 	}
 	res := Writer{}
-	res.topic = cmdapp.Config.GetString("kafka.resultTopic")
+	res.topic = cmdapp.Config.GetString("kafka.result_topic")
 	if res.topic == "" {
-		return nil, errors.New("No kafka.resultTopic provided")
+		return nil, errors.New("No kafka.result_topic provided")
 	}
 
 	cmdapp.Log.Infof("Connecting to Kafka on %s\n", brokers)

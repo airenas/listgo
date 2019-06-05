@@ -2,11 +2,9 @@
 kafka:
     brokers: aserver:9092
     group: gr1
-    topic: test    
-    resultTopic: results  
+    input_topic: test    
+    result_topic: results  
     
-jobs: 4
-
 fs:
     url: http://127.0.0.1:9010
 
