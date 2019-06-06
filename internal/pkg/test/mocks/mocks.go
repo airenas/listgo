@@ -34,6 +34,16 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=fileNameProvider.go -m bitbucket.org/airenas/listgo/internal/app/result FileNameProvider
 
+//go:generate pegomock generate --package=mocks --output=kReader.go -m bitbucket.org/airenas/listgo/internal/app/kafkaintegration KafkaReader
+
+//go:generate pegomock generate --package=mocks --output=kWriter.go -m bitbucket.org/airenas/listgo/internal/app/kafkaintegration KafkaWriter
+
+//go:generate pegomock generate --package=mocks --output=db.go -m bitbucket.org/airenas/listgo/internal/app/kafkaintegration DB
+
+//go:generate pegomock generate --package=mocks --output=filer.go -m bitbucket.org/airenas/listgo/internal/app/kafkaintegration Filer
+
+//go:generate pegomock generate --package=mocks --output=transcriber.go -m bitbucket.org/airenas/listgo/internal/app/kafkaintegration Transcriber
+
 //AttachMockToTest register pegomock verification to be passed to testing engine
 func AttachMockToTest(t *testing.T) {
 	pegomock.RegisterMockFailHandler(handleByTest(t))

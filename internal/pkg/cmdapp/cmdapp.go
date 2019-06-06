@@ -2,10 +2,8 @@ package cmdapp
 
 import (
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/heirko/go-contrib/logrusHelper"
 	"github.com/pkg/errors"
@@ -104,11 +102,4 @@ func LogIf(err error) {
 	if err != nil {
 		Log.Error(err)
 	}
-}
-
-//NewSignalChannel returns new channel that listens for system interupts
-func NewSignalChannel() chan os.Signal {
-	fc := make(chan os.Signal)
-	signal.Notify(fc, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	return fc
 }

@@ -1,8 +1,6 @@
 package kafkaintegration
 
 import (
-	"os"
-	"syscall"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -10,16 +8,18 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 )
 
 // ServiceData keeps data required for service work
 type ServiceData struct {
-	fc      chan os.Signal
-	kReader kafkaReader
-	kWriter kafkaWriter
-	filer   filer
-	db      db
-	tr      transcriber
+	fc      *utils.MultiCloseChannel
+	kReader KafkaReader
+	kWriter KafkaWriter
+	filer   Filer
+	db      DB
+	tr      Transcriber
+	bp      backoffProvider
 }
 
 //StartServer init the service to listen to kafka messages and pass it to transcrption
@@ -48,6 +48,9 @@ func validateData(data *ServiceData) error {
 	if data.filer == nil {
 		return errors.New("No File helper set")
 	}
+	if data.bp == nil {
+		return errors.New("No BackOff provider set")
+	}
 	return nil
 }
 
@@ -57,7 +60,7 @@ func listenKafka(data *ServiceData) {
 		err := readProcessKafkaMsg(data)
 		if err != nil {
 			cmdapp.Log.Error(err)
-			data.fc <- syscall.SIGINT
+			data.fc.Close()
 			return
 		}
 	}
@@ -181,7 +184,7 @@ func getStatus(data *ServiceData, ID string) (*kafkaapi.Status, error) {
 		res, err = data.tr.GetStatus(ID)
 		return err
 	}
-	err := backoff.Retry(op, newBackOff())
+	err := backoff.Retry(op, data.bp.Get())
 	return res, err
 }
 
@@ -192,7 +195,7 @@ func getResult(data *ServiceData, ID string) (*kafkaapi.Result, error) {
 		res, err = data.tr.GetResult(ID)
 		return err
 	}
-	err := backoff.Retry(op, newBackOff())
+	err := backoff.Retry(op, data.bp.Get())
 	return res, err
 }
 
@@ -210,7 +213,7 @@ func saveSendResults(data *ServiceData, result *kafkaapi.DBResultEntry, msg *kaf
 		}
 		return nil
 	}
-	return backoff.Retry(op, newBackOff())
+	return backoff.Retry(op, data.bp.Get())
 }
 
 func getAudio(data *ServiceData, ID string) (*kafkaapi.DBEntry, error) {
@@ -220,19 +223,6 @@ func getAudio(data *ServiceData, ID string) (*kafkaapi.DBEntry, error) {
 		res, err = data.db.GetAudio(ID)
 		return err
 	}
-	err := backoff.Retry(op, newBackOff())
+	err := backoff.Retry(op, data.bp.Get())
 	return res, err
-}
-
-func newBackOff() *backoff.ExponentialBackOff {
-	b := &backoff.ExponentialBackOff{
-		InitialInterval:     backoff.DefaultInitialInterval,
-		RandomizationFactor: backoff.DefaultRandomizationFactor,
-		Multiplier:          backoff.DefaultMultiplier,
-		MaxInterval:         backoff.DefaultMaxInterval,
-		MaxElapsedTime:      3 * time.Minute,
-		Clock:               backoff.SystemClock,
-	}
-	b.Reset()
-	return b
 }

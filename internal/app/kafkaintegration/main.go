@@ -1,10 +1,14 @@
 package kafkaintegration
 
 import (
+	"time"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/file"
 	"bitbucket.org/airenas/listgo/internal/pkg/fs"
 	"bitbucket.org/airenas/listgo/internal/pkg/kafka"
 	transcriberapi "bitbucket.org/airenas/listgo/internal/pkg/transcriber"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/cenkalti/backoff"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/spf13/cobra"
@@ -33,9 +37,10 @@ func run(cmd *cobra.Command, args []string) {
 	var err error
 
 	data := ServiceData{}
-	data.fc = cmdapp.NewSignalChannel()
+	data.fc = utils.NewSignalChannel()
+	data.bp = &expBackOffProvider{}
 
-	data.kReader, err = kafka.NewReader(data.fc)
+	data.kReader, err = kafka.NewReader(data.fc.C)
 	cmdapp.CheckOrPanic(err, "")
 	defer data.kReader.Close()
 
@@ -54,7 +59,23 @@ func run(cmd *cobra.Command, args []string) {
 	err = StartServer(&data)
 	cmdapp.CheckOrPanic(err, "")
 	cmdapp.Log.Infof("Started")
-	<-data.fc
-	close(data.fc)
+	<-data.fc.C
+	data.fc.Close()
 	cmdapp.Log.Infof("Exiting service")
+}
+
+type expBackOffProvider struct {
+}
+
+func (bp *expBackOffProvider) Get() backoff.BackOff {
+	b := &backoff.ExponentialBackOff{
+		InitialInterval:     backoff.DefaultInitialInterval,
+		RandomizationFactor: backoff.DefaultRandomizationFactor,
+		Multiplier:          backoff.DefaultMultiplier,
+		MaxInterval:         backoff.DefaultMaxInterval,
+		MaxElapsedTime:      45 * time.Second,
+		Clock:               backoff.SystemClock,
+	}
+	b.Reset()
+	return b
 }
