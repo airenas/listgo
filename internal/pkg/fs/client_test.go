@@ -14,8 +14,8 @@ import (
 func initServer(t *testing.T, urlStr, resp string, code int) (*Client, *httptest.Server) {
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		assert.Equal(t, req.URL.String(), urlStr)
-		rw.Write([]byte(resp))
 		rw.WriteHeader(code)
+		rw.Write([]byte(resp))
 	}))
 	// Use Client & URL from our local test server
 	api := Client{}

@@ -88,12 +88,7 @@ func (sp *Client) GetResult(ID string) (*kafkaapi.Result, error) {
 	defer resp.Body.Close()
 	err = utils.ValidateResponse(resp)
 	if err != nil {
-		return nil, errors.Wrap(err, "Can't get status")
-	}
-
-	err = utils.ValidateResponse(resp)
-	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Can't get result")
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -133,9 +128,13 @@ func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	resp, err := sp.httpclient.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
 		return "", err
+	}
+	defer resp.Body.Close()
+	err = utils.ValidateResponse(resp)
+	if err != nil {
+		return "", errors.Wrap(err, "Can't upload")
 	}
 	var respData uploadResponse
 	err = json.NewDecoder(resp.Body).Decode(&respData)
@@ -143,7 +142,7 @@ func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 		return "", errors.Wrap(err, "Can't decode response")
 	}
 	if respData.ID == "" {
-		return "", errors.Wrap(err, "Can't get ID from response")
+		return "", errors.New("Can't get ID from response")
 	}
 	return respData.ID, nil
 }
