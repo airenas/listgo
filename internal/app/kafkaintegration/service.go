@@ -103,12 +103,12 @@ func processMsg(data *ServiceData, msg *kafkaapi.Msg) error {
 			return errors.Wrap(err, "Can't get audio from db")
 		}
 
-		var upload kafkaapi.UploadData
-		upload.ExternalID = msg.ID
-		upload.AudioData = audio.Data
-		upload.JobType = audio.JobType
-		upload.FileName = audio.FileName
-		id, err := data.tr.Upload(&upload)
+		var upReq kafkaapi.UploadData
+		upReq.ExternalID = msg.ID
+		upReq.AudioData = audio.Data
+		upReq.JobType = audio.JobType
+		upReq.FileName = audio.FileName
+		id, err := upload(data, &upReq)
 		if err != nil {
 			return errors.Wrap(err, "Can't start transcription")
 		}
@@ -224,6 +224,17 @@ func getAudio(data *ServiceData, ID string) (*kafkaapi.DBEntry, error) {
 	op := func() error {
 		var err error
 		res, err = data.db.GetAudio(ID)
+		return err
+	}
+	err := backoff.Retry(op, data.bp.Get())
+	return res, err
+}
+
+func upload(data *ServiceData, upReq *kafkaapi.UploadData) (string, error) {
+	var res string
+	op := func() error {
+		var err error
+		res, err = data.tr.Upload(upReq)
 		return err
 	}
 	err := backoff.Retry(op, data.bp.Get())

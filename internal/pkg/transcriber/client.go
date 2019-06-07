@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"mime/multipart"
+	"net/http"
 	"strings"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
@@ -16,13 +17,11 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 	"github.com/pkg/errors"
-
-	"github.com/hashicorp/go-retryablehttp"
 )
 
 //Client comunicates with transcriber service
 type Client struct {
-	httpclient *retryablehttp.Client
+	httpclient *http.Client
 	uploadURL  string
 	statusURL  string
 	resultURL  string
@@ -44,8 +43,7 @@ func NewClient() (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	res.httpclient = retryablehttp.NewClient()
-	res.httpclient.RetryMax = 3
+	res.httpclient = &http.Client{}
 
 	return &res, nil
 }
@@ -128,7 +126,7 @@ func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 	}
 	writer.WriteField("externalID", audio.ExternalID)
 	writer.Close()
-	req, err := retryablehttp.NewRequest("POST", sp.uploadURL, body)
+	req, err := http.NewRequest("POST", sp.uploadURL, body)
 	if err != nil {
 		return "", err
 	}
