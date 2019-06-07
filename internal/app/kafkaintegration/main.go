@@ -39,6 +39,7 @@ func run(cmd *cobra.Command, args []string) {
 	data := ServiceData{}
 	data.fc = utils.NewSignalChannel()
 	data.bp = &expBackOffProvider{}
+	data.statusSleep = 3 * time.Second
 
 	data.kReader, err = kafka.NewReader(data.fc.C)
 	cmdapp.CheckOrPanic(err, "")

@@ -8,18 +8,20 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	errc "bitbucket.org/airenas/listgo/internal/pkg/err"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 )
 
 // ServiceData keeps data required for service work
 type ServiceData struct {
-	fc      *utils.MultiCloseChannel
-	kReader KafkaReader
-	kWriter KafkaWriter
-	filer   Filer
-	db      DB
-	tr      Transcriber
-	bp      backoffProvider
+	fc          *utils.MultiCloseChannel
+	kReader     KafkaReader
+	kWriter     KafkaWriter
+	filer       Filer
+	db          DB
+	tr          Transcriber
+	bp          backoffProvider
+	statusSleep time.Duration
 }
 
 //StartServer init the service to listen to kafka messages and pass it to transcrption
@@ -125,7 +127,7 @@ func processMsg(data *ServiceData, msg *kafkaapi.Msg) error {
 func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) error {
 	cmdapp.Log.Infof("Waiting for transcription to complete, ID: %s", ids.KafkaID)
 	for {
-		time.Sleep(3 * time.Second)
+		time.Sleep(data.statusSleep)
 		status, err := getStatus(data, ids.TrID)
 		if err != nil {
 			return errors.Wrap(err, "Can't get status. Give up")
@@ -141,13 +143,14 @@ func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) error {
 				res, err := getResult(data, ids.TrID)
 				if err != nil {
 					// what do we do now? completed but no result!
-					cmdapp.Log.Error("Can't get result\nMarking request as failed!", err)
+					err = errors.Wrap(err, "Can't get result\nMarking request as failed!")
+					cmdapp.Log.Error(err)
 					result.Status = kafkaapi.DBStatusFailed
-					result.Err.Code = status.ErrorCode
-					result.Err.Error = status.Error
+					result.Err.Code = errc.DefaultCode
+					result.Err.Error = err.Error()
 
-					msg.Error.Status = status.ErrorCode
-					msg.Error.Msg = status.Error
+					msg.Error.Status = result.Err.Code
+					msg.Error.Msg = result.Err.Error
 
 				} else {
 					result.Status = kafkaapi.DBStatusDone
