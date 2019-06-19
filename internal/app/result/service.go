@@ -7,6 +7,7 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/gorilla/mux"
+	"github.com/heptiolabs/healthcheck"
 	"github.com/pkg/errors"
 )
 
@@ -16,6 +17,7 @@ type ServiceData struct {
 	resultFileLoader FileLoader
 	fileNameProvider FileNameProvider
 	port             int
+	health           healthcheck.Handler
 }
 
 // FileResult - post method response in JSON
@@ -42,6 +44,10 @@ func NewRouter(data *ServiceData) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	router.Methods("GET").Path("/audio/{id}").Handler(audioHandler{data: data})
 	router.Methods("GET").Path("/result/{id}/{file}").Handler(resultHandler{data: data})
+	if data.health != nil {
+		router.Methods("GET").Path("/live").HandlerFunc(data.health.LiveEndpoint)
+		router.Methods("GET").Path("/ready").HandlerFunc(data.health.ReadyEndpoint)
+	}
 	return router
 }
 

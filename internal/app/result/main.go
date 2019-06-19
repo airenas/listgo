@@ -1,10 +1,13 @@
 package result
 
 import (
+	"time"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/loader"
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/heptiolabs/healthcheck"
 	"github.com/spf13/cobra"
 )
 
@@ -30,21 +33,25 @@ func Execute() {
 
 func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Info("Starting resultService")
+	data := ServiceData{}
+	data.health = healthcheck.NewHandler()
 	mongoSessionProvider, err := mongo.NewSessionProvider()
 	if err != nil {
 		panic(err)
 	}
 	defer mongoSessionProvider.Close()
+	data.health.AddLivenessCheck("mongo", healthcheck.Async(mongoSessionProvider.Healthy, 10*time.Second))
 
-	fileNameProvider, err := mongo.NewFileNameProvider(mongoSessionProvider)
+	data.fileNameProvider, err = mongo.NewFileNameProvider(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "Can't init fileName provider")
 
-	audioFileLoader, err := loader.NewLocalFileLoader(cmdapp.Config.GetString("fileStorage.audio"))
+	data.audioFileLoader, err = loader.NewLocalFileLoader(cmdapp.Config.GetString("fileStorage.audio"))
 	cmdapp.CheckOrPanic(err, "Can't init audioFileLoader provider")
 
-	resultFileLoader, err := loader.NewLocalFileLoader(cmdapp.Config.GetString("fileStorage.results"))
+	data.resultFileLoader, err = loader.NewLocalFileLoader(cmdapp.Config.GetString("fileStorage.results"))
 	cmdapp.CheckOrPanic(err, "Can't init resultFileLoader provider")
+	data.port = cmdapp.Config.GetInt("port")
 
-	err = StartWebServer(&ServiceData{audioFileLoader, resultFileLoader, fileNameProvider, cmdapp.Config.GetInt("port")})
+	err = StartWebServer(&data)
 	cmdapp.CheckOrPanic(err, "Can't start web server")
 }
