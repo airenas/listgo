@@ -1,7 +1,8 @@
 package upload
 
 import (
-	"github.com/pkg/errors"
+	"time"
+
 	"github.com/streadway/amqp"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
@@ -12,6 +13,8 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/saver"
 	"github.com/spf13/cobra"
+
+	"github.com/heptiolabs/healthcheck"
 )
 
 var rootCmd = &cobra.Command{
@@ -36,36 +39,37 @@ func Execute() {
 
 func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Info("Starting uploadService")
-	fileSaver, err := saver.NewLocalFileSaver(cmdapp.Config.GetString("fileStorage.path"))
-	if err != nil {
-		panic(err)
-	}
+	var data ServiceData
+	var err error
+	data.health = healthcheck.NewHandler()
+	fs, err := saver.NewLocalFileSaver(cmdapp.Config.GetString("fileStorage.path"))
+	cmdapp.CheckOrPanic(err, "Can't init file storage")
+	data.FileSaver = fs
+	data.health.AddLivenessCheck("fs", fs.HealthyFunc(50))
+
 	msgChannelProvider, err := rabbit.NewChannelProvider()
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "Can't init rabbit channel")
 	defer msgChannelProvider.Close()
 
 	err = initQueues(msgChannelProvider)
-	if err != nil {
-		panic(errors.Wrap(err, "Can't init queues"))
-	}
-	msgSender := rabbit.NewSender(msgChannelProvider)
+	cmdapp.CheckOrPanic(err, "Can't init queues")
+
+	data.MessageSender = rabbit.NewSender(msgChannelProvider)
 
 	mongoSessionProvider, err := mongo.NewSessionProvider()
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "Can't init mongo")
 	defer mongoSessionProvider.Close()
+	mchk := healthcheck.Async(mongoSessionProvider.Healthy, 10*time.Second)
+	data.health.AddLivenessCheck("mongo", mchk)
 
-	statusSaver, err := mongo.NewStatusSaver(mongoSessionProvider)
+	data.StatusSaver, err = mongo.NewStatusSaver(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "Can't init status saver")
 
-	requestSaver, err := mongo.NewRequestSaver(mongoSessionProvider)
+	data.RequestSaver, err = mongo.NewRequestSaver(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "Can't init request saver")
+	data.Port = cmdapp.Config.GetInt("port")
 
-	err = StartWebServer(&ServiceData{fileSaver, msgSender, statusSaver,
-		requestSaver, cmdapp.Config.GetInt("port")})
+	err = StartWebServer(&data)
 	cmdapp.CheckOrPanic(err, "Can't start web server")
 }
 

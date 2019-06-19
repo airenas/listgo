@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/heptiolabs/healthcheck"
 	"github.com/stretchr/testify/assert"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
@@ -40,6 +41,28 @@ func TestWrongPath(t *testing.T) {
 
 func TestNoFilePOST(t *testing.T) {
 	test400(t, httptest.NewRequest("POST", "/upload", nil))
+}
+
+func TestLive(t *testing.T) {
+	req := httptest.NewRequest("GET", "/ready", nil)
+	testCode(t, req, 200)
+}
+
+func TestLive503(t *testing.T) {
+	req := httptest.NewRequest("GET", "/live", nil)
+	initTest(t)
+	resp := httptest.NewRecorder()
+
+	data := newData()
+	data.health.AddLivenessCheck("test", func() error { return errors.New("test") })
+	NewRouter(data).ServeHTTP(resp, req)
+
+	assert.Equal(t, 503, resp.Code)
+}
+
+func TestReady(t *testing.T) {
+	req := httptest.NewRequest("GET", "/live", nil)
+	testCode(t, req, 200)
 }
 
 func TestPOST(t *testing.T) {
@@ -77,10 +100,16 @@ func newReq(file string, email string, externalID string) *http.Request {
 }
 
 func newRouter() *mux.Router {
-	return NewRouter(&ServiceData{StatusSaver: statusSaverMock,
+	return NewRouter(newData())
+}
+
+func newData() *ServiceData {
+	return &ServiceData{StatusSaver: statusSaverMock,
 		MessageSender: msgSenderMock,
 		RequestSaver:  requestSaverMock,
-		FileSaver:     testSaver{}})
+		FileSaver:     testSaver{},
+		health:        healthcheck.NewHandler(),
+	}
 }
 
 func test400(t *testing.T, req *http.Request) {
@@ -93,7 +122,7 @@ func testCode(t *testing.T, req *http.Request, code int) {
 
 	newRouter().ServeHTTP(resp, req)
 
-	assert.Equal(t, resp.Code, code)
+	assert.Equal(t, code, resp.Code)
 }
 func TestPOST_WrongEmail(t *testing.T) {
 	test400(t, newReq("file", "a@", ""))
@@ -110,9 +139,7 @@ func TestPOST_Sender(t *testing.T) {
 	req := newReq("filename", "a@a.a", "")
 	resp := httptest.NewRecorder()
 
-	NewRouter(&ServiceData{MessageSender: msgSenderMock, StatusSaver: statusSaverMock,
-		RequestSaver: requestSaverMock,
-		FileSaver:    testSaver{}}).ServeHTTP(resp, req)
+	NewRouter(newData()).ServeHTTP(resp, req)
 
 	assert.Equal(t, resp.Code, 200)
 }
@@ -124,10 +151,7 @@ func TestPOST_SenderFails(t *testing.T) {
 	pegomock.When(msgSenderMock.Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
 		pegomock.AnyString())).ThenReturn(errors.New("Can not send"))
 
-	NewRouter(&ServiceData{MessageSender: msgSenderMock,
-		StatusSaver:  statusSaverMock,
-		RequestSaver: requestSaverMock,
-		FileSaver:    testSaver{}}).ServeHTTP(resp, req)
+	NewRouter(newData()).ServeHTTP(resp, req)
 
 	assert.Equal(t, resp.Code, 400)
 }
@@ -137,12 +161,12 @@ func TestPOST_SaverFails(t *testing.T) {
 	req := newReq("filename", "a@a.a", "")
 	resp := httptest.NewRecorder()
 
-	NewRouter(&ServiceData{MessageSender: msgSenderMock, StatusSaver: statusSaverMock,
-		RequestSaver: requestSaverMock,
-		FileSaver: testSaverFunc(
-			func(id string, reader io.Reader) error {
-				return errors.New("Can not send")
-			})}).ServeHTTP(resp, req)
+	data := newData()
+	data.FileSaver = testSaverFunc(
+		func(id string, reader io.Reader) error {
+			return errors.New("Can not send")
+		})
+	NewRouter(data).ServeHTTP(resp, req)
 
 	assert.Equal(t, resp.Code, 400)
 }

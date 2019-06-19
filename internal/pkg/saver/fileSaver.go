@@ -1,12 +1,13 @@
 package saver
 
 import (
-	"errors"
 	"io"
 	"os"
 	"strconv"
+	"syscall"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/pkg/errors"
 )
 
 //WriterCloser keeps Writer interface and close function
@@ -60,4 +61,22 @@ func (fs LocalFileSaver) Save(name string, reader io.Reader) error {
 
 func openFile(fileName string) (WriterCloser, error) {
 	return os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0666)
+}
+
+//HealthyFunc returns func for health check
+func (fs *LocalFileSaver) HealthyFunc(sizeInMb uint64) func() error {
+	return func() error {
+		var info syscall.Statfs_t
+		err := syscall.Statfs(fs.StoragePath, &info)
+		if err != nil {
+			return errors.Errorf("Can't get info for dir: %s", fs.StoragePath)
+		}
+
+		mb := info.Bavail * uint64(info.Bsize) / 1024 / 1024
+
+		if mb < sizeInMb {
+			return errors.Errorf("Disk space is %d mb, threshold: %d mb, location: %s", mb, sizeInMb, fs.StoragePath)
+		}
+		return nil
+	}
 }

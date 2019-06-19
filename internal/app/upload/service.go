@@ -16,6 +16,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+
+	"github.com/heptiolabs/healthcheck"
 )
 
 // ServiceData keeps data required for service work
@@ -25,6 +27,7 @@ type ServiceData struct {
 	StatusSaver   status.Saver
 	RequestSaver  RequestSaver
 	Port          int
+	health        healthcheck.Handler
 }
 
 // FileResult - post method response in JSON
@@ -50,6 +53,8 @@ func StartWebServer(data *ServiceData) error {
 func NewRouter(data *ServiceData) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	router.Methods("POST").Path("/upload").Handler(uploadHandler{data: data})
+	router.Methods("GET").Path("/live").HandlerFunc(data.health.LiveEndpoint)
+	router.Methods("GET").Path("/ready").HandlerFunc(data.health.ReadyEndpoint)
 	return router
 }
 

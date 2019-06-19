@@ -101,3 +101,13 @@ func hidePass(s string) string {
 	}
 	return u.String()
 }
+
+// Healthy checks if mongo DB is up
+func (sp *SessionProvider) Healthy() error {
+	session, err := sp.NewSession()
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+	return session.Ping()
+}

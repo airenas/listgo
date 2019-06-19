@@ -18,3 +18,4 @@ go.sum
 .idea/**
 cmd/kafkaIntegrationService/kafkaIntegrationService
 cmd/tmp/**
+cmd/uploadService/config.yaml
