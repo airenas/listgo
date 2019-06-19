@@ -1,11 +1,14 @@
 package status
 
 import (
+	"time"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/heptiolabs/healthcheck"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/streadway/amqp"
@@ -39,12 +42,15 @@ func run(cmd *cobra.Command, args []string) {
 	defer mongoSessionProvider.Close()
 
 	data := &ServiceData{}
+	data.health = healthcheck.NewHandler()
 	data.StatusProvider, err = mongo.NewStatusProvider(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "")
+	data.health.AddLivenessCheck("mongo", healthcheck.Async(mongoSessionProvider.Healthy, 10*time.Second))
 
 	msgChannelProvider, err := rabbit.NewChannelProvider()
 	cmdapp.CheckOrPanic(err, "")
 	defer msgChannelProvider.Close()
+	data.health.AddLivenessCheck("rabbit", healthcheck.Async(msgChannelProvider.Healthy, 10*time.Second))
 
 	data.EventChannelFunc = func() (<-chan amqp.Delivery, error) {
 		return initEventChannel(msgChannelProvider)

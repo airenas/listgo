@@ -50,6 +50,7 @@ func run(cmd *cobra.Command, args []string) {
 	msgChannelProvider, err := rabbit.NewChannelProvider()
 	cmdapp.CheckOrPanic(err, "Can't init rabbit channel")
 	defer msgChannelProvider.Close()
+	data.health.AddLivenessCheck("rabbit", healthcheck.Async(msgChannelProvider.Healthy, 10*time.Second))
 
 	err = initQueues(msgChannelProvider)
 	cmdapp.CheckOrPanic(err, "Can't init queues")
@@ -59,8 +60,7 @@ func run(cmd *cobra.Command, args []string) {
 	mongoSessionProvider, err := mongo.NewSessionProvider()
 	cmdapp.CheckOrPanic(err, "Can't init mongo")
 	defer mongoSessionProvider.Close()
-	mchk := healthcheck.Async(mongoSessionProvider.Healthy, 10*time.Second)
-	data.health.AddLivenessCheck("mongo", mchk)
+	data.health.AddLivenessCheck("mongo", healthcheck.Async(mongoSessionProvider.Healthy, 10*time.Second))
 
 	data.StatusSaver, err = mongo.NewStatusSaver(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "Can't init status saver")

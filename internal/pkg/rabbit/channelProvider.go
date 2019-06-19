@@ -101,7 +101,7 @@ func (pr *ChannelProvider) Close() {
 
 //QueueName return queue name for channel, may append prefix
 func (pr *ChannelProvider) QueueName(name string) string {
-	if (name == ""){
+	if name == "" {
 		return ""
 	}
 	s := ""
@@ -109,4 +109,13 @@ func (pr *ChannelProvider) QueueName(name string) string {
 		s = "_"
 	}
 	return pr.qPrefix + s + name
+}
+
+// Healthy checks if rabbit channel is open
+func (pr *ChannelProvider) Healthy() error {
+	_, err := pr.Channel()
+	if err != nil {
+		return errors.Wrap(err, "Can't create channel")
+	}
+	return nil
 }

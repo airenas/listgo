@@ -9,6 +9,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/heptiolabs/healthcheck"
 	"github.com/pkg/errors"
 )
 
@@ -17,6 +18,7 @@ type ServiceData struct {
 	StatusProvider   Provider
 	Port             int
 	EventChannelFunc eventChannelFunc
+	health           healthcheck.Handler
 }
 
 //StartWebServer starts the HTTP service and listens for the requests
@@ -46,6 +48,10 @@ func NewRouter(data *ServiceData) *mux.Router {
 	router.Methods("GET").Path("/status").Handler(statusHandler{data: data})
 	router.Methods("GET").Path("/status/").Handler(statusHandler{data: data})
 	router.Handle("/subscribe", websocketHandler{data: data})
+	if data.health != nil {
+		router.Methods("GET").Path("/live").HandlerFunc(data.health.LiveEndpoint)
+		router.Methods("GET").Path("/ready").HandlerFunc(data.health.ReadyEndpoint)
+	}
 	return router
 }
 

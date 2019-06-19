@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/heptiolabs/healthcheck"
 	"github.com/stretchr/testify/assert"
 
 	"bitbucket.org/airenas/listgo/internal/app/status/api"
@@ -63,4 +64,32 @@ type testStatusProvider struct{}
 func (p testStatusProvider) Get(ID string) (*api.TranscriptionResult, error) {
 	log.Printf("Get status %s \n", ID)
 	return &api.TranscriptionResult{}, nil
+}
+
+func TestLive(t *testing.T) {
+	testCode(t, newData(), "/live", 200)
+}
+
+func TestLive503(t *testing.T) {
+	data := newData()
+	data.health.AddLivenessCheck("test", func() error { return errors.New("test") })
+	testCode(t, data, "/live", 503)
+}
+
+func testCode(t *testing.T, data *ServiceData, path string, code int) {
+	initTest(t)
+	req := httptest.NewRequest("GET", path, nil)
+	resp := httptest.NewRecorder()
+	NewRouter(data).ServeHTTP(resp, req)
+	assert.Equal(t, code, resp.Code)
+}
+
+func newData() *ServiceData {
+	data := ServiceData{}
+	data.health = healthcheck.NewHandler()
+	return &data
+}
+
+func TestReady(t *testing.T) {
+	testCode(t, newData(), "/ready", 200)
 }
