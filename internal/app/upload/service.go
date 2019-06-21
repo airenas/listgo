@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"bitbucket.org/airenas/listgo/internal/app/upload/api"
 
@@ -77,7 +78,6 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	id := uuid.New().String()
 
 	file, handler, err := r.FormFile("file")
 	if err != nil {
@@ -88,32 +88,40 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	ext := filepath.Ext(handler.Filename)
+	ext = strings.ToLower(ext)
+	if !checkFileExtension(ext) {
+		http.Error(w, "Wrong file extension: "+ext, http.StatusBadRequest)
+		cmdapp.Log.Errorf("Wrong file extension: " + ext)
+		return
+	}
+
+	id := uuid.New().String()
 	fileName := id + ext
 
 	err = h.data.RequestSaver.Save(api.RequestData{ID: id, Email: email, File: fileName, ExternalID: externalID})
 	if err != nil {
-		http.Error(w, "Can not save request to DB", http.StatusBadRequest)
+		http.Error(w, "Can not save request to DB", http.StatusInternalServerError)
 		cmdapp.Log.Error(err)
 		return
 	}
 
 	err = h.data.StatusSaver.Save(id, status.Uploaded)
 	if err != nil {
-		http.Error(w, "Can not save status", http.StatusBadRequest)
+		http.Error(w, "Can not save status", http.StatusInternalServerError)
 		cmdapp.Log.Error(err)
 		return
 	}
 
 	err = h.data.FileSaver.Save(fileName, file)
 	if err != nil {
-		http.Error(w, "Can not save file", http.StatusBadRequest)
+		http.Error(w, "Can not save file", http.StatusInternalServerError)
 		cmdapp.Log.Error(err)
 		return
 	}
 
 	err = h.data.MessageSender.Send(messages.NewQueueMessage(id), messages.Decode, "")
 	if err != nil {
-		http.Error(w, "Can not send decode message", http.StatusBadRequest)
+		http.Error(w, "Can not send decode message", http.StatusInternalServerError)
 		cmdapp.Log.Error(err)
 		return
 	}
@@ -123,8 +131,12 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	encoder := json.NewEncoder(w)
 	err = encoder.Encode(&result)
 	if err != nil {
-		http.Error(w, "Can not prepare result", http.StatusBadRequest)
+		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
 		cmdapp.Log.Error(err)
 		return
 	}
+}
+
+func checkFileExtension(ext string) bool {
+	return ext == ".wav" || ext == ".mp3" || ext == ".mp4"
 }

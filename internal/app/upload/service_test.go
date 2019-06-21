@@ -67,7 +67,7 @@ func TestReady(t *testing.T) {
 
 func TestPOST(t *testing.T) {
 	initTest(t)
-	req := newReq("filename", "a@a.a", "")
+	req := newReq("filename.wav", "a@a.a", "")
 	resp := httptest.NewRecorder()
 
 	newRouter().ServeHTTP(resp, req)
@@ -125,18 +125,18 @@ func testCode(t *testing.T, req *http.Request, code int) {
 	assert.Equal(t, code, resp.Code)
 }
 func TestPOST_WrongEmail(t *testing.T) {
-	test400(t, newReq("file", "a@", ""))
-	test400(t, newReq("file", "@a", ""))
-	test400(t, newReq("file", "a_a", ""))
+	test400(t, newReq("file.wav", "a@", ""))
+	test400(t, newReq("file.wav", "@a", ""))
+	test400(t, newReq("file.wav", "a_a", ""))
 }
 
 func TestPOST_EmptyEmail(t *testing.T) {
-	testCode(t, newReq("file", "", ""), 200)
+	testCode(t, newReq("file.wav", "", ""), 200)
 }
 
 func TestPOST_Sender(t *testing.T) {
 	initTest(t)
-	req := newReq("filename", "a@a.a", "")
+	req := newReq("filename.wav", "a@a.a", "")
 	resp := httptest.NewRecorder()
 
 	NewRouter(newData()).ServeHTTP(resp, req)
@@ -144,21 +144,44 @@ func TestPOST_Sender(t *testing.T) {
 	assert.Equal(t, resp.Code, 200)
 }
 
+func Test_Wav(t *testing.T) {
+	testCode(t, newReq("file.wav", "a@a.a", ""), 200)
+	testCode(t, newReq("file.Wav", "a@a.a", ""), 200)
+	testCode(t, newReq("file.txt.Wav", "a@a.a", ""), 200)
+}
+
+func Test_Mp3(t *testing.T) {
+	testCode(t, newReq("file.mp3", "a@a.a", ""), 200)
+	testCode(t, newReq("file.MP3", "a@a.a", ""), 200)
+}
+
+func Test_Mp4(t *testing.T) {
+	testCode(t, newReq("file.mp4", "a@a.a", ""), 200)
+	testCode(t, newReq("file.MP4", "a@a.a", ""), 200)
+}
+
+func Test_ExtensionFails(t *testing.T) {
+	testCode(t, newReq("file.txt", "a@a.a", ""), 400)
+	testCode(t, newReq("file.mp", "a@a.a", ""), 400)
+	testCode(t, newReq("file.wave", "a@a.a", ""), 400)
+	testCode(t, newReq("file.mp5", "a@a.a", ""), 400)
+}
+
 func TestPOST_SenderFails(t *testing.T) {
 	initTest(t)
-	req := newReq("filename", "a@a.a", "")
+	req := newReq("filename.wav", "a@a.a", "")
 	resp := httptest.NewRecorder()
 	pegomock.When(msgSenderMock.Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
 		pegomock.AnyString())).ThenReturn(errors.New("Can not send"))
 
 	NewRouter(newData()).ServeHTTP(resp, req)
 
-	assert.Equal(t, resp.Code, 400)
+	assert.Equal(t, resp.Code, 500)
 }
 
 func TestPOST_SaverFails(t *testing.T) {
 	initTest(t)
-	req := newReq("filename", "a@a.a", "")
+	req := newReq("filename.wav", "a@a.a", "")
 	resp := httptest.NewRecorder()
 
 	data := newData()
@@ -168,30 +191,30 @@ func TestPOST_SaverFails(t *testing.T) {
 		})
 	NewRouter(data).ServeHTTP(resp, req)
 
-	assert.Equal(t, resp.Code, 400)
+	assert.Equal(t, resp.Code, 500)
 }
 
 func TestPOST_StatusSaverFails(t *testing.T) {
 	initTest(t)
-	req := newReq("filename", "a@a.a", "")
+	req := newReq("filename.wav", "a@a.a", "")
 	resp := httptest.NewRecorder()
 	pegomock.When(statusSaverMock.Save(pegomock.AnyString(),
 		matchers.AnyStatusStatus())).ThenReturn(errors.New("error"))
 
 	newRouter().ServeHTTP(resp, req)
 
-	assert.Equal(t, resp.Code, 400)
+	assert.Equal(t, resp.Code, 500)
 }
 
 func TestPOST_RequestSaverFails(t *testing.T) {
 	initTest(t)
-	req := newReq("filename", "a@a.a", "")
+	req := newReq("filename.wav", "a@a.a", "")
 	resp := httptest.NewRecorder()
 	pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(errors.New("error"))
 
 	newRouter().ServeHTTP(resp, req)
 
-	assert.Equal(t, resp.Code, 400)
+	assert.Equal(t, resp.Code, 500)
 }
 
 func TestPOST_RequestSaverCalled(t *testing.T) {
