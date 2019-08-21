@@ -24,7 +24,7 @@ func NewSettingsDataProviderImpl(dir string) (*SettingsDataProviderImpl, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "Cannot load settings")
 	}
-	return &SettingsDataProviderImpl{}, nil
+	return &res, nil
 }
 
 //GetData gets data
