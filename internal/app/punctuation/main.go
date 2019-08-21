@@ -33,8 +33,14 @@ func run(cmd *cobra.Command, args []string) {
 	//data.health = healthcheck.NewHandler()
 	//data.health.AddLivenessCheck("tensorflow", healthcheck.Async(mongoSessionProvider.Healthy, 10*time.Second))
 
+	provider, err := NewSettingsDataProviderImpl(cmdapp.Config.GetString("modelDir"))
+	cmdapp.CheckOrPanic(err, "Cannot init data provider")
+
+	data.punctuator, err = NewPunctuatorImpl(provider)
+	cmdapp.CheckOrPanic(err, "Cannot init punctuator")
+
 	data.Port = cmdapp.Config.GetInt("port")
 
-	err := StartWebServer(data)
+	err = StartWebServer(data)
 	cmdapp.CheckOrPanic(err, "")
 }

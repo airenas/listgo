@@ -30,4 +30,5 @@ require (
 	github.com/streadway/amqp v0.0.0-20190225234609-30f8ed68076e
 	github.com/stretchr/testify v1.3.0
 	golang.org/x/net v0.0.0-20190213061140-3a22650c66bd // indirect
+	gopkg.in/yaml.v2 v2.2.2
 )

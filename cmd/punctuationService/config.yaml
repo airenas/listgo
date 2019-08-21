@@ -1,0 +1,10 @@
+port: 8081
+modelDir: /home/airenas/hdd/punctuation/h256_w200k
+
+logger:
+    level: info
+    formatter:
+        name: text
+        options: 
+            full_timestamp: true
+            timestamp_format: "2006-01-02T15:04:05.000"
