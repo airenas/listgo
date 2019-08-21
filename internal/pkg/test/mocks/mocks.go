@@ -44,6 +44,8 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=transcriber.go -m bitbucket.org/airenas/listgo/internal/app/kafkaintegration Transcriber
 
+//go:generate pegomock generate --package=mocks --output=punctuator.go -m bitbucket.org/airenas/listgo/internal/app/punctuation Punctuator
+
 //AttachMockToTest register pegomock verification to be passed to testing engine
 func AttachMockToTest(t *testing.T) {
 	pegomock.RegisterMockFailHandler(handleByTest(t))
