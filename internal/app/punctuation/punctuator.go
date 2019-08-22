@@ -47,10 +47,16 @@ func NewPunctuatorImpl(d DataProvider, tfWrap TFWrap) (*PunctuatorImpl, error) {
 		return nil, errors.Wrap(err, "Cannot get data")
 	}
 	p.timesteps = data.Timesteps
+	if p.timesteps < 3 {
+		return nil, errors.Errorf("Wrong timesteps, Timesteps = %d", p.timesteps)
+	}
 	p.puncVocab = initPunctuations(data.PunctuationVovabulary)
 	cmdapp.Log.Infof("Punctuation vocab size: %d", len(p.puncVocab))
 	p.sentenceEnds = initSentenceEnds(data.SentenceEnd, p.puncVocab)
 	p.tfWrap = tfWrap
+	if p.tfWrap == nil {
+		return nil, errors.New("No TF wrapper set")
+	}
 	var f bool
 	p.unkID, f = p.vocab[data.UnknownWord]
 	if !f {
@@ -155,6 +161,9 @@ func (p *PunctuatorImpl) punctuate(nums []int32) ([]int32, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "Cannot invoke tensorflow service")
 		}
+		if len(res) < p.timesteps {
+			return nil, errors.Errorf("Wrong result returned. Len = %d", len(res))
+		}
 		ci = p.fillResult(result, res[0:p.timesteps-1], ci, l)
 	}
 	return result, nil
@@ -194,15 +203,24 @@ func (p *PunctuatorImpl) fillResult(result []int32, res []int32, pos int, to int
 func (p *PunctuatorImpl) prepareText(strs []string, res []int32) string {
 	to := len(strs)
 	result := ""
+	uc := true
 	for i, v := range res {
 		if i < to {
-			result = result + strs[i]
-			p, _ := p.puncVocab[v]
-			if p != "" {
-				result = result + p
+			w := strs[i]
+			if uc {
+				w = strings.Title(w)
 			}
-			result = result + " "
+			result = result + w
+			ps, _ := p.puncVocab[v]
+			if ps == "-" {
+				result = result + " "
+			}
+			result = result + ps
+			if ps != " " {
+				result = result + " "
+			}
+			_, uc = p.sentenceEnds[v]
 		}
 	}
-	return result
+	return strings.TrimSpace(result)
 }
