@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
-		
+
 // Wrapper structure used to call TF grpc service
 type Wrapper struct {
 	url     string
@@ -36,7 +36,6 @@ func NewWrapper(url string, name string, version int) (*Wrapper, error) {
 
 //Invoke is main method
 func (w *Wrapper) Invoke(nums []int32) ([]int32, error) {
-
 	conn, err := grpc.Dial(w.url, grpc.WithInsecure())
 	if err != nil {
 		return nil, errors.Wrap(err, "Cannot connect to the grpc server")
@@ -96,7 +95,6 @@ func newPredictRequest(modelName string, modelVersion int64) (pr *pb.PredictRequ
 	}
 }
 
-// if tensor is one dim, shapeSize is nil
 func addInput(pr *pb.PredictRequest, tensorName string, data []int32, shapeSize []int64) (err error) {
 	tp := &framework.TensorProto{
 		Dtype: framework.DataType_DT_INT32,

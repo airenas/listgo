@@ -15,6 +15,8 @@ type Data struct {
 	PunctuationVovabulary []string `yaml:"puctuationVocabulary,flow"`
 	SentenceEnd           []string `yaml:"sentenceEnd,flow"`
 	Timesteps             int      `yaml:"timesteps"`
+	UnknownWord           string   `yaml:"unknownWord"`
+	SequenceEndWord       string   `yaml:"sequenceEndWord"`
 }
 
 //DataProvider provides data to initializer
@@ -35,6 +37,8 @@ type PunctuatorImpl struct {
 	sentenceEnds map[int32]bool
 	timesteps    int
 	tfWrap       TFWrap
+	unkID        int32
+	seID         int32
 }
 
 //NewPunctuatorImpl creates instance
@@ -56,6 +60,15 @@ func NewPunctuatorImpl(d DataProvider, tfWrap TFWrap) (*PunctuatorImpl, error) {
 	cmdapp.Log.Infof("Punctuation vocab size: %d", len(p.puncVocab))
 	p.sentenceEnds = initSentenceEnds(data.SentenceEnd, p.puncVocab)
 	p.tfWrap = tfWrap
+	var f bool
+	p.unkID, f = p.vocab[data.UnknownWord]
+	if !f {
+		return nil, errors.Errorf("Cannot find <UNK> in vocabulary, UNK = %s", data.UnknownWord)
+	}
+	p.seID, f = p.vocab[data.SequenceEndWord]
+	if !f {
+		return nil, errors.Errorf("Cannot find sequence end word in vocabulary, SE = %s", data.SequenceEndWord)
+	}
 	return &p, nil
 }
 
@@ -135,7 +148,7 @@ func (p *PunctuatorImpl) convertToNum(strs []string) []int32 {
 	for _, s := range strs {
 		k, f := p.vocab[s]
 		if !f {
-			k = p.vocab["<UNK>"]
+			k = p.unkID
 		}
 		result = append(result, k)
 	}
@@ -148,7 +161,7 @@ func (p *PunctuatorImpl) punctuate(nums []int32) ([]int32, error) {
 	numsP := make([]int32, p.timesteps)
 	for ci := 0; ci < l; {
 		p.copyArr(numsP, nums, ci)
-		numsP[p.timesteps-1] = p.vocab["</S>"]
+		numsP[p.timesteps-1] = p.seID
 		res, err := p.tfWrap.Invoke(numsP)
 		if err != nil {
 			return nil, errors.Wrap(err, "Cannot invoke tensorflow service")
@@ -169,7 +182,6 @@ func (p *PunctuatorImpl) copyArr(nums []int32, from []int32, pos int) {
 		nums[i] = from[i1%l]
 		i1++
 	}
-
 }
 
 func (p *PunctuatorImpl) fillResult(result []int32, res []int32, pos int, to int) int {
