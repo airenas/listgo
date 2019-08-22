@@ -2,9 +2,12 @@ package punctuation
 
 import (
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 
+	"bitbucket.org/airenas/listgo/internal/app/punctuation/api"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
@@ -12,7 +15,7 @@ import (
 //SettingsDataProviderImpl provides punctuator data from settings
 type SettingsDataProviderImpl struct {
 	dir  string
-	data *Data
+	data *api.Data
 }
 
 //NewSettingsDataProviderImpl inits SettingsDataProviderImpl from directory
@@ -28,27 +31,27 @@ func NewSettingsDataProviderImpl(dir string) (*SettingsDataProviderImpl, error) 
 }
 
 //GetData gets data
-func (p *SettingsDataProviderImpl) GetData() (*Data, error) {
+func (p *SettingsDataProviderImpl) GetData() (*api.Data, error) {
 	return p.data, nil
 }
 
 //GetVocab return reader to wird vocabulary
-func (p *SettingsDataProviderImpl) GetVocab() (io.ReadCloser, error) {
-	f, err := os.Open(path.Join(p.dir, "vocabulary"))
+func (p *SettingsDataProviderImpl) GetVocab() (io.Reader, error) {
+	b, err := ioutil.ReadFile(path.Join(p.dir, "vocabulary")) // just pass the file name
 	if err != nil {
 		return nil, err
 	}
-	return f, nil
+	return strings.NewReader(string(b)), nil
 }
 
-func loadSettings(file string) (*Data, error) {
+func loadSettings(file string) (*api.Data, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 	d := yaml.NewDecoder(f)
-	t := Data{}
+	t := api.Data{}
 	err = d.Decode(&t)
 	if err != nil {
 		return nil, err

@@ -5,24 +5,15 @@ import (
 	"io"
 	"strings"
 
+	"bitbucket.org/airenas/listgo/internal/app/punctuation/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 )
 
-//Data keeps punctuation settings
-type Data struct {
-	Info                  string
-	PunctuationVovabulary []string `yaml:"puctuationVocabulary,flow"`
-	SentenceEnd           []string `yaml:"sentenceEnd,flow"`
-	Timesteps             int      `yaml:"timesteps"`
-	UnknownWord           string   `yaml:"unknownWord"`
-	SequenceEndWord       string   `yaml:"sequenceEndWord"`
-}
-
 //DataProvider provides data to initializer
 type DataProvider interface {
-	GetVocab() (io.ReadCloser, error)
-	GetData() (*Data, error)
+	GetVocab() (io.Reader, error)
+	GetData() (*api.Data, error)
 }
 
 //TFWrap makes real call to tensorflow service
@@ -85,16 +76,14 @@ func (p *PunctuatorImpl) Process(text string) (string, error) {
 }
 
 func readVocab(d DataProvider) (map[string]int32, error) {
-	file, err := d.GetVocab()
+	vdata, err := d.GetVocab()
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
-
 	result := make(map[string]int32)
 	var i int32
 	i = 0
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(vdata)
 	for scanner.Scan() {
 		s := scanner.Text()
 		result[s] = i
