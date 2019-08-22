@@ -1,8 +1,11 @@
 package punctuation
 
 import (
+	"time"
+
 	"bitbucket.org/airenas/listgo/internal/app/punctuation/tf"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/heptiolabs/healthcheck"
 	"github.com/spf13/cobra"
 )
 
@@ -31,8 +34,6 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Info("Starting " + appName)
 
 	data := &ServiceData{}
-	//data.health = healthcheck.NewHandler()
-	//data.health.AddLivenessCheck("tensorflow", healthcheck.Async(mongoSessionProvider.Healthy, 10*time.Second))
 
 	provider, err := NewSettingsDataProviderImpl(cmdapp.Config.GetString("modelDir"))
 	cmdapp.CheckOrPanic(err, "Cannot init data provider")
@@ -40,6 +41,9 @@ func run(cmd *cobra.Command, args []string) {
 	tfWrapper, err := tf.NewWrapper(cmdapp.Config.GetString("tf.url"), cmdapp.Config.GetString("tf.name"),
 		cmdapp.Config.GetInt("tf.version"))
 	cmdapp.CheckOrPanic(err, "Cannot init tensorflow wrapper")
+
+	data.health = healthcheck.NewHandler()
+	data.health.AddLivenessCheck("tensorflow", healthcheck.Async(tfWrapper.Healthy, 10*time.Second))
 
 	data.punctuator, err = NewPunctuatorImpl(provider, tfWrapper)
 	cmdapp.CheckOrPanic(err, "Cannot init punctuator")
