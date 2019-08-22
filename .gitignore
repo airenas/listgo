@@ -19,3 +19,5 @@ go.sum
 cmd/kafkaIntegrationService/kafkaIntegrationService
 cmd/tmp/**
 cmd/uploadService/config.yaml
+internal/pkg/tensorflow/**
+internal/pkg/tensorflow_serving/**
