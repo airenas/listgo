@@ -111,6 +111,42 @@ func TestProcess_AddDash(t *testing.T) {
 	assert.Equal(t, "Aaaa a, b - b", r)
 }
 
+func TestProcess_Split(t *testing.T) {
+	p := initPunctTest(t)
+	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 0, 2, 0}, nil)
+	r, err := p.Process("a b a b a b a")
+	assert.Nil(t, err)
+	assert.Equal(t, "A b a. B a b. A", r)
+	tfWrapMock.VerifyWasCalled(pegomock.Times(2)).Invoke(pegomock.AnyInt32Slice())
+}
+
+func TestProcess_Split3(t *testing.T) {
+	p := initPunctTest(t)
+	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 0, 2, 0}, nil)
+	r, err := p.Process("a b a b a b a b")
+	assert.Nil(t, err)
+	assert.Equal(t, "A b a. B a b. A b", r)
+	tfWrapMock.VerifyWasCalled(pegomock.Times(3)).Invoke(pegomock.AnyInt32Slice())
+}
+
+func TestProcess_Split2(t *testing.T) {
+	p := initPunctTest(t)
+	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 0, 1, 0}, nil)
+	r, err := p.Process("a b a b a b a b")
+	assert.Nil(t, err)
+	assert.Equal(t, "A b a, b a b a, b", r)
+	tfWrapMock.VerifyWasCalled(pegomock.Times(2)).Invoke(pegomock.AnyInt32Slice())
+}
+
+func TestProcess_SplitLast(t *testing.T) {
+	p := initPunctTest(t)
+	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 0, 0, 2}, nil)
+	r, err := p.Process("a b a b a b a b")
+	assert.Nil(t, err)
+	assert.Equal(t, "A b a b. A b a b.", r)
+	tfWrapMock.VerifyWasCalled(pegomock.Times(2)).Invoke(pegomock.AnyInt32Slice())
+}
+
 func newTestVocab(v string) io.Reader {
 	return strings.NewReader(v)
 }
@@ -126,7 +162,7 @@ func defaultData() *api.Data {
 }
 
 func defaultVocab() io.Reader {
-	return newTestVocab("a\n<UNK>\n</S>")
+	return newTestVocab("a\nb\n<UNK>\n</S>")
 }
 
 func defaultIntResult() []int32 {

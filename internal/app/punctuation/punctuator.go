@@ -161,7 +161,7 @@ func (p *PunctuatorImpl) punctuate(nums []int32) ([]int32, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "Cannot invoke tensorflow service")
 		}
-		if len(res) < p.timesteps {
+		if len(res) < (p.timesteps - 1) {
 			return nil, errors.Errorf("Wrong result returned. Len = %d", len(res))
 		}
 		ci = p.fillResult(result, res[0:p.timesteps-1], ci, l)
@@ -190,12 +190,12 @@ func (p *PunctuatorImpl) fillResult(result []int32, res []int32, pos int, to int
 		result[cpos] = res[i]
 		_, f := p.sentenceEnds[res[i]]
 		if f {
-			lEnd = cpos
+			lEnd = cpos + 1
 		}
 		cpos++
 	}
 	if lEnd == pos || cpos == to {
-		lEnd = pos + p.timesteps
+		lEnd = pos + p.timesteps - 1
 	}
 	return lEnd
 }
