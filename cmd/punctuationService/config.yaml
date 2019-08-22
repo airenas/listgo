@@ -1,6 +1,9 @@
 port: 8081
 modelDir: /home/airenas/hdd/punctuation/h256_w200k
-
+tf: 
+    url: localhost:7055
+    name: punctuation
+    version: 1
 logger:
     level: info
     formatter:

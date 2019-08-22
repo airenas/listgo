@@ -1,6 +1,7 @@
 package punctuation
 
 import (
+	"bitbucket.org/airenas/listgo/internal/app/punctuation/tf"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/spf13/cobra"
 )
@@ -36,7 +37,10 @@ func run(cmd *cobra.Command, args []string) {
 	provider, err := NewSettingsDataProviderImpl(cmdapp.Config.GetString("modelDir"))
 	cmdapp.CheckOrPanic(err, "Cannot init data provider")
 
-	data.punctuator, err = NewPunctuatorImpl(provider)
+	tfWrapper, err := tf.NewWrapper(cmdapp.Config.GetString("tf.url"), cmdapp.Config.GetString("tf.name"), cmdapp.Config.GetInt("tf.version"))
+	cmdapp.CheckOrPanic(err, "Cannot init tensorflow wrapper")
+
+	data.punctuator, err = NewPunctuatorImpl(provider, tfWrapper)
 	cmdapp.CheckOrPanic(err, "Cannot init punctuator")
 
 	data.Port = cmdapp.Config.GetInt("port")
