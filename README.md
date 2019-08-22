@@ -21,7 +21,12 @@ Services for running the transcription process. It uses Mongo DB (for saving sta
   make
   sudo make install
 ```
-4. Generate mocks: 
+4. Prepare tensorflow proto files for go
+```bash
+  cd build
+  ./prepareTFProto.sh
+```
+5. Generate mocks: 
     `go generate ./...`
 
 ---
