@@ -70,15 +70,17 @@ func NewPunctuatorImpl(d DataProvider, tfWrap TFWrap) (*PunctuatorImpl, error) {
 }
 
 //Process is main Punctuator method
-func (p *PunctuatorImpl) Process(text string) (string, error) {
+func (p *PunctuatorImpl) Process(text string) (*api.PResult, error) {
+	result := api.PResult{}
 	arr := p.convertToArray(text)
-	num := p.convertToNum(arr)
-	punct, err := p.punctuate(num)
+	result.WordIDs = p.convertToNum(arr)
+	var err error
+	result.PunctIDs, err = p.punctuate(result.WordIDs)
 	if err != nil {
-		return "", errors.Wrap(err, "Cannot punctuate")
+		return nil, errors.Wrap(err, "Cannot punctuate")
 	}
-	result := p.prepareText(arr, punct)
-	return result, nil
+	result.Punctuated = p.prepareText(arr, result.PunctIDs)
+	return &result, nil
 }
 
 func readVocab(d DataProvider) (map[string]int32, error) {

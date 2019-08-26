@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"bitbucket.org/airenas/listgo/internal/app/punctuation/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/gorilla/mux"
 	"github.com/heptiolabs/healthcheck"
@@ -14,7 +15,7 @@ import (
 
 //Punctuator invokes TF to retrieve punctuation
 type Punctuator interface {
-	Process(text string) (string, error)
+	Process(text string) (*api.PResult, error)
 }
 
 // ServiceData keeps data required for service work
@@ -59,6 +60,9 @@ type punctuationHandler struct {
 func (h *punctuationHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cmdapp.Log.Infof("Request from %s", r.Host)
 
+	queryValues := r.URL.Query()
+	debug := queryValues.Get("debug")
+
 	decoder := json.NewDecoder(r.Body)
 	var input Input
 	err := decoder.Decode(&input)
@@ -76,11 +80,17 @@ func (h *punctuationHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	result := Output{}
 	result.Original = input.Text
-	result.Punctuated, err = h.data.punctuator.Process(input.Text)
+	pr, err := h.data.punctuator.Process(input.Text)
 	if err != nil {
 		http.Error(w, "Cannot punctuate", http.StatusInternalServerError)
 		cmdapp.Log.Error("Cannot decode input" + err.Error())
 		return
+	}
+
+	result.Punctuated = pr.Punctuated
+	if debug == "1" {
+		result.WordIDs = pr.WordIDs
+		result.PunctIDs = pr.PunctIDs
 	}
 
 	w.Header().Set("Content-Type", "application/json")

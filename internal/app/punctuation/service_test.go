@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"bitbucket.org/airenas/listgo/internal/app/punctuation/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/petergtz/pegomock"
@@ -19,6 +20,7 @@ var punctuatorMock *mocks.MockPunctuator
 func initTest(t *testing.T) {
 	mocks.AttachMockToTest(t)
 	punctuatorMock = mocks.NewMockPunctuator()
+	pegomock.When(punctuatorMock.Process(pegomock.AnyString())).ThenReturn(&api.PResult{}, nil)
 }
 
 func TestWrongPath(t *testing.T) {
@@ -65,7 +67,7 @@ func TestOutput(t *testing.T) {
 	initTest(t)
 	req := httptest.NewRequest("POST", "/punctuation", newInput("olia olia"))
 	resp := httptest.NewRecorder()
-	pegomock.When(punctuatorMock.Process(pegomock.AnyString())).ThenReturn("Olia, olia.", nil)
+	pegomock.When(punctuatorMock.Process(pegomock.AnyString())).ThenReturn(&api.PResult{Punctuated: "Olia, olia."}, nil)
 	NewRouter(newData()).ServeHTTP(resp, req)
 	assert.Equal(t, 200, resp.Code)
 	output := getOutput(resp.Body)
@@ -73,11 +75,41 @@ func TestOutput(t *testing.T) {
 	assert.Equal(t, "Olia, olia.", output.Punctuated)
 }
 
+func TestOutput_NoDebugData(t *testing.T) {
+	initTest(t)
+	req := httptest.NewRequest("POST", "/punctuation", newInput("olia olia"))
+	resp := httptest.NewRecorder()
+	pegomock.When(punctuatorMock.Process(pegomock.AnyString())).ThenReturn(&api.PResult{Punctuated: "Olia, olia.",
+		WordIDs: []int32{1, 2}, PunctIDs: []int32{0, 1}}, nil)
+	NewRouter(newData()).ServeHTTP(resp, req)
+	assert.Equal(t, 200, resp.Code)
+	output := getOutput(resp.Body)
+	assert.Equal(t, "olia olia", output.Original)
+	assert.Equal(t, "Olia, olia.", output.Punctuated)
+	assert.Empty(t, output.WordIDs)
+	assert.Empty(t, output.PunctIDs)
+}
+
+func TestOutput_DebugData(t *testing.T) {
+	initTest(t)
+	req := httptest.NewRequest("POST", "/punctuation?debug=1", newInput("olia olia"))
+	resp := httptest.NewRecorder()
+	pegomock.When(punctuatorMock.Process(pegomock.AnyString())).ThenReturn(&api.PResult{Punctuated: "Olia, olia.",
+		WordIDs: []int32{1, 2}, PunctIDs: []int32{0, 1}}, nil)
+	NewRouter(newData()).ServeHTTP(resp, req)
+	assert.Equal(t, 200, resp.Code)
+	output := getOutput(resp.Body)
+	assert.Equal(t, "olia olia", output.Original)
+	assert.Equal(t, "Olia, olia.", output.Punctuated)
+	assert.Equal(t, []int32{1, 2}, output.WordIDs)
+	assert.Equal(t, []int32{0, 1}, output.PunctIDs)
+}
+
 func TestPunctuatorFails(t *testing.T) {
 	initTest(t)
 	req := httptest.NewRequest("POST", "/punctuation", newInput("olia olia"))
 	resp := httptest.NewRecorder()
-	pegomock.When(punctuatorMock.Process(pegomock.AnyString())).ThenReturn("", errors.New("error"))
+	pegomock.When(punctuatorMock.Process(pegomock.AnyString())).ThenReturn(nil, errors.New("error"))
 	NewRouter(newData()).ServeHTTP(resp, req)
 	assert.Equal(t, 500, resp.Code)
 }

@@ -9,3 +9,10 @@ type Data struct {
 	UnknownWord           string   `yaml:"unknownWord"`
 	SequenceEndWord       string   `yaml:"sequenceEndWord"`
 }
+
+//PResult keeps punctuation result
+type PResult struct {
+	WordIDs    []int32
+	Punctuated string
+	PunctIDs   []int32
+}

@@ -84,7 +84,7 @@ func TestProcess_OK(t *testing.T) {
 	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 0, 0, 0, 0}, nil)
 	r, err := p.Process("a a")
 	assert.Nil(t, err)
-	assert.Equal(t, "A a", r)
+	assert.Equal(t, "A a", r.Punctuated)
 }
 
 func TestProcess_FirstWord_Uppercase(t *testing.T) {
@@ -92,7 +92,7 @@ func TestProcess_FirstWord_Uppercase(t *testing.T) {
 	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 0, 0, 0, 0}, nil)
 	r, err := p.Process("aaaa a")
 	assert.Nil(t, err)
-	assert.Equal(t, "Aaaa a", r)
+	assert.Equal(t, "Aaaa a", r.Punctuated)
 }
 
 func TestProcess_AddPunctuation(t *testing.T) {
@@ -100,7 +100,7 @@ func TestProcess_AddPunctuation(t *testing.T) {
 	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 1, 2, 0, 0}, nil)
 	r, err := p.Process("aaaa a b b")
 	assert.Nil(t, err)
-	assert.Equal(t, "Aaaa a, b. B", r)
+	assert.Equal(t, "Aaaa a, b. B", r.Punctuated)
 }
 
 func TestProcess_AddDash(t *testing.T) {
@@ -108,7 +108,7 @@ func TestProcess_AddDash(t *testing.T) {
 	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 1, 3, 0, 0}, nil)
 	r, err := p.Process("aaaa a b b")
 	assert.Nil(t, err)
-	assert.Equal(t, "Aaaa a, b - b", r)
+	assert.Equal(t, "Aaaa a, b - b", r.Punctuated)
 }
 
 func TestProcess_Split(t *testing.T) {
@@ -116,7 +116,7 @@ func TestProcess_Split(t *testing.T) {
 	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 0, 2, 0}, nil)
 	r, err := p.Process("a b a b a b a")
 	assert.Nil(t, err)
-	assert.Equal(t, "A b a. B a b. A", r)
+	assert.Equal(t, "A b a. B a b. A", r.Punctuated)
 	tfWrapMock.VerifyWasCalled(pegomock.Times(2)).Invoke(pegomock.AnyInt32Slice())
 }
 
@@ -125,7 +125,7 @@ func TestProcess_Split3(t *testing.T) {
 	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 0, 2, 0}, nil)
 	r, err := p.Process("a b a b a b a b")
 	assert.Nil(t, err)
-	assert.Equal(t, "A b a. B a b. A b", r)
+	assert.Equal(t, "A b a. B a b. A b", r.Punctuated)
 	tfWrapMock.VerifyWasCalled(pegomock.Times(3)).Invoke(pegomock.AnyInt32Slice())
 }
 
@@ -134,7 +134,7 @@ func TestProcess_Split2(t *testing.T) {
 	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 0, 1, 0}, nil)
 	r, err := p.Process("a b a b a b a b")
 	assert.Nil(t, err)
-	assert.Equal(t, "A b a, b a b a, b", r)
+	assert.Equal(t, "A b a, b a b a, b", r.Punctuated)
 	tfWrapMock.VerifyWasCalled(pegomock.Times(2)).Invoke(pegomock.AnyInt32Slice())
 }
 
@@ -143,8 +143,24 @@ func TestProcess_SplitLast(t *testing.T) {
 	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 0, 0, 2}, nil)
 	r, err := p.Process("a b a b a b a b")
 	assert.Nil(t, err)
-	assert.Equal(t, "A b a b. A b a b.", r)
+	assert.Equal(t, "A b a b. A b a b.", r.Punctuated)
 	tfWrapMock.VerifyWasCalled(pegomock.Times(2)).Invoke(pegomock.AnyInt32Slice())
+}
+
+func TestProcess_ReturnWordIDs(t *testing.T) {
+	p := initPunctTest(t)
+	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 0, 0, 2}, nil)
+	r, err := p.Process("a b a b xxx")
+	assert.Nil(t, err)
+	assert.Equal(t, []int32{0, 1, 0, 1, 2}, r.WordIDs)
+}
+
+func TestProcess_ReturnPunctIDs(t *testing.T) {
+	p := initPunctTest(t)
+	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 1, 2, 0}, nil)
+	r, err := p.Process("a b a")
+	assert.Nil(t, err)
+	assert.Equal(t, []int32{0, 1, 2}, r.PunctIDs)
 }
 
 func newTestVocab(v string) io.Reader {
