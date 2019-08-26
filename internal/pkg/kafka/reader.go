@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"encoding/json"
 	"os"
 
 	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
@@ -36,7 +37,7 @@ func NewReader(stopChannel <-chan os.Signal) (*Reader, error) {
 
 	//sessionTimeout := 30 * time.Minute
 
-	cmdapp.Log.Infof("Connecting to Kafka on %s\n", brokers)
+	cmdapp.Log.Infof("Connecting to Kafka on %s", brokers)
 	var err error
 	res.consumer, err = ckafka.NewConsumer(&ckafka.ConfigMap{
 		"bootstrap.servers":     brokers,
@@ -51,7 +52,7 @@ func NewReader(stopChannel <-chan os.Signal) (*Reader, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't connect to kafka brokers: "+brokers)
 	}
-	cmdapp.Log.Infof("Subscribing to Kafka topic %s\n", topic)
+	cmdapp.Log.Infof("Subscribing to Kafka topic %s", topic)
 	err = res.consumer.SubscribeTopics([]string{topic}, nil)
 
 	return &res, nil
@@ -88,9 +89,12 @@ func (sp *Reader) Get() (*kafkaapi.Msg, error) {
 			switch e := ev.(type) {
 			case *ckafka.Message:
 				cmdapp.Log.Debugf("Kafka message on %s:\t%s\n", e.TopicPartition, string(e.Value))
+				id, err := parseMsg(e.Value)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Cannot parse json %s", string(e.Value))
+				}
 				msg := kafkaapi.Msg{}
-				//todo use json to get message
-				msg.ID = string(e.Value)
+				msg.ID = id
 				msg.RealMsg = e
 				return &msg, nil
 			case ckafka.Error:
@@ -103,4 +107,17 @@ func (sp *Reader) Get() (*kafkaapi.Msg, error) {
 			}
 		}
 	}
+}
+
+type msg struct {
+	ID string `json:"id"`
+}
+
+func parseMsg(d []byte) (string, error) {
+	var res msg
+	err := json.Unmarshal(d, &res)
+	if err != nil {
+		return "", err
+	}
+	return res.ID, nil
 }
