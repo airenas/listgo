@@ -109,12 +109,12 @@ func (sp *Reader) Get() (*kafkaapi.Msg, error) {
 	}
 }
 
-type msg struct {
+type kafkaMsg struct {
 	ID string `json:"id"`
 }
 
 func parseMsg(d []byte) (string, error) {
-	var res msg
+	var res kafkaMsg
 	err := json.Unmarshal(d, &res)
 	if err != nil {
 		return "", err

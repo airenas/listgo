@@ -1,6 +1,8 @@
 package kafka
 
 import (
+	"encoding/json"
+
 	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
@@ -41,11 +43,14 @@ func (sp *Writer) Write(msg *kafkaapi.ResponseMsg) error {
 	deliveryChan := make(chan ckafka.Event)
 	defer close(deliveryChan)
 
-	value := msg.ID // use json
-
-	err := sp.producer.Produce(&ckafka.Message{
+	kafkaMsg := kafkaMsg{ID: msg.ID}
+	value, err := json.Marshal(kafkaMsg)
+	if err != nil {
+		return errors.Wrap(err, "Can't marshal message before sending")
+	}
+	err = sp.producer.Produce(&ckafka.Message{
 		TopicPartition: ckafka.TopicPartition{Topic: &sp.topic, Partition: ckafka.PartitionAny},
-		Value:          []byte(value),
+		Value:          value,
 		Headers:        []ckafka.Header{}}, deliveryChan)
 	if err != nil {
 		return errors.Wrap(err, "Can't send message to kafka topic")
