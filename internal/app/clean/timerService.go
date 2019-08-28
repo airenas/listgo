@@ -6,14 +6,15 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 )
 
-type oldIdsProvider interface {
+//OldIDsProvider return old ids for clesning service
+type OldIDsProvider interface {
 	Get() ([]string, error)
 }
 
 type timerServiceData struct {
 	runEvery     time.Duration
 	cleaner      Cleaner
-	idsProvider  oldIdsProvider
+	idsProvider  OldIDsProvider
 	qChan        chan struct{}
 	workWaitChan chan struct{}
 }

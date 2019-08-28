@@ -52,6 +52,8 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=cleaner.go -m bitbucket.org/airenas/listgo/internal/app/clean Cleaner
 
+//go:generate pegomock generate --package=mocks --output=oldIDsProvider.go -m bitbucket.org/airenas/listgo/internal/app/clean OldIDsProvider
+
 //AttachMockToTest register pegomock verification to be passed to testing engine
 func AttachMockToTest(t *testing.T) {
 	pegomock.RegisterMockFailHandler(handleByTest(t))
