@@ -16,7 +16,7 @@ type localFile struct {
 }
 
 func newLocalFile(storagePath string, pattern string) (*localFile, error) {
-	cmdapp.Log.Infof("Init Local File Storage at: %s/%s", storagePath, pattern)
+	cmdapp.Log.Infof("Init Local File Storage Clean at: %s/%s", storagePath, pattern)
 	if storagePath == "" {
 		return nil, errors.New("No storage path provided")
 	}

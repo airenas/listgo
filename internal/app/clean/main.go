@@ -2,6 +2,7 @@ package clean
 
 import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 	"github.com/spf13/cobra"
 )
 
@@ -32,8 +33,11 @@ func run(cmd *cobra.Command, args []string) {
 	data := &ServiceData{}
 
 	data.Port = cmdapp.Config.GetInt("port")
-	var err error
-	data.cleaner, err = newCleanerImpl(cmdapp.Config.GetString("fileStorage.path"))
+	mongoSessionProvider, err := mongo.NewSessionProvider()
+	cmdapp.CheckOrPanic(err, "Can't init mongo")
+	defer mongoSessionProvider.Close()
+
+	data.cleaner, err = newCleanerImpl(mongoSessionProvider, cmdapp.Config.GetString("fileStorage.path"))
 	cmdapp.CheckOrPanic(err, "Can't init cleaner")
 
 	err = StartWebServer(data)
