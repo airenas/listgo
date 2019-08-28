@@ -4,27 +4,26 @@ import (
 	"net/http"
 	"strconv"
 
-	"bitbucket.org/airenas/listgo/internal/app/punctuation/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/gorilla/mux"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/pkg/errors"
 )
 
-//Punctuator invokes TF to retrieve punctuation
-type Punctuator interface {
-	Process(text string) (*api.PResult, error)
+//Cleaner deletes information by ID
+type Cleaner interface {
+	Clean(ID string) error
 }
 
 // ServiceData keeps data required for service work
 type ServiceData struct {
-	Port   int
-	health healthcheck.Handler
+	Port    int
+	health  healthcheck.Handler
+	cleaner Cleaner
 }
 
 //StartWebServer starts the HTTP service and listens for the requests
 func StartWebServer(data *ServiceData) error {
-
 	cmdapp.Log.Infof("Starting HTTP service at %d", data.Port)
 	r := NewRouter(data)
 	http.Handle("/", r)
@@ -63,5 +62,11 @@ func (h *cleanHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cmdapp.Log.Infof("ID: %s", id)
+	err := h.data.cleaner.Clean(id)
+	if err != nil {
+		http.Error(w, "Clean failed", http.StatusInternalServerError)
+		cmdapp.Log.Error(err)
+		return
+	}
 	w.Write([]byte("OK"))
 }

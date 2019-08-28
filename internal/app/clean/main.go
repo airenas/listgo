@@ -32,7 +32,10 @@ func run(cmd *cobra.Command, args []string) {
 	data := &ServiceData{}
 
 	data.Port = cmdapp.Config.GetInt("port")
+	var err error
+	data.cleaner, err = newCleanerImpl(cmdapp.Config.GetString("fileStorage.path"))
+	cmdapp.CheckOrPanic(err, "Can't init cleaner")
 
-	err := StartWebServer(data)
+	err = StartWebServer(data)
 	cmdapp.CheckOrPanic(err, "")
 }
