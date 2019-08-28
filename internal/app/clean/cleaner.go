@@ -1,19 +1,22 @@
 package clean
 
 import (
-	"errors"
+	"syscall"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
+	"github.com/pkg/errors"
 )
 
 type cleanerImpl struct {
-	jobs []Cleaner
+	jobs        []Cleaner
+	fileStorage string
 }
 
 func newCleanerImpl(mng *mongo.SessionProvider, fileStorage string) (*cleanerImpl, error) {
 	c := cleanerImpl{}
 	c.jobs = make([]Cleaner, 0)
+	c.fileStorage = fileStorage
 
 	fcs, err := newFileCleaners(fileStorage,
 		"audio.in/{ID}.*",
@@ -64,4 +67,16 @@ func newFileCleaners(fs string, patterns ...string) ([]*localFile, error) {
 		result = append(result, fc)
 	}
 	return result, nil
+}
+
+//HealthyFunc returns func for health check
+func (c *cleanerImpl) HealthyFunc() func() error {
+	return func() error {
+		var info syscall.Statfs_t
+		err := syscall.Statfs(c.fileStorage, &info)
+		if err != nil {
+			return errors.Errorf("Can't get info for dir: %s", c.fileStorage)
+		}
+		return nil
+	}
 }

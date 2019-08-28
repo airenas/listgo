@@ -8,6 +8,7 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
+	"github.com/heptiolabs/healthcheck"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -43,8 +44,13 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't init mongo")
 	defer mongoSessionProvider.Close()
 
-	data.cleaner, err = newCleanerImpl(mongoSessionProvider, cmdapp.Config.GetString("fileStorage.path"))
+	cln, err := newCleanerImpl(mongoSessionProvider, cmdapp.Config.GetString("fileStorage.path"))
 	cmdapp.CheckOrPanic(err, "Can't init cleaner")
+	data.cleaner = cln
+
+	data.health = healthcheck.NewHandler()
+	data.health.AddLivenessCheck("mongo", healthcheck.Async(mongoSessionProvider.Healthy, 10*time.Second))
+	data.health.AddLivenessCheck("fs", cln.HealthyFunc())
 
 	tdata := timerServiceData{}
 	tdata.runEvery = time.Hour
