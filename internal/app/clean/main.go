@@ -1,6 +1,11 @@
 package clean
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 	"github.com/spf13/cobra"
@@ -40,6 +45,28 @@ func run(cmd *cobra.Command, args []string) {
 	data.cleaner, err = newCleanerImpl(mongoSessionProvider, cmdapp.Config.GetString("fileStorage.path"))
 	cmdapp.CheckOrPanic(err, "Can't init cleaner")
 
-	err = StartWebServer(data)
+	tdata := timerServiceData{}
+	tdata.runEvery = time.Hour
+	tdata.cleaner = data.cleaner
+	tdata.idsProvider, err = mongo.NewCleanIDsProvider(mongoSessionProvider, time.Hour*24*7)
+	cmdapp.CheckOrPanic(err, "Can't init mongo expired IDs provider")
+	tdata.qChan = make(chan struct{})
+	tdata.workWaitChan = make(chan struct{})
+
+	go func() {
+		err = StartWebServer(data)
+		cmdapp.CheckOrPanic(err, "")
+	}()
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	
+	err = startCleanTimer(&tdata)
 	cmdapp.CheckOrPanic(err, "")
+
+	<-sigs
+	cmdapp.Log.Infof("Stopping")
+	// indicate to stop and wait for job complete
+	close(tdata.qChan)
+	<-tdata.workWaitChan
 }
