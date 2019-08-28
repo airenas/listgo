@@ -21,3 +21,4 @@ cmd/tmp/**
 cmd/uploadService/config.yaml
 internal/pkg/tensorflow/**
 internal/pkg/tensorflow_serving/**
+cmd/cleanService/config.yaml
