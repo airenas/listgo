@@ -44,11 +44,12 @@ mainloop:
 }
 
 func doClean(data *timerServiceData) {
-	cmdapp.Log.Info("Info running cleaning")
+	cmdapp.Log.Info("Running cleaning")
 	ids, err := data.idsProvider.Get()
 	if err != nil {
 		cmdapp.Log.Error(err)
 	}
+	cmdapp.Log.Infof("Got %d IDs to clean", len(ids))
 	for _, id := range ids {
 		err = data.cleaner.Clean(id)
 		if err != nil {
