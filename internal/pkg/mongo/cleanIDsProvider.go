@@ -31,11 +31,11 @@ func (p *CleanIDsProvider) Get() ([]string, error) {
 
 	c := session.DB(store).C(requestTable)
 	from := 0
-	select := 10
+	maxRecords := 10
 	result := make([]string, 0)
 	var m []bson.M
 	for {
-		err = c.Find(nil).Sort("_id").Skip(from).Limit(select).All(&m)
+		err = c.Find(nil).Sort("_id").Skip(from).Limit(maxRecords).All(&m)
 		if err == mgo.ErrNotFound {
 			return nil, err
 		}
@@ -50,7 +50,7 @@ func (p *CleanIDsProvider) Get() ([]string, error) {
 				return result, nil
 			}
 		}
-		from = from + select
+		from = from + maxRecords
 		if from > len(result) {
 			return result, nil
 		}

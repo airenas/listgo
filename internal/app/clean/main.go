@@ -8,6 +8,7 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -48,7 +49,13 @@ func run(cmd *cobra.Command, args []string) {
 	tdata := timerServiceData{}
 	tdata.runEvery = time.Hour
 	tdata.cleaner = data.cleaner
-	tdata.idsProvider, err = mongo.NewCleanIDsProvider(mongoSessionProvider, time.Hour*24*7)
+	expireDuraton := cmdapp.Config.GetDuration("expireDuration")
+	if expireDuraton < time.Minute {
+		cmdapp.CheckOrPanic(errors.Errorf("Wrong expire duration %v", expireDuraton), "Can't init mongo expired IDs provider")
+	}
+	cmdapp.Log.Infof("Expire duration %v", expireDuraton)
+
+	tdata.idsProvider, err = mongo.NewCleanIDsProvider(mongoSessionProvider, expireDuraton)
 	cmdapp.CheckOrPanic(err, "Can't init mongo expired IDs provider")
 	tdata.qChan = make(chan struct{})
 	tdata.workWaitChan = make(chan struct{})
@@ -60,7 +67,7 @@ func run(cmd *cobra.Command, args []string) {
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	
+
 	err = startCleanTimer(&tdata)
 	cmdapp.CheckOrPanic(err, "")
 
