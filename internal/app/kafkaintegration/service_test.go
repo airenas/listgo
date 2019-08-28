@@ -27,6 +27,7 @@ type testdata struct {
 	writerMock *mocks.MockKafkaWriter
 	dbMock     *mocks.MockDB
 	filerMock  *mocks.MockFiler
+	trMock     *mocks.MockTranscriber
 	data       *ServiceData
 	fc         <-chan os.Signal
 }
@@ -45,12 +46,13 @@ func initTestData(t *testing.T) *testdata {
 	res.data = &ServiceData{}
 	res.data.fc = utils.NewSignalChannel()
 	res.fc = res.data.fc.C
+	res.trMock = mocks.NewMockTranscriber()
 	res.data.bp = &noBackOffProvider{}
 	res.data.statusSleep = time.Nanosecond
 	res.data.kReader = res.readerMock
 	res.data.kWriter = res.writerMock
 	res.data.db = res.dbMock
-	res.data.tr = mocks.NewMockTranscriber()
+	res.data.tr = res.trMock
 	res.data.filer = res.filerMock
 	pegomock.When(res.data.kReader.Get()).ThenReturn(nil, errors.New("Can not read"))
 	return &res
@@ -105,6 +107,26 @@ func Test_TranscriptionOK(t *testing.T) {
 
 	filerDelete := td.filerMock.VerifyWasCalled(pegomock.Once()).Delete(pegomock.AnyString()).GetCapturedArguments()
 	assert.Equal(t, "1", filerDelete)
+
+	td.trMock.VerifyWasCalled(pegomock.Once()).Delete(pegomock.AnyString())
+}
+
+func Test_TranscriptionOK_NoFailOnDelete(t *testing.T) {
+	td := initTestData(t)
+	mockReadMsg(td, &kafkaapi.Msg{ID: "1", RealMsg: &kafka.Message{}}, 1)
+	pegomock.When(td.data.tr.Upload(matchers.AnyPtrToKafkaapiUploadData())).ThenReturn("u1", nil)
+	pegomock.When(td.data.db.GetAudio(pegomock.AnyString())).ThenReturn(&kafkaapi.DBEntry{ID: "1", Data: "data"}, nil)
+	pegomock.When(td.data.tr.GetStatus(pegomock.AnyString())).ThenReturn(&kafkaapi.Status{ID: "1", Completed: true, Text: "olia"}, nil)
+	pegomock.When(td.data.tr.GetResult(pegomock.AnyString())).ThenReturn(&kafkaapi.Result{ID: "1", FileData: "fd"}, nil)
+	pegomock.When(td.data.tr.Delete(pegomock.AnyString())).ThenReturn(errors.New("error"))
+	StartServer(td.data)
+
+	waitToFinish(t, td)
+
+	td.writerMock.VerifyWasCalled(pegomock.Once()).Write(matchers.AnyPtrToKafkaapiResponseMsg())
+	td.filerMock.VerifyWasCalled(pegomock.Once()).Delete(pegomock.AnyString())
+	err := td.trMock.VerifyWasCalled(pegomock.Once()).Delete(pegomock.AnyString()).GetCapturedArguments()
+	assert.NotNil(t, err)
 }
 
 func Test_Upload_Fails(t *testing.T) {

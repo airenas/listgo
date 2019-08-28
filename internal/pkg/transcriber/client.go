@@ -25,6 +25,7 @@ type Client struct {
 	uploadURL  string
 	statusURL  string
 	resultURL  string
+	cleanURL   string
 }
 
 //NewClient creates a transcriber client
@@ -40,6 +41,10 @@ func NewClient() (*Client, error) {
 		return nil, err
 	}
 	res.resultURL, err = utils.GetURLFromConfig("transcriber.url.result")
+	if err != nil {
+		return nil, err
+	}
+	res.cleanURL, err = utils.GetURLFromConfig("transcriber.url.clean")
 	if err != nil {
 		return nil, err
 	}
@@ -145,4 +150,23 @@ func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 		return "", errors.New("Can't get ID from response")
 	}
 	return respData.ID, nil
+}
+
+//Delete removes all transcription data related with ID
+func (sp *Client) Delete(ID string) error {
+	urlStr := utils.URLJoin(sp.cleanURL, ID)
+	req, err := http.NewRequest("DELETE", urlStr, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := sp.httpclient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	err = utils.ValidateResponse(resp)
+	if err != nil {
+		return errors.Wrap(err, "Can't delete information")
+	}
+	return nil
 }

@@ -23,6 +23,7 @@ func initServer(t *testing.T, urlStr, resp string, code int) (*Client, *httptest
 	api.statusURL = server.URL
 	api.resultURL = server.URL
 	api.uploadURL = server.URL
+	api.cleanURL = server.URL
 	return &api, server
 }
 
@@ -157,4 +158,22 @@ func TestUpload_WrongJSON_Fails(t *testing.T) {
 
 	assert.NotNil(t, err)
 	assert.Equal(t, r, "")
+}
+
+func TestDelete(t *testing.T) {
+	api, server := initServer(t, "/10", "OK", 200)
+	defer server.Close()
+
+	err := api.Delete("10")
+
+	assert.Nil(t, err)
+}
+
+func TestDelete_Fails(t *testing.T) {
+	api, server := initServer(t, "/10", "Error", 500)
+	defer server.Close()
+
+	err := api.Delete("10")
+
+	assert.NotNil(t, err)
 }

@@ -175,6 +175,11 @@ func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) error {
 			if err != nil {
 				return errors.Wrap(err, "Can't mark as finished. Give up")
 			}
+
+			err = data.tr.Delete(ids.TrID)
+			if err != nil {
+				cmdapp.Log.Warning(errors.Wrap(err, "Can't invoke data cleaner"))
+			}
 			return nil
 		}
 	}

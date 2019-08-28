@@ -35,6 +35,7 @@ type Transcriber interface {
 	Upload(audio *kafkaapi.UploadData) (string, error)
 	GetStatus(ID string) (*kafkaapi.Status, error)
 	GetResult(ID string) (*kafkaapi.Result, error)
+	Delete(ID string) (error)
 }
 
 type backoffProvider interface {
