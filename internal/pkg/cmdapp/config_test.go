@@ -22,11 +22,18 @@ func run(cmd *cobra.Command, args []string) {
 	Log.Info("Starting uploadService")
 }
 
-func TestReadEnvironmentVariable(t *testing.T) {
+func TestReadEnvVariable(t *testing.T) {
 	os.Setenv("MESSAGESERVER_URL", "olia")
 	InitApplication(newRootCmd())
 
 	assert.Equal(t, "olia", Config.GetString("messageServer.url"))
+}
+
+func TestReadBoolEnvVariable(t *testing.T) {
+	os.Setenv("SENDINFORMMESSAGES", "true")
+	InitApplication(newRootCmd())
+
+	assert.Equal(t, true, Config.GetBool("sendInformMessages"))
 }
 
 func TestReadConfig(t *testing.T) {
@@ -79,6 +86,6 @@ func initAppFromTempFile(t *testing.T, data string) {
 	rootCmd.Execute()
 }
 
-func initDefaultLevel(){
+func initDefaultLevel() {
 	Log.SetLevel(logrus.ErrorLevel)
 }
