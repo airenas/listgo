@@ -155,6 +155,8 @@ func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 //Delete removes all transcription data related with ID
 func (sp *Client) Delete(ID string) error {
 	urlStr := utils.URLJoin(sp.cleanURL, ID)
+	cmdapp.Log.Infof("Invoke clean data request to: %s", urlStr)
+	
 	req, err := http.NewRequest("DELETE", urlStr, nil)
 	if err != nil {
 		return err
