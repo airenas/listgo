@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/heirko/go-contrib/logrusHelper"
+	"github.com/heralight/logrus_mate"
 	"github.com/pkg/errors"
 
 	"github.com/spf13/cobra"
@@ -55,9 +56,18 @@ func initConfig() {
 func initLog() {
 	initDefaultLogConfig()
 	c := logrusHelper.UnmarshalConfiguration(Config.Sub("logger"))
+	initLogFromEnv(&c)
 	err := logrusHelper.SetConfig(Log, c)
 	if err != nil {
 		Log.Error("Can't init log ", err)
+	}
+}
+
+//initLogFromEnv tries to set level from environment
+func initLogFromEnv(c *logrus_mate.LoggerConfig) {
+	ll := Config.GetString("logger.level")
+	if ll != "" {
+		c.Level = ll
 	}
 }
 
