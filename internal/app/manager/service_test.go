@@ -44,6 +44,9 @@ func TestInitManagerOK(t *testing.T) {
 	data := ServiceData{}
 	data.ResultSaver = resultSaverMock
 	data.Publisher = publisherMock
+	data.MessageSender = msgSenderMock
+	data.InformMessageSender = msgSenderMock
+
 	_, err := StartWorkerService(&data)
 	assert.Nil(t, err)
 }
@@ -52,6 +55,28 @@ func TestInitManagerNoPublisher(t *testing.T) {
 	initTest(t)
 	data := ServiceData{}
 	data.ResultSaver = resultSaverMock
+	data.MessageSender = msgSenderMock
+	data.InformMessageSender = msgSenderMock
+	_, err := StartWorkerService(&data)
+	assert.NotNil(t, err)
+}
+
+func TestInitManagerNoSender(t *testing.T) {
+	initTest(t)
+	data := ServiceData{}
+	data.ResultSaver = resultSaverMock
+	data.Publisher = publisherMock
+	data.InformMessageSender = msgSenderMock
+	_, err := StartWorkerService(&data)
+	assert.NotNil(t, err)
+}
+
+func TestInitManagerNoInformSender(t *testing.T) {
+	initTest(t)
+	data := ServiceData{}
+	data.ResultSaver = resultSaverMock
+	data.Publisher = publisherMock
+	data.MessageSender = msgSenderMock
 	_, err := StartWorkerService(&data)
 	assert.NotNil(t, err)
 }
@@ -77,6 +102,7 @@ func initTestData(t *testing.T) *testdata {
 	res.data = &ServiceData{}
 	res.data.StatusSaver = statusSaverMock
 	res.data.MessageSender = msgSenderMock
+	res.data.InformMessageSender = msgSenderMock
 	res.data.DecodeCh = res.dc
 	res.data.AudioConvertCh = res.ac
 	res.data.DiarizationCh = res.diac

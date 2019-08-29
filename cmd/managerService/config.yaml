@@ -1,9 +1,10 @@
 messageServer: 
-    broker: amqp://list:list@localhost:5672/
+    url: amqp://list:list@localhost:5672/
 
 mongo:
-    url: localhost:27018     
-
+    url: localhost:27018  
+    
+sendInformMessages: true    
 
 logger:
     level: info

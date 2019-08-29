@@ -30,15 +30,16 @@ func (mc *multiCloseChannel) close() {
 
 // ServiceData keeps data required for service work
 type ServiceData struct {
-	MessageSender   messages.Sender
-	Publisher       messages.Publisher
-	StatusSaver     status.Saver
-	ResultSaver     ResultSaver
-	DecodeCh        <-chan amqp.Delivery
-	AudioConvertCh  <-chan amqp.Delivery
-	DiarizationCh   <-chan amqp.Delivery
-	TranscriptionCh <-chan amqp.Delivery
-	ResultMakeCh    <-chan amqp.Delivery
+	MessageSender       messages.Sender
+	InformMessageSender messages.Sender
+	Publisher           messages.Publisher
+	StatusSaver         status.Saver
+	ResultSaver         ResultSaver
+	DecodeCh            <-chan amqp.Delivery
+	AudioConvertCh      <-chan amqp.Delivery
+	DiarizationCh       <-chan amqp.Delivery
+	TranscriptionCh     <-chan amqp.Delivery
+	ResultMakeCh        <-chan amqp.Delivery
 }
 
 //return true if it can be redelivered
@@ -51,6 +52,12 @@ func StartWorkerService(data *ServiceData) (<-chan struct{}, error) {
 	}
 	if data.Publisher == nil {
 		return nil, errors.New("Publisher not provided")
+	}
+	if data.MessageSender == nil {
+		return nil, errors.New("MessageSender not provided")
+	}
+	if data.InformMessageSender == nil {
+		return nil, errors.New("InformMessageSender not provided")
 	}
 
 	cmdapp.Log.Infof("Starting listen for messages")
@@ -99,7 +106,7 @@ func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		return true, err
 	}
 	publishStatusChange(&message, data)
-	err = data.MessageSender.Send(newInformMessage(message.ID, messages.InformType_Started),
+	err = data.InformMessageSender.Send(newInformMessage(message.ID, messages.InformType_Started),
 		messages.Inform, "")
 	if err != nil {
 		return true, err
@@ -189,7 +196,7 @@ func resultMakeFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	}
 	publishStatusChange(&message.QueueMessage, data)
 
-	return true, data.MessageSender.Send(newInformMessage(message.ID, messages.InformType_Finished),
+	return true, data.InformMessageSender.Send(newInformMessage(message.ID, messages.InformType_Finished),
 		messages.Inform, "")
 }
 

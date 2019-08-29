@@ -46,6 +46,12 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't init event exchange")
 
 	data.MessageSender = rabbit.NewSender(msgChannelProvider)
+	if cmdapp.Config.GetBool("sendInformMessages") {
+		data.InformMessageSender = data.MessageSender
+	} else {
+		data.InformMessageSender = newFakeMessageSender()
+	}
+
 	data.Publisher = rabbit.NewPublisher(msgChannelProvider)
 
 	ch, err := msgChannelProvider.Channel()
