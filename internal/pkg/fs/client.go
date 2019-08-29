@@ -111,8 +111,7 @@ func (sp *Client) SaveResult(dataIn *kafkaapi.DBResultEntry) error {
 	}
 	resp, err := sp.httpclient.Post(urlStr, "application/json", bytes.NewBuffer(bytesData))
 	if err != nil {
-		//todo remove THIS!!!
-		cmdapp.Log.Debugf("JSON: %s", string(bytesData))
+		cmdapp.Log.Tracef("JSON: %s", string(bytesData))
 		return errors.Wrap(err, "Can't send data to file server")
 	}
 	err = utils.ValidateResponse(resp)
@@ -121,8 +120,7 @@ func (sp *Client) SaveResult(dataIn *kafkaapi.DBResultEntry) error {
 		if err1 != nil {
 			bodyBytes = []byte{}
 		}
-		//todo remove THIS!!!
-		cmdapp.Log.Debugf("JSON: %s", string(bytesData))
+		cmdapp.Log.Tracef("JSON: %s", string(bytesData))
 		cmdapp.Log.Debugf("Response: code%d\n%s", resp.StatusCode, string(bodyBytes))
 		return errors.Wrap(err, "Can't save transcription")
 	}
