@@ -25,11 +25,11 @@ func NewReader(stopChannel <-chan os.Signal) (*Reader, error) {
 	}
 	group := cmdapp.Config.GetString("kafka.group")
 	if group == "" {
-		group = "gr1"
+		group = "Transcriber.Service.Group"
 	}
-	topic := cmdapp.Config.GetString("kafka.input_topic")
+	topic := cmdapp.Config.GetString("kafka.inputTopic")
 	if topic == "" {
-		return nil, errors.New("No kafka.input_topic provided")
+		return nil, errors.New("No kafka.inputTopic provided")
 	}
 
 	res := Reader{}
@@ -37,7 +37,7 @@ func NewReader(stopChannel <-chan os.Signal) (*Reader, error) {
 
 	//sessionTimeout := 30 * time.Minute
 
-	cmdapp.Log.Infof("Connecting to Kafka on %s", brokers)
+	cmdapp.Log.Infof("Connecting to Kafka on %s, group: %s", brokers, group)
 	var err error
 	res.consumer, err = ckafka.NewConsumer(&ckafka.ConfigMap{
 		"bootstrap.servers":     brokers,
@@ -54,7 +54,10 @@ func NewReader(stopChannel <-chan os.Signal) (*Reader, error) {
 	}
 	cmdapp.Log.Infof("Subscribing to Kafka topic %s", topic)
 	err = res.consumer.SubscribeTopics([]string{topic}, nil)
-
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't subscribe to kafka topic: "+topic)
+	}
+	cmdapp.Log.Infof("Subscribed to Kafka topic %s", topic)
 	return &res, nil
 }
 
