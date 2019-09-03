@@ -45,7 +45,7 @@ func NewReader(stopChannel <-chan os.Signal) (*Reader, error) {
 		"group.id":              group,
 		"session.timeout.ms":    6000, //0int(sessionTimeout.Seconds()) * 1000,
 		//"max.poll.interval.ms":  int(sessionTimeout.Seconds()) * 1000,
-		"auto.offset.reset":  "earliest",
+		"auto.offset.reset":  "latest",
 		"enable.auto.commit": "false",
 	})
 
