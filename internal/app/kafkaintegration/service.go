@@ -101,9 +101,7 @@ func processMsg(data *ServiceData, msg *kafkaapi.Msg) error {
 	if ids == nil {
 		audio, err := getAudio(data, msg.ID)
 		if err != nil {
-			return sendKafkaMsg(data, &kafkaapi.ResponseMsg{ID: msg.ID,
-				Error: kafkaapi.TranscriptionError{Code: errc.DefaultCode,
-					DebugMessage: errors.Wrap(err, "Can't get audio from db").Error()}})
+			return sendKafkaMsg(data, msg.ID, errors.Wrap(err, "Can't get audio from db").Error())
 		}
 
 		upReq := kafkaapi.UploadData{ExternalID: msg.ID, AudioData: audio.Data, JobType: audio.JobType,
@@ -210,14 +208,18 @@ func saveSendResults(data *ServiceData, result *kafkaapi.DBResultEntry) error {
 	}
 	err := backoff.Retry(op, data.bp.Get())
 	if err != nil {
-		return sendKafkaMsg(data, &kafkaapi.ResponseMsg{ID: result.ID,
-			Error: kafkaapi.TranscriptionError{Code: errc.DefaultCode,
-				DebugMessage: errors.Wrap(err, "Can't post transcription result to file storage").Error()}})
+		return sendKafkaMsg(data, result.ID,
+			errors.Wrap(err, "Can't post transcription result to file storage").Error())
 	}
-	return sendKafkaMsg(data, &kafkaapi.ResponseMsg{ID: result.ID})
+	return sendKafkaMsg(data, result.ID, "")
 }
 
-func sendKafkaMsg(data *ServiceData, msg *kafkaapi.ResponseMsg) error {
+func sendKafkaMsg(data *ServiceData, id string, dmsg string) error {
+	msg := &kafkaapi.ResponseMsg{ID: id}
+	if dmsg != "" {
+		msg.Error.Code = errc.DefaultCode
+		msg.Error.DebugMessage = dmsg
+	}
 	op := func() error {
 		err := data.kWriter.Write(msg)
 		if err != nil {
