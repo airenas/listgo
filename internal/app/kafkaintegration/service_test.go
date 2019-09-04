@@ -138,7 +138,12 @@ func Test_Upload_Fails(t *testing.T) {
 
 	waitToFinish(t, td)
 
-	td.readerMock.VerifyWasCalled(pegomock.Never()).Commit(matchers.AnyPtrToKafkaapiMsg())
+	td.readerMock.VerifyWasCalled(pegomock.Once()).Commit(matchers.AnyPtrToKafkaapiMsg())
+	saveData := td.dbMock.VerifyWasCalled(pegomock.Once()).SaveResult(matchers.AnyPtrToKafkaapiDBResultEntry()).GetCapturedArguments()
+	assert.Equal(t, "1", saveData.ID)
+	assert.Equal(t, kafkaapi.DBStatusFailed, saveData.Status)
+	assert.Equal(t, errc.DefaultCode, saveData.Err.Code)
+	assert.Contains(t, saveData.Err.Error, "upload")
 	td.filerMock.VerifyWasCalled(pegomock.Never()).SetWorking(matchers.AnyPtrToKafkaapiKafkaTrMap())
 	td.filerMock.VerifyWasCalled(pegomock.Never()).Delete(pegomock.AnyString())
 }
@@ -176,6 +181,11 @@ func Test_Transcription_Fails(t *testing.T) {
 	assert.Equal(t, "ec", dbCall.Err.Code)
 	assert.Equal(t, "er", dbCall.Err.Error)
 	td.filerMock.VerifyWasCalled(pegomock.Once()).SetWorking(matchers.AnyPtrToKafkaapiKafkaTrMap())
+	saveData := td.writerMock.VerifyWasCalled(pegomock.Once()).Write(matchers.AnyPtrToKafkaapiResponseMsg()).GetCapturedArguments()
+	assert.Equal(t, "1", saveData.ID)
+	assert.Equal(t, "", saveData.Error.Code)
+	assert.Equal(t, "", saveData.Error.DebugMessage)
+
 	td.filerMock.VerifyWasCalled(pegomock.Once()).Delete(pegomock.AnyString())
 }
 
@@ -196,31 +206,47 @@ func Test_WriterFails_Exit(t *testing.T) {
 	td.filerMock.VerifyWasCalled(pegomock.Never()).Delete(pegomock.AnyString())
 }
 
-func Test_GetAudioFails_Exit(t *testing.T) {
+func Test_GetAudioFails_WriterInvoked_Exit(t *testing.T) {
 	td := initTestData(t)
 	mockReadMsg(td, &kafkaapi.Msg{ID: "1", RealMsg: &kafka.Message{}}, 100)
+	pegomock.When(td.data.db.GetAudio(pegomock.AnyString())).ThenReturn(nil, errors.New("can't read"))
+	pegomock.When(td.writerMock.Write(matchers.AnyPtrToKafkaapiResponseMsg())).ThenReturn(errors.New("can't write"))
+
+	StartServer(td.data)
+
+	waitToFinish(t, td)
+
+	td.dbMock.VerifyWasCalled(pegomock.Never()).SaveResult(matchers.AnyPtrToKafkaapiDBResultEntry())
+	td.readerMock.VerifyWasCalled(pegomock.Never()).Commit(matchers.AnyPtrToKafkaapiMsg())
+	td.writerMock.VerifyWasCalled(pegomock.Once()).Write(matchers.AnyPtrToKafkaapiResponseMsg())
+	td.filerMock.VerifyWasCalled(pegomock.Never()).Delete(pegomock.AnyString())
+}
+
+func Test_GetAudioFails(t *testing.T) {
+	td := initTestData(t)
+	mockReadMsg(td, &kafkaapi.Msg{ID: "1", RealMsg: &kafka.Message{}}, 1)
 	pegomock.When(td.data.db.GetAudio(pegomock.AnyString())).ThenReturn(nil, errors.New("audio fails"))
 	StartServer(td.data)
 
 	waitToFinish(t, td)
 
-	td.readerMock.VerifyWasCalled(pegomock.Never()).Commit(matchers.AnyPtrToKafkaapiMsg())
-	td.writerMock.VerifyWasCalled(pegomock.Never()).Write(matchers.AnyPtrToKafkaapiResponseMsg())
+	td.readerMock.VerifyWasCalled(pegomock.Once()).Commit(matchers.AnyPtrToKafkaapiMsg())
+	td.writerMock.VerifyWasCalled(pegomock.Once()).Write(matchers.AnyPtrToKafkaapiResponseMsg())
 	td.filerMock.VerifyWasCalled(pegomock.Never()).SetWorking(matchers.AnyPtrToKafkaapiKafkaTrMap())
 	td.filerMock.VerifyWasCalled(pegomock.Never()).Delete(pegomock.AnyString())
 }
 
-func Test_StatusFails_Exit(t *testing.T) {
+func Test_StatusFails(t *testing.T) {
 	td := initTestData(t)
-	mockReadMsg(td, &kafkaapi.Msg{ID: "1", RealMsg: &kafka.Message{}}, 100)
+	mockReadMsg(td, &kafkaapi.Msg{ID: "1", RealMsg: &kafka.Message{}}, 1)
 	pegomock.When(td.data.db.GetAudio(pegomock.AnyString())).ThenReturn(&kafkaapi.DBEntry{ID: "1", Data: "data"}, nil)
 	pegomock.When(td.data.tr.GetStatus(pegomock.AnyString())).ThenReturn(nil, errors.New("no status"))
 	StartServer(td.data)
 
 	waitToFinish(t, td)
 
-	td.readerMock.VerifyWasCalled(pegomock.Never()).Commit(matchers.AnyPtrToKafkaapiMsg())
-	td.writerMock.VerifyWasCalled(pegomock.Never()).Write(matchers.AnyPtrToKafkaapiResponseMsg())
+	td.readerMock.VerifyWasCalled(pegomock.Once()).Commit(matchers.AnyPtrToKafkaapiMsg())
+	td.writerMock.VerifyWasCalled(pegomock.Once()).Write(matchers.AnyPtrToKafkaapiResponseMsg())
 	td.filerMock.VerifyWasCalled(pegomock.Once()).SetWorking(matchers.AnyPtrToKafkaapiKafkaTrMap())
 	td.filerMock.VerifyWasCalled(pegomock.Never()).Delete(pegomock.AnyString())
 }
@@ -251,11 +277,9 @@ func Test_GetResultFails_ReturnError(t *testing.T) {
 	td.filerMock.VerifyWasCalled(pegomock.Once()).Delete(pegomock.AnyString())
 }
 
-func Test_SaveResultFails_Exit(t *testing.T) {
+func Test_SaveResultFails(t *testing.T) {
 	td := initTestData(t)
-	pegomock.When(td.readerMock.Get()).Then(func(params []pegomock.Param) pegomock.ReturnValues {
-		return []pegomock.ReturnValue{&kafkaapi.Msg{ID: "1", RealMsg: &kafka.Message{}}, nil}
-	})
+	mockReadMsg(td, &kafkaapi.Msg{ID: "1", RealMsg: &kafka.Message{}}, 1)
 	pegomock.When(td.data.db.GetAudio(pegomock.AnyString())).ThenReturn(&kafkaapi.DBEntry{ID: "1", Data: "data"}, nil)
 	pegomock.When(td.data.tr.GetStatus(pegomock.AnyString())).ThenReturn(&kafkaapi.Status{ID: "1", Completed: true, Text: "olia"}, nil)
 	pegomock.When(td.data.tr.GetResult(pegomock.AnyString())).ThenReturn(&kafkaapi.Result{ID: "1", FileData: "fd"}, nil)
@@ -264,9 +288,16 @@ func Test_SaveResultFails_Exit(t *testing.T) {
 
 	waitToFinish(t, td)
 
-	td.readerMock.VerifyWasCalled(pegomock.Never()).Commit(matchers.AnyPtrToKafkaapiMsg())
+	td.readerMock.VerifyWasCalled(pegomock.Once()).Commit(matchers.AnyPtrToKafkaapiMsg())
+
+	saveData := td.writerMock.VerifyWasCalled(pegomock.Once()).Write(matchers.AnyPtrToKafkaapiResponseMsg()).GetCapturedArguments()
+	assert.Equal(t, "1", saveData.ID)
+	assert.NotNil(t, saveData.Error)
+	assert.Equal(t, errc.DefaultCode, saveData.Error.Code)
+	assert.Contains(t, saveData.Error.DebugMessage, "can't save")
+
 	td.filerMock.VerifyWasCalled(pegomock.Once()).SetWorking(matchers.AnyPtrToKafkaapiKafkaTrMap())
-	td.filerMock.VerifyWasCalled(pegomock.Never()).Delete(pegomock.AnyString())
+	td.filerMock.VerifyWasCalled(pegomock.Once()).Delete(pegomock.AnyString())
 }
 
 func waitToFinish(t *testing.T, td *testdata) {

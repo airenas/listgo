@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
@@ -10,6 +11,16 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	ckafka "github.com/confluentinc/confluent-kafka-go/kafka"
 )
+
+type kafkaRespMsg struct {
+	ID    string             `json:"id"`
+	Error *kafkaRespMsgError `json:"error,omitempty"`
+}
+
+type kafkaRespMsgError struct {
+	Code         string `json:"code"`
+	DebugMessage string `json:"debug_message"`
+}
 
 //Writer writes messages to Kafka topic
 type Writer struct {
@@ -44,7 +55,7 @@ func (sp *Writer) Write(msg *kafkaapi.ResponseMsg) error {
 	deliveryChan := make(chan ckafka.Event)
 	defer close(deliveryChan)
 
-	kafkaMsg := kafkaMsg{ID: msg.ID}
+	kafkaMsg := newMessage(msg)
 	value, err := json.Marshal(kafkaMsg)
 	if err != nil {
 		return errors.Wrap(err, "Can't marshal message before sending")
@@ -65,4 +76,24 @@ func (sp *Writer) Write(msg *kafkaapi.ResponseMsg) error {
 	cmdapp.Log.Infof("Delivered message to topic %s [%d] at offset %v\n",
 		*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
 	return nil
+}
+
+func newMessage(msg *kafkaapi.ResponseMsg) *kafkaRespMsg {
+	res := kafkaRespMsg{}
+	res.ID = msg.ID
+	if msg.Error.Code != "" {
+		res.Error = &kafkaRespMsgError{}
+		res.Error.Code = msg.Error.Code
+		res.Error.DebugMessage = checkTrimLen(msg.Error.DebugMessage, 20000)
+	}
+	return &res
+}
+
+func checkTrimLen(input string, l int) string {
+	r := []rune(input)
+	if len(r) > l {
+		sr := fmt.Sprintf("Showing first %d symbols of message\n", l)
+		return sr + string(r[0:l]) + "..."
+	}
+	return input
 }

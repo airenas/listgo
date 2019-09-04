@@ -19,7 +19,7 @@ type ResponseMsg struct {
 
 // TranscriptionError keeps error structure to put into kafkas event
 type TranscriptionError struct {
-	Status string
-	Msg string
+	Code string
+	DebugMessage string
 }
 
