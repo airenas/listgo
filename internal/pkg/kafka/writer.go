@@ -65,6 +65,7 @@ func (sp *Writer) Write(msg *kafkaapi.ResponseMsg) error {
 		Value:          value,
 		Headers:        []ckafka.Header{}}, deliveryChan)
 	if err != nil {
+		cmdapp.Log.Tracef("Msg: %s", string(value))
 		return errors.Wrap(err, "Can't send message to kafka topic")
 	}
 	e := <-deliveryChan
@@ -92,7 +93,7 @@ func newMessage(msg *kafkaapi.ResponseMsg) *kafkaRespMsg {
 func checkTrimLen(input string, l int) string {
 	r := []rune(input)
 	if len(r) > l {
-		sr := fmt.Sprintf("Showing first %d symbols of message\n", l)
+		sr := fmt.Sprintf("Showing first %d symbols of the message\n", l)
 		return sr + string(r[0:l]) + "..."
 	}
 	return input
