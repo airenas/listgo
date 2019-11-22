@@ -6,6 +6,7 @@ require (
 	github.com/badoux/checkmail v0.0.0-20181210160741-9661bd69e9ad
 	github.com/cenkalti/backoff v2.1.1+incompatible
 	github.com/confluentinc/confluent-kafka-go v1.0.0
+	github.com/fsnotify/fsnotify v1.4.7
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
 	github.com/gogap/env_json v0.0.0-20150503135429-86150085ddbe // indirect
 	github.com/gogap/env_strings v0.0.1 // indirect

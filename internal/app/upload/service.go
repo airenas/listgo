@@ -27,8 +27,10 @@ type ServiceData struct {
 	MessageSender messages.Sender
 	StatusSaver   status.Saver
 	RequestSaver  RequestSaver
-	Port          int
-	health        healthcheck.Handler
+	RecognizerMap RecognizerMap
+
+	Port   int
+	health healthcheck.Handler
 }
 
 // FileResult - post method response in JSON
@@ -79,6 +81,18 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	recognizer := r.FormValue("recognizer")
+	recID, err := h.data.RecognizerMap.Get(recognizer)
+	if err != nil {
+		if err == api.ErrRecognizerNotFound {
+			http.Error(w, getRecErrMsg(recognizer), http.StatusBadRequest)
+		} else {
+			http.Error(w, "Can't select recognizer", http.StatusInternalServerError)
+		}
+		cmdapp.Log.Error(err)
+		return
+	}
+
 	file, handler, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, "No file", http.StatusBadRequest)
@@ -98,7 +112,8 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	id := uuid.New().String()
 	fileName := id + ext
 
-	err = h.data.RequestSaver.Save(api.RequestData{ID: id, Email: email, File: fileName, ExternalID: externalID})
+	err = h.data.RequestSaver.Save(api.RequestData{ID: id, Email: email, File: fileName, ExternalID: externalID,
+		RecognizerKey: recognizer, RecognizerID: recID})
 	if err != nil {
 		http.Error(w, "Can not save request to DB", http.StatusInternalServerError)
 		cmdapp.Log.Error(err)
@@ -119,7 +134,8 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.data.MessageSender.Send(messages.NewQueueMessage(id), messages.Decode, "")
+	err = h.data.MessageSender.Send(messages.NewQueueMessageT(id,
+		[]messages.Tag{messages.NewTag(messages.TagRecognizer, recID)}), messages.Decode, "")
 	if err != nil {
 		http.Error(w, "Can not send decode message", http.StatusInternalServerError)
 		cmdapp.Log.Error(err)
@@ -139,4 +155,11 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func checkFileExtension(ext string) bool {
 	return ext == ".wav" || ext == ".mp3" || ext == ".mp4"
+}
+
+func getRecErrMsg(rec string) string {
+	if rec == "" {
+		return "No recognizer"
+	}
+	return "Unknown recognizer: " + rec
 }

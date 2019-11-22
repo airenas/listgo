@@ -14,6 +14,7 @@ import (
 	"github.com/heptiolabs/healthcheck"
 	"github.com/stretchr/testify/assert"
 
+	"bitbucket.org/airenas/listgo/internal/app/upload/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
@@ -27,11 +28,15 @@ var requestSaverMock *mocks.MockRequestSaver
 
 var msgSenderMock *mocks.MockSender
 
+var recognizerMapMock *mocks.MockRecognizerMap
+
 func initTest(t *testing.T) {
 	mocks.AttachMockToTest(t)
 	statusSaverMock = mocks.NewMockSaver()
 	requestSaverMock = mocks.NewMockRequestSaver()
 	msgSenderMock = mocks.NewMockSender()
+	recognizerMapMock = mocks.NewMockRecognizerMap()
+	pegomock.When(recognizerMapMock.Get(pegomock.AnyString())).ThenReturn("recID", nil)
 }
 
 func TestWrongPath(t *testing.T) {
@@ -80,7 +85,7 @@ func TestPOSTNoFile(t *testing.T) {
 	test400(t, newReq("", "a@a.a", ""))
 }
 
-func newReq(file string, email string, externalID string) *http.Request {
+func newReq4(file string, email string, externalID string, recID string) *http.Request {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	if file != "" {
@@ -93,10 +98,17 @@ func newReq(file string, email string, externalID string) *http.Request {
 	if externalID != "" {
 		writer.WriteField("externalID", externalID)
 	}
+	if recID != "" {
+		writer.WriteField("recognizer", recID)
+	}
 	writer.Close()
 	req := httptest.NewRequest("POST", "/upload", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	return req
+}
+
+func newReq(file string, email string, externalID string) *http.Request {
+	return newReq4(file, email, externalID, "recKey")
 }
 
 func newRouter() *mux.Router {
@@ -108,6 +120,7 @@ func newData() *ServiceData {
 		MessageSender: msgSenderMock,
 		RequestSaver:  requestSaverMock,
 		FileSaver:     testSaver{},
+		RecognizerMap: recognizerMapMock,
 		health:        healthcheck.NewHandler(),
 	}
 }
@@ -176,7 +189,40 @@ func TestPOST_SenderFails(t *testing.T) {
 
 	NewRouter(newData()).ServeHTTP(resp, req)
 
-	assert.Equal(t, resp.Code, 500)
+	assert.Equal(t, 500, resp.Code)
+}
+
+func TestPOST_RecognizerMethodFails(t *testing.T) {
+	initTest(t)
+	req := newReq("filename.wav", "a@a.a", "")
+	resp := httptest.NewRecorder()
+	pegomock.When(recognizerMapMock.Get(pegomock.AnyString())).ThenReturn("", errors.New("Rec map failed"))
+
+	NewRouter(newData()).ServeHTTP(resp, req)
+
+	assert.Equal(t, 500, resp.Code)
+}
+
+func TestPOST_UnknownRecognizerFails(t *testing.T) {
+	initTest(t)
+	req := newReq("filename.wav", "a@a.a", "")
+	resp := httptest.NewRecorder()
+	pegomock.When(recognizerMapMock.Get(pegomock.AnyString())).ThenReturn("", api.ErrRecognizerNotFound)
+
+	NewRouter(newData()).ServeHTTP(resp, req)
+
+	assert.Equal(t, 400, resp.Code)
+}
+
+func TestPOST_NoRecognizerFails(t *testing.T) {
+	initTest(t)
+	req := newReq4("filename.wav", "a@a.a", "", "rec123")
+	resp := httptest.NewRecorder()
+	pegomock.When(recognizerMapMock.Get(pegomock.AnyString())).ThenReturn("", api.ErrRecognizerNotFound)
+
+	NewRouter(newData()).ServeHTTP(resp, req)
+
+	assert.Equal(t, 400, resp.Code)
 }
 
 func TestPOST_SaverFails(t *testing.T) {
@@ -191,7 +237,7 @@ func TestPOST_SaverFails(t *testing.T) {
 		})
 	NewRouter(data).ServeHTTP(resp, req)
 
-	assert.Equal(t, resp.Code, 500)
+	assert.Equal(t, 500, resp.Code)
 }
 
 func TestPOST_StatusSaverFails(t *testing.T) {
@@ -228,6 +274,8 @@ func TestPOST_RequestSaverCalled(t *testing.T) {
 	rd := requestSaverMock.VerifyWasCalled(pegomock.Once()).Save(matchers.AnyApiRequestData()).GetCapturedArguments()
 	assert.Equal(t, rd.Email, "a@a.a")
 	assert.Equal(t, rd.ExternalID, "externalID")
+	assert.Equal(t, "recKey", rd.RecognizerKey)
+	assert.Equal(t, "recID", rd.RecognizerID)
 	assert.True(t, strings.HasSuffix(rd.File, ".wav"))
 	assert.NotEmpty(t, rd.ID)
 }

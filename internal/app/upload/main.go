@@ -5,6 +5,7 @@ import (
 
 	"github.com/streadway/amqp"
 
+	"bitbucket.org/airenas/listgo/internal/pkg/config"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
@@ -46,6 +47,9 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't init file storage")
 	data.FileSaver = fs
 	data.health.AddLivenessCheck("fs", fs.HealthyFunc(50))
+
+	data.RecognizerMap, err = config.NewFileRecognizerMap(cmdapp.Config.GetString("recognizerConfig.path"))
+	cmdapp.CheckOrPanic(err, "Can't init recognizer config")
 
 	msgChannelProvider, err := rabbit.NewChannelProvider()
 	cmdapp.CheckOrPanic(err, "Can't init rabbit channel")

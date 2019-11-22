@@ -22,6 +22,8 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=requestSaver.go -m bitbucket.org/airenas/listgo/internal/app/upload RequestSaver
 
+//go:generate pegomock generate --package=mocks --output=recognizerMap.go -m bitbucket.org/airenas/listgo/internal/app/upload RecognizerMap
+
 //go:generate pegomock generate --package=mocks --output=emailMaker.go -m bitbucket.org/airenas/listgo/internal/app/inform EmailMaker
 
 //go:generate pegomock generate --package=mocks --output=emailRetriever.go -m bitbucket.org/airenas/listgo/internal/app/inform EmailRetriever
