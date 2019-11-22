@@ -135,8 +135,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.data.MessageSender.Send(messages.NewQueueMessageT(id,
-		[]messages.Tag{messages.NewTag(messages.TagRecognizer, recID)}), messages.Decode, "")
+	err = h.data.MessageSender.Send(messages.NewQueueMessage(id, recID, nil), messages.Decode, "")
 	if err != nil {
 		http.Error(w, "Can not send decode message", http.StatusInternalServerError)
 		cmdapp.Log.Error(err)

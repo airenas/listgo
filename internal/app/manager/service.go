@@ -99,19 +99,19 @@ func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		return false, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
 	}
 
-	cmdapp.Log.Infof("Got %s msg :%s", messages.Decode, message.ID)
+	cmdapp.Log.Infof("Got %s msg :%s (%s)", messages.Decode, message.ID, message.Recognizer)
 	err := data.StatusSaver.Save(message.ID, status.AudioConvert)
 	if err != nil {
 		cmdapp.Log.Error(err)
 		return true, err
 	}
 	publishStatusChange(&message, data)
-	err = data.InformMessageSender.Send(newInformMessage(message.ID, messages.InformType_Started),
+	err = data.InformMessageSender.Send(newInformMessage(&message, messages.InformType_Started),
 		messages.Inform, "")
 	if err != nil {
 		return true, err
 	}
-	return true, data.MessageSender.Send(messages.NewQueueMessage(message.ID),
+	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message),
 		messages.AudioConvert, messages.ResultQueueFor(messages.AudioConvert))
 }
 
@@ -130,7 +130,7 @@ func audioConvertFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		}
 		return true, err
 	}
-	return true, data.MessageSender.Send(messages.NewQueueMessage(message.ID),
+	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message),
 		messages.Diarization, messages.ResultQueueFor(messages.Diarization))
 }
 
@@ -149,7 +149,7 @@ func diarizationFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		}
 		return true, err
 	}
-	return true, data.MessageSender.Send(messages.NewQueueMessage(message.ID),
+	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message),
 		messages.Transcription, messages.ResultQueueFor(messages.Transcription))
 }
 
@@ -168,7 +168,7 @@ func transcriptionFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		}
 		return true, err
 	}
-	return true, data.MessageSender.Send(messages.NewQueueMessage(message.ID),
+	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message),
 		messages.ResultMake, messages.ResultQueueFor(messages.ResultMake))
 }
 
@@ -196,12 +196,12 @@ func resultMakeFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	}
 	publishStatusChange(&message.QueueMessage, data)
 
-	return true, data.InformMessageSender.Send(newInformMessage(message.ID, messages.InformType_Finished),
+	return true, data.InformMessageSender.Send(newInformMessage(&message.QueueMessage, messages.InformType_Finished),
 		messages.Inform, "")
 }
 
 func processStatus(message *messages.QueueMessage, data *ServiceData, from string, to status.Status) (bool, error) {
-	cmdapp.Log.Infof("Got %s msg :%s", from, message.ID)
+	cmdapp.Log.Infof("Got %s msg :%s  (%s)", from, message.ID, message.Recognizer)
 	if message.Error != "" {
 		err := data.StatusSaver.SaveError(message.ID, message.Error)
 		if err != nil {
@@ -226,6 +226,7 @@ func publishStatusChange(message *messages.QueueMessage, data *ServiceData) {
 	cmdapp.LogIf(err)
 }
 
-func newInformMessage(id string, it string) *messages.InformMessage {
-	return &messages.InformMessage{QueueMessage: messages.QueueMessage{ID: id}, Type: it, At: time.Now().UTC()}
+func newInformMessage(msg *messages.QueueMessage, it string) *messages.InformMessage {
+	return &messages.InformMessage{QueueMessage: messages.QueueMessage{ID: msg.ID, Recognizer: msg.Recognizer, Tags: msg.Tags},
+		Type: it, At: time.Now().UTC()}
 }

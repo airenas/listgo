@@ -46,7 +46,7 @@ var msgSenderMock *mocks.MockSender
 func initTest(t *testing.T) {
 	mocks.AttachMockToTest(t)
 	ackMock = mocks.NewMockAcknowledger()
-	msgdata, _ := json.Marshal(messages.NewQueueMessage("1"))
+	msgdata, _ := json.Marshal(messages.NewQueueMessage("1", "rec", nil))
 	message = amqp.Delivery{Body: msgdata}
 	message.Acknowledger = ackMock
 	msgSenderMock = mocks.NewMockSender()

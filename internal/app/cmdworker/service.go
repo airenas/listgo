@@ -93,7 +93,7 @@ func processMsg(d *amqp.Delivery, data *ServiceData) (messages.Message, error) {
 	}
 	err := work(data, message.ID)
 	cmdapp.Log.Infof("Msg processed")
-	result := messages.NewQueueMessage(message.ID)
+	result := messages.NewQueueMessageFromM(&message)
 	var res string
 	if err != nil {
 		result.Error = err.Error()

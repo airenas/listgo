@@ -4,11 +4,6 @@ import (
 	"time"
 )
 
-const (
-	// TagRecognizer is key for recognizer param
-	TagRecognizer string = "Recognizer"
-)
-
 //Tag keeps key/value in message
 type Tag struct {
 	Key   string `json:"key"`
@@ -17,9 +12,10 @@ type Tag struct {
 
 //QueueMessage message going throuht broker
 type QueueMessage struct {
-	ID    string `json:"id"`
-	Tags  []Tag  `json:"tags"`
-	Error string `json:"error"`
+	ID         string `json:"id"`
+	Recognizer string `json:"recognizer"`
+	Tags       []Tag  `json:"tags"`
+	Error      string `json:"error"`
 }
 
 //ResultMessage message going throuht broker with result
@@ -35,15 +31,14 @@ type InformMessage struct {
 	At   time.Time `json:"at"`
 }
 
-//NewQueueMessage creates the message with id
-func NewQueueMessage(id string) *QueueMessage {
-	return &QueueMessage{ID: id}
+//NewQueueMessageFromM copies message
+func NewQueueMessageFromM(m *QueueMessage) *QueueMessage {
+	return &QueueMessage{ID: m.ID, Recognizer: m.Recognizer, Tags: m.Tags}
 }
 
-//NewQueueMessageT creates the message with id and tags
-func NewQueueMessageT(id string, tags []Tag) *QueueMessage {
-
-	return &QueueMessage{ID: id, Tags: tags}
+//NewQueueMessage creates the message
+func NewQueueMessage(id string, rec string, tags []Tag) *QueueMessage {
+	return &QueueMessage{ID: id, Recognizer: rec, Tags: tags}
 }
 
 //NewQueueMsgWithError creates the message with id and error
