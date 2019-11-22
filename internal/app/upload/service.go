@@ -92,6 +92,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		cmdapp.Log.Error(err)
 		return
 	}
+	cmdapp.Log.Infof("Found recognizer '%s' for '%s'", recID, recognizer)
 
 	file, handler, err := r.FormFile("file")
 	if err != nil {
