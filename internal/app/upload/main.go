@@ -49,7 +49,7 @@ func run(cmd *cobra.Command, args []string) {
 	data.health.AddLivenessCheck("fs", fs.HealthyFunc(50))
 
 	data.RecognizerMap, err = config.NewFileRecognizerMap(cmdapp.Config.GetString("recognizerConfig.path"))
-	cmdapp.CheckOrPanic(err, "Can't init recognizer config")
+	cmdapp.CheckOrPanic(err, "Can't init recognizer config (Did you provide correct setting 'recognizerConfig.path'?)")
 
 	msgChannelProvider, err := rabbit.NewChannelProvider()
 	cmdapp.CheckOrPanic(err, "Can't init rabbit channel")
