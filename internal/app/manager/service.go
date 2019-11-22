@@ -201,7 +201,7 @@ func resultMakeFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 }
 
 func processStatus(message *messages.QueueMessage, data *ServiceData, from string, to status.Status) (bool, error) {
-	cmdapp.Log.Infof("Got %s msg :%s  (%s)", from, message.ID, message.Recognizer)
+	cmdapp.Log.Infof("Got %s msg :%s (%s)", from, message.ID, message.Recognizer)
 	if message.Error != "" {
 		err := data.StatusSaver.SaveError(message.ID, message.Error)
 		if err != nil {
