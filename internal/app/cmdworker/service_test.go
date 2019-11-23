@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"bitbucket.org/airenas/listgo/internal/app/recognizer"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
 
@@ -16,32 +17,33 @@ import (
 
 func TestRun_NoParameter_Fail(t *testing.T) {
 	cmd := "ls"
-	err := RunCommand(cmd, "/", "id")
+	err := RunCommand(cmd, "/", "id", nil)
 
 	assert.NotNil(t, err, "Error expected")
 }
 
 func TestRun_WrongParameter_Fail(t *testing.T) {
 	cmd := "ls -{olia}"
-	err := RunCommand(cmd, "/", "id")
+	err := RunCommand(cmd, "/", "id", nil)
 
 	assert.NotNil(t, err, "Error expected")
 }
 func TestRun(t *testing.T) {
 	cmd := "ls -la"
-	err := RunCommand(cmd, "/", "id")
+	err := RunCommand(cmd, "/", "id", nil)
 	assert.Nil(t, err)
 }
 
 func TestRun_ID_Changed(t *testing.T) {
 	cmd := "ls -{ID}"
-	err := RunCommand(cmd, "/", "la")
+	err := RunCommand(cmd, "/", "la", nil)
 	assert.Nil(t, err)
 }
 
 var ackMock *mocks.MockAcknowledger
 var message amqp.Delivery
 var msgSenderMock *mocks.MockSender
+var recInfoLoaderMock *mocks.MockRecInfoLoader
 
 func initTest(t *testing.T) {
 	mocks.AttachMockToTest(t)
@@ -50,6 +52,9 @@ func initTest(t *testing.T) {
 	message = amqp.Delivery{Body: msgdata}
 	message.Acknowledger = ackMock
 	msgSenderMock = mocks.NewMockSender()
+	recInfoLoaderMock = mocks.NewMockRecInfoLoader()
+	pegomock.When(recInfoLoaderMock.Get(pegomock.AnyString())).ThenReturn(&recognizer.Info{}, nil)
+
 }
 
 func initData(t *testing.T, wc chan amqp.Delivery) ServiceData {
@@ -58,6 +63,7 @@ func initData(t *testing.T, wc chan amqp.Delivery) ServiceData {
 	data.WorkingDir = "."
 	data.TaskName = "olia"
 	data.MessageSender = msgSenderMock
+	data.RecInfoLoader = recInfoLoaderMock
 	data.WorkCh = wc
 	return data
 }
@@ -120,6 +126,38 @@ func TestHandlesWhenTaskFails(t *testing.T) {
 	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 }
 
+func TestHandlesLoaderFails(t *testing.T) {
+	initTest(t)
+	wc := make(chan amqp.Delivery)
+	data := initData(t, wc)
+	fc, _ := StartWorkerService(&data)
+
+	pegomock.When(recInfoLoaderMock.Get(pegomock.AnyString())).ThenReturn(nil, errors.New("error"))
+	message.ReplyTo = "rt"
+
+	wc <- message
+	close(wc)
+
+	<-fc // wait for complete
+	cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
+		pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
+	assert.NotEmpty(t, cMsg.(*messages.QueueMessage).Error)
+	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
+}
+
+func TestHandlesLoaderFailsWithNoReply(t *testing.T) {
+	initTest(t)
+	wc := make(chan amqp.Delivery)
+	data := initData(t, wc)
+	fc, _ := StartWorkerService(&data)
+
+	pegomock.When(recInfoLoaderMock.Get(pegomock.AnyString())).ThenReturn(nil, errors.New("error"))
+	wc <- message
+	close(wc)
+	<-fc // wait for complete
+	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
+}
+
 func TestHandlesResultRequired(t *testing.T) {
 	initTest(t)
 	wc := make(chan amqp.Delivery)
@@ -176,6 +214,7 @@ func TestCheckInputParametersNoFunction(t *testing.T) {
 }
 
 func TestCheckInputParametersWithFunction(t *testing.T) {
+	initTest(t)
 	wc := make(chan amqp.Delivery)
 	data := ServiceData{}
 	data.Command = "ls -la"
@@ -185,6 +224,18 @@ func TestCheckInputParametersWithFunction(t *testing.T) {
 
 	data.ResultFile = "olia"
 	data.ReadFunc = ReadFile
+	data.RecInfoLoader = recInfoLoaderMock
 	_, error := StartWorkerService(&data)
 	assert.Nil(t, error)
+}
+
+func Test_NoRecInfoLoader(t *testing.T) {
+	initTest(t)
+	wc := make(chan amqp.Delivery)
+	data := initData(t, wc)
+	data.RecInfoLoader = nil
+
+	_, err := StartWorkerService(&data)
+	assert.NotNil(t, err)
+	close(wc)
 }

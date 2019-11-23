@@ -2,10 +2,13 @@ package cmdworker
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 
+	"bitbucket.org/airenas/listgo/internal/app/recognizer"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"github.com/pkg/errors"
@@ -14,6 +17,11 @@ import (
 
 type readFunc func(file string, id string) (string, error)
 
+//RecInfoLoader loads recognizer information
+type RecInfoLoader interface {
+	Get(key string) (*recognizer.Info, error)
+}
+
 // ServiceData keeps data required for service work
 type ServiceData struct {
 	TaskName   string
@@ -21,8 +29,9 @@ type ServiceData struct {
 	WorkingDir string
 	//ResultFile if non empty then tries to pass result to reply message from the file
 	// changes {ID} in the file with message id
-	ResultFile string
-	ReadFunc   readFunc
+	ResultFile    string
+	ReadFunc      readFunc
+	RecInfoLoader RecInfoLoader
 
 	MessageSender messages.Sender
 	WorkCh        <-chan amqp.Delivery
@@ -46,6 +55,9 @@ func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 	if data.ResultFile != "" && data.ReadFunc == nil {
 		return nil, errors.New("No command")
 	}
+	if data.RecInfoLoader == nil {
+		return nil, errors.New("No recognizer info loader")
+	}
 
 	fc := make(chan bool)
 
@@ -54,9 +66,14 @@ func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 }
 
 //work is main method to process of the worker
-func work(data *ServiceData, id string) error {
-	cmdapp.Log.Infof("Got task %s for ID: %s", data.TaskName, id)
-	err := RunCommand(data.Command, data.WorkingDir, id)
+func work(data *ServiceData, msg *messages.QueueMessage) error {
+	cmdapp.Log.Infof("Got task %s for ID: %s, rec: %s", data.TaskName, msg.ID, msg.Recognizer)
+	envs, err := collectEnvParams(data, msg)
+	if err != nil {
+		cmdapp.Log.Error(err)
+		return err
+	}
+	err = RunCommand(data.Command, data.WorkingDir, msg.ID, envs)
 	if err != nil {
 		cmdapp.Log.Error(err)
 		return err
@@ -91,7 +108,7 @@ func processMsg(d *amqp.Delivery, data *ServiceData) (messages.Message, error) {
 	if err := json.Unmarshal(d.Body, &message); err != nil {
 		return nil, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
 	}
-	err := work(data, message.ID)
+	err := work(data, &message)
 	cmdapp.Log.Infof("Msg processed")
 	result := messages.NewQueueMessageFromM(&message)
 	var res string
@@ -112,7 +129,7 @@ func processMsg(d *amqp.Delivery, data *ServiceData) (messages.Message, error) {
 }
 
 //RunCommand executes system comman end return error if any
-func RunCommand(command string, workingDir string, id string) error {
+func RunCommand(command string, workingDir string, id string, envs []string) error {
 	realCommand := strings.Replace(command, "{ID}", id, -1)
 	cmdapp.Log.Infof("Running command: %s", realCommand)
 	cmdapp.Log.Infof("Working Dir: %s", workingDir)
@@ -123,6 +140,11 @@ func RunCommand(command string, workingDir string, id string) error {
 
 	cmd := exec.Command(cmdArr[0], cmdArr[1:]...)
 	cmd.Dir = workingDir
+	cmd.Env = os.Environ()
+	for _, env := range envs {
+		cmdapp.Log.Debug("Append env: " + env)
+		cmd.Env = append(cmd.Env, env)
+	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		errR := errors.Wrap(err, "Output: "+string(output))
@@ -141,4 +163,21 @@ func ReadFile(file string, id string) (string, error) {
 		return "", errors.Wrap(err, "Can't read file "+realFile)
 	}
 	return string(bytes), nil
+}
+
+func collectEnvParams(data *ServiceData, msg *messages.QueueMessage) ([]string, error) {
+	rp, err := data.RecInfoLoader.Get(msg.Recognizer)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't load description")
+	}
+
+	var res []string
+	for _, t := range msg.Tags {
+		res = append(res, fmt.Sprintf("%s=%s", strings.ToUpper(t.Key), t.Value))
+	}
+
+	for k, v := range rp.Settings {
+		res = append(res, fmt.Sprintf("%s=%s", strings.ToUpper(k), v))
+	}
+	return res, nil
 }
