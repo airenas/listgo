@@ -2,6 +2,7 @@ package cmdworker
 
 import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/config"
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
 
 	"github.com/pkg/errors"
@@ -34,29 +35,24 @@ func run(cmd *cobra.Command, args []string) {
 	}
 	data := ServiceData{}
 
+	data.RecInfoLoader, err = config.NewFileRecognizerInfoLoader(cmdapp.Config.GetString("recognizerConfig.path"))
+	cmdapp.CheckOrPanic(err, "Can't init recognizer info loader config (Did you provide correct setting 'recognizerConfig.path'?)")
+
 	msgChannelProvider, err := rabbit.NewChannelProvider()
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "Can't init rabbit channel provider")
 	defer msgChannelProvider.Close()
 
 	data.MessageSender = rabbit.NewSender(msgChannelProvider)
 
 	ch, err := msgChannelProvider.Channel()
-	if err != nil {
-		panic(errors.Wrap(err, "Can't open channel"))
-	}
+	cmdapp.CheckOrPanic(err, "Can't open channel")
 	err = ch.Qos(1, 0, false)
-	if err != nil {
-		panic(errors.Wrap(err, "Can't set Qos"))
-	}
+	cmdapp.CheckOrPanic(err, "Can't set Qos")
 
 	data.TaskName = cmdapp.Config.GetString("worker.taskName")
 
 	data.WorkCh, err = rabbit.NewChannel(ch, msgChannelProvider.QueueName(data.TaskName))
-	if err != nil {
-		panic(errors.Wrap(err, "Can't listen "+data.TaskName+" channel"))
-	}
+	cmdapp.CheckOrPanic(err, "Can't listen "+data.TaskName+" channel")
 
 	data.Command = cmdapp.Config.GetString("worker.command")
 	data.WorkingDir = cmdapp.Config.GetString("worker.workingDir")
@@ -64,9 +60,8 @@ func run(cmd *cobra.Command, args []string) {
 	data.ReadFunc = ReadFile
 
 	fc, err := StartWorkerService(&data)
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "Can't start service")
+
 	<-fc
 	cmdapp.Log.Infof("Exiting service")
 }
