@@ -10,12 +10,15 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/heptiolabs/healthcheck"
 	"github.com/stretchr/testify/assert"
 
 	"bitbucket.org/airenas/listgo/internal/app/upload/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
+
+	"encoding/json"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 	"github.com/gorilla/mux"
@@ -30,12 +33,15 @@ var msgSenderMock *mocks.MockSender
 
 var recognizerMapMock *mocks.MockRecognizerMap
 
+var recognizerProviderMock *mocks.MockRecognizerProvider
+
 func initTest(t *testing.T) {
 	mocks.AttachMockToTest(t)
 	statusSaverMock = mocks.NewMockSaver()
 	requestSaverMock = mocks.NewMockRequestSaver()
 	msgSenderMock = mocks.NewMockSender()
 	recognizerMapMock = mocks.NewMockRecognizerMap()
+	recognizerProviderMock = mocks.NewMockRecognizerProvider()
 	pegomock.When(recognizerMapMock.Get(pegomock.AnyString())).ThenReturn("recID", nil)
 }
 
@@ -117,11 +123,12 @@ func newRouter() *mux.Router {
 
 func newData() *ServiceData {
 	return &ServiceData{StatusSaver: statusSaverMock,
-		MessageSender: msgSenderMock,
-		RequestSaver:  requestSaverMock,
-		FileSaver:     testSaver{},
-		RecognizerMap: recognizerMapMock,
-		health:        healthcheck.NewHandler(),
+		MessageSender:      msgSenderMock,
+		RequestSaver:       requestSaverMock,
+		FileSaver:          testSaver{},
+		RecognizerMap:      recognizerMapMock,
+		RecognizerProvider: recognizerProviderMock,
+		health:             healthcheck.NewHandler(),
 	}
 }
 
@@ -291,4 +298,36 @@ type testSaver struct{}
 func (saver testSaver) Save(name string, reader io.Reader) error {
 	log.Printf("Saving file %s\n", name)
 	return nil
+}
+
+func TestGET_Recognizers(t *testing.T) {
+	initTest(t)
+	req, _ := http.NewRequest("GET", "/recognizers", nil)
+	resp := httptest.NewRecorder()
+	var ri []*api.Recognizer
+	ttime := time.Now().Truncate(24 * time.Hour)
+	ri = append(ri, &api.Recognizer{ID: "ID", Name: "name", Description: "descr", DateCreated: ttime})
+	pegomock.When(recognizerProviderMock.GetAll()).ThenReturn(ri, nil)
+
+	newRouter().ServeHTTP(resp, req)
+	assert.Equal(t, 200, resp.Code)
+
+	var r []*api.Recognizer
+	err := json.Unmarshal(resp.Body.Bytes(), &r)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(r))
+	assert.Equal(t, "ID", r[0].ID)
+	assert.Equal(t, "name", r[0].Name)
+	assert.Equal(t, "descr", r[0].Description)
+	assert.Equal(t, ttime, r[0].DateCreated)
+}
+
+func TestGET_Recognizers_Fails(t *testing.T) {
+	initTest(t)
+	req, _ := http.NewRequest("GET", "/recognizers", nil)
+	resp := httptest.NewRecorder()
+	pegomock.When(recognizerProviderMock.GetAll()).ThenReturn(nil, errors.New("err"))
+
+	newRouter().ServeHTTP(resp, req)
+	assert.Equal(t, 500, resp.Code)
 }

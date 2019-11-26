@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"bitbucket.org/airenas/listgo/internal/app/recognizer"
+	"bitbucket.org/airenas/listgo/internal/pkg/recognizer"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"

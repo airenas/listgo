@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"bitbucket.org/airenas/listgo/internal/app/recognizer"
+	"bitbucket.org/airenas/listgo/internal/pkg/recognizer"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
 

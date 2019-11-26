@@ -8,9 +8,9 @@ import (
 	"os/exec"
 	"strings"
 
-	"bitbucket.org/airenas/listgo/internal/app/recognizer"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"bitbucket.org/airenas/listgo/internal/pkg/recognizer"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )

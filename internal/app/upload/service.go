@@ -23,11 +23,12 @@ import (
 
 // ServiceData keeps data required for service work
 type ServiceData struct {
-	FileSaver     FileSaver
-	MessageSender messages.Sender
-	StatusSaver   status.Saver
-	RequestSaver  RequestSaver
-	RecognizerMap RecognizerMap
+	FileSaver          FileSaver
+	MessageSender      messages.Sender
+	StatusSaver        status.Saver
+	RequestSaver       RequestSaver
+	RecognizerMap      RecognizerMap
+	RecognizerProvider RecognizerProvider
 
 	Port   int
 	health healthcheck.Handler
@@ -56,6 +57,7 @@ func StartWebServer(data *ServiceData) error {
 func NewRouter(data *ServiceData) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	router.Methods("POST").Path("/upload").Handler(uploadHandler{data: data})
+	router.Methods("GET").Path("/recognizers").Handler(recognizersHandler{data: data})
 	router.Methods("GET").Path("/live").HandlerFunc(data.health.LiveEndpoint)
 	router.Methods("GET").Path("/ready").HandlerFunc(data.health.ReadyEndpoint)
 	return router
@@ -162,4 +164,27 @@ func getRecErrMsg(rec string) string {
 		return "No recognizer"
 	}
 	return "Unknown recognizer: " + rec
+}
+
+type recognizersHandler struct {
+	data *ServiceData
+}
+
+func (h recognizersHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	cmdapp.Log.Infof("Recognizers get %s", r.Host)
+	rec, err := h.data.RecognizerProvider.GetAll()
+	if err != nil {
+		http.Error(w, "Can not get recognizers", http.StatusInternalServerError)
+		cmdapp.Log.Error(err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	err = encoder.Encode(&rec)
+	if err != nil {
+		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
+		cmdapp.Log.Error(err)
+		return
+	}
 }
