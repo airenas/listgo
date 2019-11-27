@@ -45,15 +45,16 @@ func NewFileRecognizerMap(path string) (*FileRecognizerMap, error) {
 }
 
 func newFileRecognizerMap(file string) (*FileRecognizerMap, error) {
-	cmdapp.Log.Infof("Init Recognizer Map from: %s", file)
+	cmdapp.Log.Infof("Init Recognizer Map config from: %s", file)
 	if file == "" {
 		return nil, errors.New("No recognizer map file provided")
 	}
 	f := FileRecognizerMap{}
-	f.rCache = &RecognizersCache{needsReload: true}
+	rc := &RecognizersCache{needsReload: true}
+	f.rCache = rc
 	var err error
 	fp := filepath.Dir(file)
-	f.rCache.fileLoader, err = NewFileRecognizerInfoLoader(fp)
+	rc.fileLoader, err = NewFileRecognizerInfoLoader(fp)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't init recognizers info loader for recognizer cache. Path: "+fp)
 	}
@@ -67,11 +68,23 @@ func newFileRecognizerMap(file string) (*FileRecognizerMap, error) {
 
 	f.v.WatchConfig()
 	f.v.OnConfigChange(func(e fsnotify.Event) {
-		cmdapp.Log.Infof("Config reloaded from: %s", file)
-		f.rCache.markReload()
+		f.onConfigChange()
 	})
 	return &f, nil
 }
+
+// Get return recognizer ID by provided key
+func (fs *FileRecognizerMap) onConfigChange() {
+	cmdapp.Log.Infof("Config reloaded")
+	
+	// cache access only with lock
+	rc := fs.rCache
+	fs.rCache.lock.Lock()
+	defer rc.lock.Unlock()
+
+	rc.needsReload = true
+}
+
 
 // Get return recognizer ID by provided key
 func (fs *FileRecognizerMap) Get(name string) (string, error) {
@@ -94,6 +107,7 @@ func (fs *FileRecognizerMap) GetAll() ([]*api.Recognizer, error) {
 	defer rc.lock.Unlock()
 
 	if rc.needsReload {
+		cmdapp.Log.Info("Reloading recognizers")
 		err := rc.reload(fs.v.AllSettings())
 		if err != nil {
 			return nil, err
@@ -102,17 +116,7 @@ func (fs *FileRecognizerMap) GetAll() ([]*api.Recognizer, error) {
 	return rc.recognizers, rc.lastErr
 }
 
-func (rc *RecognizersCache) markReload() {
-	rc.lock.Lock()
-	defer rc.lock.Unlock()
-
-	rc.needsReload = true
-}
-
 func (rc *RecognizersCache) reload(m map[string]interface{}) error {
-	rc.lock.Lock()
-	defer rc.lock.Unlock()
-
 	rc.lastErr = nil
 	rc.recognizers = nil
 	rc.needsReload = false

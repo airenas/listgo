@@ -109,6 +109,26 @@ func Test_GetAll_ReturnsCache(t *testing.T) {
 	assert.Equal(t, 10, len(ri))
 }
 
+func Test_GetAll_Loads(t *testing.T) {
+	r, f := load(t)
+	defer os.Remove(f.Name())
+	assert.NotNil(t, r)
+
+	ri, err := r.GetAll()
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(ri))
+}
+
+func Test_GetAll_Caches(t *testing.T) {
+	r, f := load(t)
+	defer os.Remove(f.Name())
+	assert.Equal(t, true, r.rCache.needsReload)
+
+	r.GetAll()
+
+	assert.Equal(t, false, r.rCache.needsReload)
+}
+
 func Test_GetAll_ReturnsCachedError(t *testing.T) {
 	r, f := load(t)
 	defer os.Remove(f.Name())
