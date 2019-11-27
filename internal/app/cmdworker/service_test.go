@@ -54,7 +54,6 @@ func initTest(t *testing.T) {
 	msgSenderMock = mocks.NewMockSender()
 	recInfoLoaderMock = mocks.NewMockRecInfoLoader()
 	pegomock.When(recInfoLoaderMock.Get(pegomock.AnyString())).ThenReturn(&recognizer.Info{}, nil)
-
 }
 
 func initData(t *testing.T, wc chan amqp.Delivery) ServiceData {

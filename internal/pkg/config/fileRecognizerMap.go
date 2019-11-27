@@ -2,9 +2,11 @@ package config
 
 import (
 	"path/filepath"
+	"sync"
 
 	"bitbucket.org/airenas/listgo/internal/app/upload/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/recognizer"
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -14,6 +16,22 @@ import (
 type FileRecognizerMap struct {
 	Path string
 	v    *viper.Viper
+
+	rCache *RecognizersCache
+}
+
+type infoLoader interface {
+	Get(key string) (*recognizer.Info, error)
+}
+
+// RecognizersCache struct keeps current recognizer settings
+type RecognizersCache struct {
+	recognizers []*api.Recognizer
+	lastErr     error
+
+	needsReload bool
+	lock        sync.Mutex
+	fileLoader  infoLoader
 }
 
 //NewFileRecognizerMap creates FileRecognizerMap instance
@@ -32,10 +50,17 @@ func newFileRecognizerMap(file string) (*FileRecognizerMap, error) {
 		return nil, errors.New("No recognizer map file provided")
 	}
 	f := FileRecognizerMap{}
+	f.rCache = &RecognizersCache{needsReload: true}
+	var err error
+	fp := filepath.Dir(file)
+	f.rCache.fileLoader, err = NewFileRecognizerInfoLoader(fp)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't init recognizers info loader for recognizer cache. Path: "+fp)
+	}
 	f.v = viper.New()
 	f.v.SetConfigFile(file)
 	f.v.SetConfigType("yml")
-	err := f.v.ReadInConfig()
+	err = f.v.ReadInConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't read recognizers map file: "+file)
 	}
@@ -43,6 +68,7 @@ func newFileRecognizerMap(file string) (*FileRecognizerMap, error) {
 	f.v.WatchConfig()
 	f.v.OnConfigChange(func(e fsnotify.Event) {
 		cmdapp.Log.Infof("Config reloaded from: %s", file)
+		f.rCache.markReload()
 	})
 	return &f, nil
 }
@@ -59,4 +85,66 @@ func (fs *FileRecognizerMap) Get(name string) (string, error) {
 		return "", api.ErrRecognizerNotFound
 	}
 	return id, nil
+}
+
+// GetAll returns all information about installed recognizers
+func (fs *FileRecognizerMap) GetAll() ([]*api.Recognizer, error) {
+	rc := fs.rCache
+	rc.lock.Lock()
+	defer rc.lock.Unlock()
+
+	if rc.needsReload {
+		err := rc.reload(fs.v.AllSettings())
+		if err != nil {
+			return nil, err
+		}
+	}
+	return rc.recognizers, rc.lastErr
+}
+
+func (rc *RecognizersCache) markReload() {
+	rc.lock.Lock()
+	defer rc.lock.Unlock()
+
+	rc.needsReload = true
+}
+
+func (rc *RecognizersCache) reload(m map[string]interface{}) error {
+	rc.lock.Lock()
+	defer rc.lock.Unlock()
+
+	rc.lastErr = nil
+	rc.recognizers = nil
+	rc.needsReload = false
+	rm := make(map[string]*recognizer.Info)
+	res := make([]*api.Recognizer, 0)
+	for k, v := range m {
+		vs, ok := v.(string)
+		if !ok {
+			rc.lastErr = errors.New("Can't convert vipers value to string")
+			return rc.lastErr
+		}
+		r, f := rm[vs]
+		if !f {
+			var err error
+			r, err = rc.fileLoader.Get(vs)
+			if err != nil {
+				rc.lastErr = errors.Wrap(err, "Can't load recognizer for key "+vs)
+				return rc.lastErr
+			}
+			rm[vs] = r
+			res = append(res, mapRecognizer(k, r))
+		}
+	}
+	rc.recognizers = res
+	return nil
+}
+
+func mapRecognizer(k string, r *recognizer.Info) *api.Recognizer {
+	res := api.Recognizer{}
+	res.ID = k
+	res.Name = r.Name
+	res.Description = r.Description
+	res.DateCreated = r.DateCreated
+	return &res
 }
