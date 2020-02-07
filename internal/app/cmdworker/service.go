@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
@@ -27,7 +28,9 @@ type ServiceData struct {
 	WorkingDir string
 	//ResultFile if non empty then tries to pass result to reply message from the file
 	// changes {ID} in the file with message id
-	ResultFile    string
+	ResultFile string
+	//File to log into the cmd output
+	LogFile       string
 	ReadFunc      readFunc
 	RecInfoLoader RecInfoLoader
 
@@ -71,7 +74,18 @@ func work(data *ServiceData, msg *messages.QueueMessage) error {
 		cmdapp.Log.Error(err)
 		return err
 	}
-	err = RunCommand(data.Command, data.WorkingDir, msg.ID, envs, ioutil.Discard)
+	logOutput := ioutil.Discard
+	if data.LogFile != "" {
+		lf := strings.Replace(data.LogFile, "{ID}", msg.ID, -1)
+		f, err := os.OpenFile(lf, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			cmdapp.Log.Warn(errors.Wrapf(err, "Can't open file %s", lf))
+		} else {
+			defer f.Close()
+			logOutput = f
+		}
+	}
+	err = RunCommand(data.Command, data.WorkingDir, msg.ID, envs, logOutput)
 	if err != nil {
 		cmdapp.Log.Error(err)
 		return err

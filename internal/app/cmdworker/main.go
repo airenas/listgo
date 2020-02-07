@@ -57,6 +57,7 @@ func run(cmd *cobra.Command, args []string) {
 	data.Command = cmdapp.Config.GetString("worker.command")
 	data.WorkingDir = cmdapp.Config.GetString("worker.workingDir")
 	data.ResultFile = cmdapp.Config.GetString("worker.resultFile")
+	data.LogFile = cmdapp.Config.GetString("worker.logFile")
 	data.ReadFunc = ReadFile
 
 	fc, err := StartWorkerService(&data)
