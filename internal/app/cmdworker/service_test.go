@@ -15,31 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRun_NoParameter_Fail(t *testing.T) {
-	cmd := "ls"
-	err := RunCommand(cmd, "/", "id", nil)
-
-	assert.NotNil(t, err, "Error expected")
-}
-
-func TestRun_WrongParameter_Fail(t *testing.T) {
-	cmd := "ls -{olia}"
-	err := RunCommand(cmd, "/", "id", nil)
-
-	assert.NotNil(t, err, "Error expected")
-}
-func TestRun(t *testing.T) {
-	cmd := "ls -la"
-	err := RunCommand(cmd, "/", "id", nil)
-	assert.Nil(t, err)
-}
-
-func TestRun_ID_Changed(t *testing.T) {
-	cmd := "ls -{ID}"
-	err := RunCommand(cmd, "/", "la", nil)
-	assert.Nil(t, err)
-}
-
 var ackMock *mocks.MockAcknowledger
 var message amqp.Delivery
 var msgSenderMock *mocks.MockSender
