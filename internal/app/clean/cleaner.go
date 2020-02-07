@@ -1,6 +1,7 @@
 package clean
 
 import (
+	"strings"
 	"syscall"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
@@ -13,18 +14,12 @@ type cleanerImpl struct {
 	fileStorage string
 }
 
-func newCleanerImpl(mng *mongo.SessionProvider, fileStorage string) (*cleanerImpl, error) {
+func newCleanerImpl(mng *mongo.SessionProvider, fileStorage string, patterns string) (*cleanerImpl, error) {
 	c := cleanerImpl{}
 	c.jobs = make([]Cleaner, 0)
 	c.fileStorage = fileStorage
 
-	fcs, err := newFileCleaners(fileStorage,
-		"audio.in/{ID}.*",
-		"audio.prepared/{ID}.*",
-		"decoded/audio/segmented/{ID}",
-		"decoded/diarization/{ID}",
-		"decoded/trans/{ID}",
-		"results/{ID}")
+	fcs, err := newFileCleaners(fileStorage, patterns)
 	if err != nil {
 		return nil, err
 	}
@@ -57,14 +52,18 @@ func (c *cleanerImpl) Clean(ID string) error {
 	return nil
 }
 
-func newFileCleaners(fs string, patterns ...string) ([]*localFile, error) {
+func newFileCleaners(fs string, patterns string) ([]*localFile, error) {
+	ps := strings.Split(patterns, "\n")
 	result := make([]*localFile, 0)
-	for _, p := range patterns {
-		fc, err := newLocalFile(fs, p)
-		if err != nil {
-			return nil, err
+	for _, p := range ps {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			fc, err := newLocalFile(fs, p)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, fc)
 		}
-		result = append(result, fc)
 	}
 	return result, nil
 }

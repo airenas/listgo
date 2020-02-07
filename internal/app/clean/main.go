@@ -44,7 +44,8 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't init mongo")
 	defer mongoSessionProvider.Close()
 
-	cln, err := newCleanerImpl(mongoSessionProvider, cmdapp.Config.GetString("fileStorage.path"))
+	cln, err := newCleanerImpl(mongoSessionProvider, cmdapp.Config.GetString("fileStorage.path"),
+		cmdapp.Config.GetString("fileStorage.patterns"))
 	cmdapp.CheckOrPanic(err, "Can't init cleaner")
 	data.cleaner = cln
 

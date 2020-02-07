@@ -17,24 +17,27 @@ type localFile struct {
 
 func newLocalFile(storagePath string, pattern string) (*localFile, error) {
 	cmdapp.Log.Infof("Init Local File Storage Clean at: %s/%s", storagePath, pattern)
-	if storagePath == "" {
-		return nil, errors.New("No storage path provided")
-	}
 	if pattern == "" {
 		return nil, errors.New("No pattern provided")
 	}
 	if !strings.Contains(pattern, "{ID}") {
 		return nil, errors.New("Pattern does not contain {ID}")
 	}
-	f := localFile{StoragePath: storagePath, pattern: pattern}
+	sP := ""
+	if !strings.HasPrefix(pattern, "/") {
+		if storagePath == "" {
+			return nil, errors.New("No storage path provided")
+		}
+		sP = storagePath
+	}
+	f := localFile{StoragePath: sP, pattern: pattern}
 	return &f, nil
 }
 
 func (fs *localFile) Clean(ID string) error {
-	p := strings.ReplaceAll(fs.pattern, "{ID}", ID)
-	fn := path.Join(fs.StoragePath, p)
-	cmdapp.Log.Infof("Removing %s", fn)
-	return remove(fn)
+	fp := fs.getPath(ID)
+	cmdapp.Log.Infof("Removing %s", fp)
+	return remove(fp)
 }
 
 func remove(fn string) error {
@@ -50,4 +53,12 @@ func remove(fn string) error {
 		cmdapp.Log.Infof("Removed %s", file)
 	}
 	return nil
+}
+
+func (fs *localFile) getPath(ID string) string {
+	res := strings.ReplaceAll(fs.pattern, "{ID}", ID)
+	if fs.StoragePath != "" {
+		res = path.Join(fs.StoragePath, res)
+	}
+	return res
 }
