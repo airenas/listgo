@@ -97,7 +97,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			http.Error(w, "Can't select recognizer", http.StatusInternalServerError)
 		}
-		cmdapp.Log.Error(err)
+		cmdapp.Log.Errorf("Problem with recognizer '%s'. %s", recognizer, err.Error())
 		return
 	}
 	cmdapp.Log.Infof("Found recognizer '%s' for '%s'", recID, recognizer)

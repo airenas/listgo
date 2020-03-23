@@ -109,6 +109,7 @@ func processMsg(data *ServiceData, msg *kafkaapi.Msg) error {
 			RecordQuality: audio.RecordQuality}
 		id, err := upload(data, &upReq)
 		if err != nil {
+			cmdapp.Log.Error(err)
 			return saveSendResults(data, &kafkaapi.DBResultEntry{ID: msg.ID, Status: kafkaapi.DBStatusFailed,
 				Err: kafkaapi.DBTranscriptionError{Code: errc.DefaultCode,
 					Error: errors.Wrap(err, "Can't start transcription").Error()}})
