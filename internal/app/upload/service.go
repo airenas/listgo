@@ -72,6 +72,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	r.ParseMultipartForm(32 << 20)
 	externalID := r.FormValue("externalID")
+	numberOfSpeakers := r.FormValue("numberOfSpeakers")
 
 	email := r.FormValue("email")
 	if email != "" {
@@ -137,7 +138,9 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.data.MessageSender.Send(messages.NewQueueMessage(id, recID, nil), messages.Decode, "")
+	tags := []messages.Tag{messages.NewTag("number_of_speakers", numberOfSpeakers)}
+
+	err = h.data.MessageSender.Send(messages.NewQueueMessage(id, recID, tags), messages.Decode, "")
 	if err != nil {
 		http.Error(w, "Can not send decode message", http.StatusInternalServerError)
 		cmdapp.Log.Error(err)

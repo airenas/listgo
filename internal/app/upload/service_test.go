@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"bitbucket.org/airenas/listgo/internal/app/upload/api"
+	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
 
 	"encoding/json"
@@ -92,20 +93,21 @@ func TestPOSTNoFile(t *testing.T) {
 }
 
 func newReq4(file string, email string, externalID string, recID string) *http.Request {
+	return newReqMap(file, map[string]string{"email": email,
+		"externalID": externalID, "recognizer": recID})
+}
+
+func newReqMap(file string, values map[string]string) *http.Request {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	if file != "" {
 		part, _ := writer.CreateFormFile("file", file)
 		_, _ = io.Copy(part, strings.NewReader("body"))
 	}
-	if email != "" {
-		writer.WriteField("email", email)
-	}
-	if externalID != "" {
-		writer.WriteField("externalID", externalID)
-	}
-	if recID != "" {
-		writer.WriteField("recognizer", recID)
+	for k, v := range values {
+		if k != "" {
+			writer.WriteField(k, v)
+		}
 	}
 	writer.Close()
 	req := httptest.NewRequest("POST", "/upload", body)
@@ -285,6 +287,52 @@ func TestPOST_RequestSaverCalled(t *testing.T) {
 	assert.Equal(t, "recID", rd.RecognizerID)
 	assert.True(t, strings.HasSuffix(rd.File, ".wav"))
 	assert.NotEmpty(t, rd.ID)
+}
+
+func TestPOST_NumberOfSpeakersPassed(t *testing.T) {
+	initTest(t)
+	req := newReqMap("file.wav", map[string]string{"email": "a@a.lt",
+		"recognizer": "rec", "numberOfSpeakers": "2"})
+	resp := httptest.NewRecorder()
+	newRouter().ServeHTTP(resp, req)
+
+	msg, q, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
+		pegomock.AnyString()).GetCapturedArguments()
+
+	assert.Equal(t, messages.Decode, q)
+	qmsg, ok := msg.(*messages.QueueMessage)
+	assert.True(t, ok)
+	assert.Equal(t, messages.Decode, q)
+	assert.NotNil(t, qmsg)
+	assert.NotNil(t, qmsg.Tags)
+	assert.Equal(t, "2", getTag(qmsg.Tags, "number_of_speakers"))
+}
+
+func TestPOST_NumberOfSpeakersNotPassed(t *testing.T) {
+	initTest(t)
+	req := newReqMap("file.wav", map[string]string{"email": "a@a.lt",
+		"recognizer": "rec"})
+	resp := httptest.NewRecorder()
+	newRouter().ServeHTTP(resp, req)
+
+	msg, q, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
+		pegomock.AnyString()).GetCapturedArguments()
+
+	assert.Equal(t, messages.Decode, q)
+	qmsg, ok := msg.(*messages.QueueMessage)
+	assert.True(t, ok)
+	assert.NotNil(t, qmsg)
+	assert.NotNil(t, qmsg.Tags)
+	assert.Equal(t, "", getTag(qmsg.Tags, "number_of_speakers"))
+}
+
+func getTag(tags []messages.Tag, key string) string {
+	for _, t := range tags {
+		if t.Key == key {
+			return t.Value
+		}
+	}
+	return ""
 }
 
 type testSaverFunc func(name string, reader io.Reader) error
