@@ -14,6 +14,7 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
 	"bitbucket.org/airenas/listgo/internal/app/status/api"
+	uparams "bitbucket.org/airenas/listgo/internal/app/upload/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 	"github.com/pkg/errors"
@@ -116,7 +117,7 @@ func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 	dataDecoder := base64.NewDecoder(base64.StdEncoding, strings.NewReader(audio.AudioData))
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("file", audio.FileName)
+	part, err := writer.CreateFormFile(uparams.PrmFile, audio.FileName)
 	if err != nil {
 		return "", errors.Wrap(err, "Can't add file to request")
 	}
@@ -124,7 +125,11 @@ func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "Can't add file to request")
 	}
-	writer.WriteField("externalID", audio.ExternalID)
+	writer.WriteField(uparams.PrmExternalID, audio.ExternalID)
+	if audio.NumberOfSpeakers != "" {
+		writer.WriteField(uparams.PrmNumberOfSpeakers, audio.NumberOfSpeakers)
+	}
+	writer.WriteField(uparams.PrmRecognizer, getRecognizer(audio))
 	writer.Close()
 	req, err := http.NewRequest("POST", sp.uploadURL, body)
 	if err != nil {
@@ -156,7 +161,7 @@ func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 func (sp *Client) Delete(ID string) error {
 	urlStr := utils.URLJoin(sp.cleanURL, ID)
 	cmdapp.Log.Infof("Invoke clean data request to: %s", urlStr)
-	
+
 	req, err := http.NewRequest("DELETE", urlStr, nil)
 	if err != nil {
 		return err
@@ -171,4 +176,12 @@ func (sp *Client) Delete(ID string) error {
 		return errors.Wrap(err, "Can't delete information")
 	}
 	return nil
+}
+
+func getRecognizer(audio *kafkaapi.UploadData) string {
+	rc := strings.TrimSpace(audio.RecordQuality)
+	if rc == "" {
+		return strings.TrimSpace(audio.JobType)
+	}
+	return strings.TrimSpace(audio.JobType) + "_" + rc
 }

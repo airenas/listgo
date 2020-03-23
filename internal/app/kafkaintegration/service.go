@@ -105,7 +105,8 @@ func processMsg(data *ServiceData, msg *kafkaapi.Msg) error {
 		}
 
 		upReq := kafkaapi.UploadData{ExternalID: msg.ID, AudioData: audio.Data, JobType: audio.JobType,
-			FileName: audio.FileName}
+			FileName: audio.FileName, NumberOfSpeakers: audio.NumberOfSpeakers,
+			RecordQuality: audio.RecordQuality}
 		id, err := upload(data, &upReq)
 		if err != nil {
 			return saveSendResults(data, &kafkaapi.DBResultEntry{ID: msg.ID, Status: kafkaapi.DBStatusFailed,
