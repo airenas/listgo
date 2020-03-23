@@ -326,6 +326,12 @@ func TestPOST_NumberOfSpeakersNotPassed(t *testing.T) {
 	assert.Equal(t, "", getTag(qmsg.Tags, "number_of_speakers"))
 }
 
+func TestPOST_FailOnUnknownFormData(t *testing.T) {
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", "recognizer": "rec"}), 200)
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", "rec": "rec"}), 400)
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", "numSpeak": "rec"}), 400)
+}
+
 func getTag(tags []messages.Tag, key string) string {
 	for _, t := range tags {
 		if t.Key == key {

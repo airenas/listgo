@@ -71,10 +71,15 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cmdapp.Log.Infof("Saving file from %s", r.Host)
 
 	r.ParseMultipartForm(32 << 20)
-	externalID := r.FormValue("externalID")
-	numberOfSpeakers := r.FormValue("numberOfSpeakers")
-
-	email := r.FormValue("email")
+	err := validateFormParams(r.Form)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		cmdapp.Log.Error(err)
+		return
+	}
+	externalID := r.FormValue(api.PrmExternalID)
+	numberOfSpeakers := r.FormValue(api.PrmNumberOfSpeakers)
+	email := r.FormValue(api.PrmEmail)
 	if email != "" {
 		err := checkmail.ValidateFormat(email)
 		if err != nil {
@@ -84,7 +89,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	recognizer := r.FormValue("recognizer")
+	recognizer := r.FormValue(api.PrmRecognizer)
 	recID, err := h.data.RecognizerMap.Get(recognizer)
 	if err != nil {
 		if err == api.ErrRecognizerNotFound {
@@ -97,7 +102,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	cmdapp.Log.Infof("Found recognizer '%s' for '%s'", recID, recognizer)
 
-	file, handler, err := r.FormFile("file")
+	file, handler, err := r.FormFile(api.PrmFile)
 	if err != nil {
 		http.Error(w, "No file", http.StatusBadRequest)
 		cmdapp.Log.Error(err)
@@ -190,4 +195,16 @@ func (h recognizersHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		cmdapp.Log.Error(err)
 		return
 	}
+}
+
+func validateFormParams(form map[string][]string) error {
+	allowed := map[string]bool{api.PrmEmail: true, api.PrmRecognizer: true, api.PrmExternalID: true,
+		api.PrmNumberOfSpeakers: true}
+	for k := range form {
+		_, f := allowed[k]
+		if !f {
+			return errors.Errorf("Unknown parameter '%s'", k)
+		}
+	}
+	return nil
 }
