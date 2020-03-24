@@ -248,6 +248,9 @@ func upload(data *ServiceData, upReq *kafkaapi.UploadData) (string, error) {
 	op := func() error {
 		var err error
 		res, err = data.tr.Upload(upReq)
+		if errors.Is(err, utils.ErrWrongHTTPCall) {
+			return backoff.Permanent(err)
+		}
 		return err
 	}
 	err := backoff.Retry(op, data.bp.Get())
