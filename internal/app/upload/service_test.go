@@ -332,6 +332,15 @@ func TestPOST_FailOnUnknownFormData(t *testing.T) {
 	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", "numSpeak": "rec"}), 400)
 }
 
+func TestPOST_FailOnWrongNumberOfSpeakers(t *testing.T) {
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "olia"}), 200)
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "$ olia"}), 400)
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "shell olia"}), 400)
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "eval olia"}), 400)
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "(olia"}), 400)
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "olia)"}), 400)
+}
+
 func getTag(tags []messages.Tag, key string) string {
 	for _, t := range tags {
 		if t.Key == key {

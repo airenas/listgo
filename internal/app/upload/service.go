@@ -71,7 +71,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cmdapp.Log.Infof("Saving file from %s", r.Host)
 
 	r.ParseMultipartForm(32 << 20)
-	err := validateFormParams(r.Form)
+	err := validateFormParams(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		cmdapp.Log.Error(err)
@@ -197,13 +197,21 @@ func (h recognizersHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func validateFormParams(form map[string][]string) error {
+func validateFormParams(r *http.Request) error {
+	form := r.Form
 	allowed := map[string]bool{api.PrmEmail: true, api.PrmRecognizer: true, api.PrmExternalID: true,
 		api.PrmNumberOfSpeakers: true}
 	for k := range form {
 		_, f := allowed[k]
 		if !f {
 			return errors.Errorf("Unknown parameter '%s'", k)
+		}
+	}
+	nOfSp := r.FormValue(api.PrmNumberOfSpeakers)
+	lNOfSp := strings.ToLower(nOfSp)
+	for _, k := range []string{"$", "(", ")", "eval", "shell"} {
+		if strings.Contains(lNOfSp, k) {
+			return errors.Errorf("Wrong parameter '%s' value '%s'", api.PrmNumberOfSpeakers, nOfSp)
 		}
 	}
 	return nil
