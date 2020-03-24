@@ -1,6 +1,11 @@
 package utils
 
 import (
+	"bytes"
+	"errors"
+	"io/ioutil"
+	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,4 +37,31 @@ func TestValidateURL_Fail(t *testing.T) {
 	ut, err := validateConfigURL(":::://", "sn")
 	assert.Equal(t, "", ut)
 	assert.NotNil(t, err)
+}
+
+func TestValidateResponse(t *testing.T) {
+	r := http.Response{StatusCode: 200}
+	err := ValidateResponse(&r)
+	assert.Nil(t, err)
+}
+
+func TestValidateResponseBadParam(t *testing.T) {
+	r := http.Response{StatusCode: 400, Body: ioutil.NopCloser(bytes.NewReader([]byte("errorX")))}
+	err := ValidateResponse(&r)
+	assert.NotNil(t, err)
+	assert.True(t, errors.Is(err, ErrWrongHTTPCall))
+}
+
+func TestValidateResponseNotBadParam(t *testing.T) {
+	r := http.Response{StatusCode: 500, Body: ioutil.NopCloser(bytes.NewReader([]byte("errorX")))}
+	err := ValidateResponse(&r)
+	assert.NotNil(t, err)
+	assert.False(t, errors.Is(err, ErrWrongHTTPCall))
+}
+
+func TestValidateResponseTakesBody(t *testing.T) {
+	r := http.Response{StatusCode: 400, Body: ioutil.NopCloser(bytes.NewReader([]byte("errorX")))}
+	err := ValidateResponse(&r)
+	assert.NotNil(t, err)
+	assert.True(t, strings.Contains(err.Error(), "errorX"))
 }
