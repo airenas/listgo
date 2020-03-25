@@ -2,8 +2,10 @@ package rabbit
 
 import (
 	"sync"
+	"time"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/cenkalti/backoff"
 	"github.com/streadway/amqp"
 
 	"github.com/pkg/errors"
@@ -51,7 +53,7 @@ func (pr *ChannelProvider) Channel() (*amqp.Channel, error) {
 	if pr.ch != nil {
 		return pr.ch, nil
 	}
-	conn, err := amqp.Dial(pr.url)
+	conn, err := dial(pr.url)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't connect to rabbit broker")
 	}
@@ -118,4 +120,18 @@ func (pr *ChannelProvider) Healthy() error {
 		return errors.Wrap(err, "Can't create channel")
 	}
 	return nil
+}
+
+func dial(url string) (*amqp.Connection, error) {
+	var res *amqp.Connection
+	op := func() error {
+		var err error
+		cmdapp.Log.Info("Dial " + url)
+		res, err = amqp.Dial(url)
+		return err
+	}
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 2 * time.Minute
+	err := backoff.Retry(op, bo)
+	return res, err
 }
