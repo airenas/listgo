@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 	"github.com/cenkalti/backoff"
 	"github.com/streadway/amqp"
 
@@ -126,12 +127,15 @@ func dial(url string) (*amqp.Connection, error) {
 	var res *amqp.Connection
 	op := func() error {
 		var err error
-		cmdapp.Log.Info("Dial " + url)
+		cmdapp.Log.Info("Dial " + utils.URLToLog(url))
 		res, err = amqp.Dial(url)
 		return err
 	}
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 2 * time.Minute
 	err := backoff.Retry(op, bo)
+	if err != nil {
+		cmdapp.Log.Info("Connected to " + utils.URLToLog(url))
+	}
 	return res, err
 }

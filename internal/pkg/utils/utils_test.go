@@ -65,3 +65,12 @@ func TestValidateResponseTakesBody(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.True(t, strings.Contains(err.Error(), "errorX"))
 }
+
+func TestURLToLog(t *testing.T) {
+	assert.Equal(t, "", URLToLog(""))
+	assert.Equal(t, "http://delfi.lt", URLToLog("http://delfi.lt"))
+	assert.Equal(t, "http://delfi.lt:8080/aaa", URLToLog("http://delfi.lt:8080/aaa"))
+	assert.Equal(t, "http://user:xxxx@delfi.lt:8080/aaa", URLToLog("http://user:olia@delfi.lt:8080/aaa"))
+	assert.Equal(t, "http://user:xxxx@delfi.lt/aaa", URLToLog("http://user:olia@delfi.lt/aaa"))
+	assert.Equal(t, "ampq://user:xxxx@delfi.lt/aaa", URLToLog("ampq://user:olia@delfi.lt/aaa"))
+}
