@@ -127,15 +127,15 @@ func dial(url string) (*amqp.Connection, error) {
 	var res *amqp.Connection
 	op := func() error {
 		var err error
-		cmdapp.Log.Info("Dial " + utils.URLToLog(url))
+		cmdapp.Log.Info("Dial " + utils.HidePass(url))
 		res, err = amqp.Dial(url)
 		return err
 	}
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 2 * time.Minute
 	err := backoff.Retry(op, bo)
-	if err != nil {
-		cmdapp.Log.Info("Connected to " + utils.URLToLog(url))
+	if err == nil {
+		cmdapp.Log.Info("Connected to " + utils.HidePass(url))
 	}
 	return res, err
 }

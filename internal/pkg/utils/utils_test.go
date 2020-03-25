@@ -66,11 +66,16 @@ func TestValidateResponseTakesBody(t *testing.T) {
 	assert.True(t, strings.Contains(err.Error(), "errorX"))
 }
 
-func TestURLToLog(t *testing.T) {
-	assert.Equal(t, "", URLToLog(""))
-	assert.Equal(t, "http://delfi.lt", URLToLog("http://delfi.lt"))
-	assert.Equal(t, "http://delfi.lt:8080/aaa", URLToLog("http://delfi.lt:8080/aaa"))
-	assert.Equal(t, "http://user:xxxx@delfi.lt:8080/aaa", URLToLog("http://user:olia@delfi.lt:8080/aaa"))
-	assert.Equal(t, "http://user:xxxx@delfi.lt/aaa", URLToLog("http://user:olia@delfi.lt/aaa"))
-	assert.Equal(t, "ampq://user:xxxx@delfi.lt/aaa", URLToLog("ampq://user:olia@delfi.lt/aaa"))
+func TestHidePass(t *testing.T) {
+	assert.Equal(t, "", HidePass(""))
+	assert.Equal(t, "http://delfi.lt", HidePass("http://delfi.lt"))
+	assert.Equal(t, "http://delfi.lt:8080/aaa", HidePass("http://delfi.lt:8080/aaa"))
+	assert.Equal(t, "http://user:----@delfi.lt:8080/aaa", HidePass("http://user:olia@delfi.lt:8080/aaa"))
+	assert.Equal(t, "http://user:----@delfi.lt/aaa", HidePass("http://user:olia@delfi.lt/aaa"))
+	assert.Equal(t, "ampq://user:----@delfi.lt/aaa", HidePass("ampq://user:olia@delfi.lt/aaa"))
+}
+
+func TestHidePass_Mongo(t *testing.T) {
+	assert.Equal(t, "mongodb://mongo:27017", HidePass("mongodb://mongo:27017"))
+	assert.Equal(t, "mongodb://l:----@mongo:27017", HidePass("mongodb://l:olia@mongo:27017"))
 }

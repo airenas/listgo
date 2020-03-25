@@ -61,14 +61,15 @@ func ValidateResponse(resp *http.Response) error {
 	return nil
 }
 
-//URLToLog removes pass from URL
-func URLToLog(link string) string {
+//HidePass removes pass from URL
+func HidePass(link string) string {
 	u, err := url.Parse(link)
-	if err == nil {
-		if u.User != nil {
-			u.User = url.UserPassword(u.User.Username(), "xxxx")
-		}
-		return u.String()
+	if err != nil {
+		cmdapp.Log.Warn("Can't parse url.")
+		return ""
 	}
-	return link
+	if u.User != nil {
+		u.User = url.UserPassword(u.User.Username(), "----")
+	}
+	return u.String()
 }

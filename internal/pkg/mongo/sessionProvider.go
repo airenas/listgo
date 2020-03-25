@@ -1,10 +1,10 @@
 package mongo
 
 import (
-	"net/url"
 	"sync"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 	"github.com/globalsign/mgo"
 	"github.com/pkg/errors"
 )
@@ -51,7 +51,7 @@ func (sp *SessionProvider) NewSession() (*mgo.Session, error) {
 	defer sp.m.Unlock()
 
 	if sp.session == nil {
-		cmdapp.Log.Info("Dial mongo: " + hidePass(sp.URL))
+		cmdapp.Log.Info("Dial mongo: " + utils.HidePass(sp.URL))
 		session, err := mgo.Dial(sp.URL)
 		if err != nil {
 			return nil, errors.Wrap(err, "Can't dial to mongo")
@@ -87,19 +87,6 @@ func checkIndex(s *mgo.Session, indexData IndexData) error {
 		Sparse:     true,
 	}
 	return c.EnsureIndex(index)
-}
-
-func hidePass(s string) string {
-	u, err := url.Parse(s)
-	if err != nil {
-		cmdapp.Log.Warn("Can't parse mongo url.")
-		return ""
-	}
-	_, ps := u.User.Password()
-	if ps {
-		u.User = url.UserPassword(u.User.Username(), "----")
-	}
-	return u.String()
 }
 
 // Healthy checks if mongo DB is up
