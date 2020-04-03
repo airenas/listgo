@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
@@ -42,7 +43,11 @@ func (r *Runner) Close() error {
 
 	if r.cmd != nil && r.running && r.cmd.Process != nil {
 		cmdapp.Log.Infof("Closing pid: %d", r.cmd.Process.Pid)
-		return r.cmd.Process.Signal(syscall.SIGTERM)
+		err := r.cmd.Process.Signal(syscall.SIGTERM)
+		for r.running {
+			time.Sleep(10 * time.Millisecond)
+		}
+		return err
 	}
 	return nil
 }
@@ -54,7 +59,7 @@ func (r *Runner) Run(cmdStr string, envs []string) error {
 
 	cmdapp.Log.Infof("Running command: %s", cmdStr)
 	cmdapp.Log.Infof("Working Dir: %s", r.workingDir)
-	cmdArr := strings.Split(cmdStr, " ")
+	cmdArr := stringToArgs(cmdStr)
 	if len(cmdArr) < 1 {
 		return errors.Errorf("Wrong or no command '%s'.", cmdStr)
 	}
@@ -102,9 +107,46 @@ func (r *Runner) runCmd(cmd *exec.Cmd) {
 
 	err = cmd.Wait()
 	r.running = false
-	
+
 	if err != nil {
 		cmdapp.Log.Error(err)
 		r.processErr = err
 	}
+}
+
+func stringToArgs(str string) []string {
+	res := make([]string, 0)
+	w := ""
+	for len(str) > 0 {
+		w, str = getWord(str)
+		if w != "" {
+			res = append(res, w)
+		}
+	}
+	return res
+}
+
+func getWord(str string) (string, string) {
+	str = strings.TrimSpace(str)
+	if str == "" {
+		return "", ""
+	}
+	c := ' '
+	if str[0] == '"' || str[0] == '\'' {
+		c = rune(str[0])
+		str = str[1:]
+	}
+	pos := -1
+	for i, s := range str {
+		if s == c && !(i > 0 && str[i-1] == '\\') {
+			pos = i
+			break
+		}
+	}
+	if pos == -1 {
+		return str, ""
+	}
+	w := str[:pos]
+	str = strings.TrimSpace(str[pos+1:])
+	return w, str
 }

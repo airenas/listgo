@@ -7,6 +7,7 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 //ProcessRunner executes external process and manages it
@@ -28,9 +29,11 @@ type Manager struct {
 //NewManager creates LocalFileSaver instance
 func NewManager(prefix string, workingDir string) (*Manager, error) {
 	r, err := NewRunner(workingDir)
-	if (err != nil){
+	if err != nil {
 		return nil, err
 	}
+	r.outWriter = cmdapp.Log.Writer()
+	r.errWriter = cmdapp.Log.WriterLevel(logrus.ErrorLevel)
 	return newManager(prefix, r)
 }
 
