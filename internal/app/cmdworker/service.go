@@ -21,6 +21,11 @@ type RecInfoLoader interface {
 	Get(key string) (*recognizer.Info, error)
 }
 
+//PreloadTaskManager manages long running process, loaded by key before processing task
+type PreloadTaskManager interface {
+	EnsureRunning(map[string]string) error
+}
+
 // ServiceData keeps data required for service work
 type ServiceData struct {
 	TaskName   string
@@ -30,9 +35,10 @@ type ServiceData struct {
 	// changes {ID} in the file with message id
 	ResultFile string
 	//File to log into the cmd output
-	LogFile       string
-	ReadFunc      readFunc
-	RecInfoLoader RecInfoLoader
+	LogFile        string
+	ReadFunc       readFunc
+	RecInfoLoader  RecInfoLoader
+	PreloadManager PreloadTaskManager
 
 	MessageSender messages.Sender
 	WorkCh        <-chan amqp.Delivery
@@ -59,6 +65,9 @@ func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 	if data.RecInfoLoader == nil {
 		return nil, errors.New("No recognizer info loader")
 	}
+	if data.PreloadManager == nil {
+		return nil, errors.New("No Preload manager set")
+	}
 
 	fc := make(chan bool)
 
@@ -69,10 +78,17 @@ func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 //work is main method to process of the worker
 func work(data *ServiceData, msg *messages.QueueMessage) error {
 	cmdapp.Log.Infof("Got task %s for ID: %s, rec: %s", data.TaskName, msg.ID, msg.Recognizer)
-	envs, err := collectEnvParams(data, msg)
+	rp, err := data.RecInfoLoader.Get(msg.Recognizer)
 	if err != nil {
-		cmdapp.Log.Error(err)
+		return errors.Wrap(err, "Can't load description")
+	}
+	envs, err := collectEnvParams(rp, msg)
+	if err != nil {
 		return err
+	}
+	err = data.PreloadManager.EnsureRunning(rp.Settings)
+	if err != nil {
+		return errors.Wrap(err, "Can't init preload task")
 	}
 	logOutput := ioutil.Discard
 	if data.LogFile != "" {
@@ -85,12 +101,7 @@ func work(data *ServiceData, msg *messages.QueueMessage) error {
 			logOutput = f
 		}
 	}
-	err = RunCommand(data.Command, data.WorkingDir, msg.ID, envs, logOutput)
-	if err != nil {
-		cmdapp.Log.Error(err)
-		return err
-	}
-	return nil
+	return RunCommand(data.Command, data.WorkingDir, msg.ID, envs, logOutput)
 }
 
 func listenQueue(data *ServiceData, fc chan<- bool) {
@@ -125,11 +136,13 @@ func processMsg(d *amqp.Delivery, data *ServiceData) (messages.Message, error) {
 	result := messages.NewQueueMessageFromM(&message)
 	var res string
 	if err != nil {
+		cmdapp.Log.Error(err)
 		result.Error = err.Error()
 	} else {
 		if data.ResultFile != "" && d.ReplyTo != "" {
 			res, err = data.ReadFunc(data.ResultFile, message.ID)
 			if err != nil {
+				cmdapp.Log.Error(err)
 				result.Error = err.Error()
 			}
 		}
@@ -151,12 +164,7 @@ func ReadFile(file string, id string) (string, error) {
 	return string(bytes), nil
 }
 
-func collectEnvParams(data *ServiceData, msg *messages.QueueMessage) ([]string, error) {
-	rp, err := data.RecInfoLoader.Get(msg.Recognizer)
-	if err != nil {
-		return nil, errors.Wrap(err, "Can't load description")
-	}
-
+func collectEnvParams(rp *recognizer.Info, msg *messages.QueueMessage) ([]string, error) {
 	var res []string
 	for _, t := range msg.Tags {
 		res = append(res, fmt.Sprintf("%s=%s", strings.ToUpper(t.Key), t.Value))

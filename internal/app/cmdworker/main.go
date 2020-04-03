@@ -60,6 +60,9 @@ func run(cmd *cobra.Command, args []string) {
 	data.LogFile = cmdapp.Config.GetString("worker.logFile")
 	data.ReadFunc = ReadFile
 
+	data.PreloadManager, err = initPreloadManager()
+	cmdapp.CheckOrPanic(err, "Can't init preload task manager")
+
 	fc, err := StartWorkerService(&data)
 	cmdapp.CheckOrPanic(err, "Can't start service")
 
@@ -76,3 +79,24 @@ func validateConfig() error {
 	}
 	return nil
 }
+
+///////////////////////////////////////////////////////////////////////////////////
+// init prepload task manager
+///////////////////////////////////////////////////////////////////////////////////
+func initPreloadManager() (PreloadTaskManager, error) {
+	kp := cmdapp.Config.GetString("worker.preloadKeyPrefix")
+	if kp == "" {
+		return &fakePreloadManager{}, nil
+	} else {
+		return nil, errors.New("Not implemented")
+	}
+	return nil, nil
+}
+
+type fakePreloadManager struct{}
+
+func (pm *fakePreloadManager) EnsureRunning(map[string]string) error {
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////////

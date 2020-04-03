@@ -60,6 +60,8 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=recInfoLoader.go -m bitbucket.org/airenas/listgo/internal/app/cmdworker RecInfoLoader
 
+//go:generate pegomock generate --package=mocks --output=preloadTaskManager.go -m bitbucket.org/airenas/listgo/internal/app/cmdworker PreloadTaskManager
+
 //AttachMockToTest register pegomock verification to be passed to testing engine
 func AttachMockToTest(t *testing.T) {
 	pegomock.RegisterMockFailHandler(handleByTest(t))

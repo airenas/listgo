@@ -19,6 +19,7 @@ var ackMock *mocks.MockAcknowledger
 var message amqp.Delivery
 var msgSenderMock *mocks.MockSender
 var recInfoLoaderMock *mocks.MockRecInfoLoader
+var preloadTaskManagerMock *mocks.MockPreloadTaskManager
 
 func initTest(t *testing.T) {
 	mocks.AttachMockToTest(t)
@@ -28,6 +29,7 @@ func initTest(t *testing.T) {
 	message.Acknowledger = ackMock
 	msgSenderMock = mocks.NewMockSender()
 	recInfoLoaderMock = mocks.NewMockRecInfoLoader()
+	preloadTaskManagerMock = mocks.NewMockPreloadTaskManager()
 	pegomock.When(recInfoLoaderMock.Get(pegomock.AnyString())).ThenReturn(&recognizer.Info{}, nil)
 }
 
@@ -38,6 +40,7 @@ func initData(t *testing.T, wc chan amqp.Delivery) ServiceData {
 	data.TaskName = "olia"
 	data.MessageSender = msgSenderMock
 	data.RecInfoLoader = recInfoLoaderMock
+	data.PreloadManager = preloadTaskManagerMock
 	data.WorkCh = wc
 	return data
 }
@@ -90,6 +93,22 @@ func TestHandlesWhenTaskFails(t *testing.T) {
 	fc, _ := StartWorkerService(&data)
 
 	data.Command = "lsss"
+	message.ReplyTo = "rt"
+	wc <- message
+	close(wc)
+	<-fc // wait for complete
+	cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
+		pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
+	assert.NotEmpty(t, cMsg.(*messages.QueueMessage).Error)
+	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
+}
+
+func TestHandlesWhenPreloadFails(t *testing.T) {
+	initTest(t)
+	wc := make(chan amqp.Delivery)
+	data := initData(t, wc)
+	fc, _ := StartWorkerService(&data)
+	pegomock.When(preloadTaskManagerMock.EnsureRunning(matchers.AnyMapOfStringToString())).ThenReturn(errors.New("error"))
 	message.ReplyTo = "rt"
 	wc <- message
 	close(wc)
@@ -189,16 +208,10 @@ func TestCheckInputParametersNoFunction(t *testing.T) {
 
 func TestCheckInputParametersWithFunction(t *testing.T) {
 	initTest(t)
-	wc := make(chan amqp.Delivery)
-	data := ServiceData{}
-	data.Command = "ls -la"
-	data.WorkingDir = "."
-	data.TaskName = "olia"
-	data.WorkCh = wc
 
-	data.ResultFile = "olia"
+	wc := make(chan amqp.Delivery)
+	data := initData(t, wc)
 	data.ReadFunc = ReadFile
-	data.RecInfoLoader = recInfoLoaderMock
 	_, error := StartWorkerService(&data)
 	assert.Nil(t, error)
 }
@@ -208,6 +221,17 @@ func Test_NoRecInfoLoader(t *testing.T) {
 	wc := make(chan amqp.Delivery)
 	data := initData(t, wc)
 	data.RecInfoLoader = nil
+
+	_, err := StartWorkerService(&data)
+	assert.NotNil(t, err)
+	close(wc)
+}
+
+func Test_NoPreloadManager(t *testing.T) {
+	initTest(t)
+	wc := make(chan amqp.Delivery)
+	data := initData(t, wc)
+	data.PreloadManager = nil
 
 	_, err := StartWorkerService(&data)
 	assert.NotNil(t, err)
