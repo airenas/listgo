@@ -26,8 +26,12 @@ type Manager struct {
 }
 
 //NewManager creates LocalFileSaver instance
-func NewManager(prefix string) (*Manager, error) {
-	return newManager(prefix, &Runner{})
+func NewManager(prefix string, workingDir string) (*Manager, error) {
+	r, err := NewRunner(workingDir)
+	if (err != nil){
+		return nil, err
+	}
+	return newManager(prefix, r)
 }
 
 //NewManager creates LocalFileSaver instance
