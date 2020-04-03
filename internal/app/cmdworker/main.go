@@ -4,6 +4,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/config"
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
+	"bitbucket.org/airenas/listgo/internal/pkg/tasks"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -62,6 +63,7 @@ func run(cmd *cobra.Command, args []string) {
 
 	data.PreloadManager, err = initPreloadManager()
 	cmdapp.CheckOrPanic(err, "Can't init preload task manager")
+	defer data.PreloadManager.Close()
 
 	fc, err := StartWorkerService(&data)
 	cmdapp.CheckOrPanic(err, "Can't start service")
@@ -87,15 +89,17 @@ func initPreloadManager() (PreloadTaskManager, error) {
 	kp := cmdapp.Config.GetString("worker.preloadKeyPrefix")
 	if kp == "" {
 		return &fakePreloadManager{}, nil
-	} else {
-		return nil, errors.New("Not implemented")
 	}
-	return nil, nil
+	return tasks.NewManager(kp)
 }
 
 type fakePreloadManager struct{}
 
 func (pm *fakePreloadManager) EnsureRunning(map[string]string) error {
+	return nil
+}
+
+func (pm *fakePreloadManager) Close() error {
 	return nil
 }
 

@@ -24,6 +24,7 @@ type RecInfoLoader interface {
 //PreloadTaskManager manages long running process, loaded by key before processing task
 type PreloadTaskManager interface {
 	EnsureRunning(map[string]string) error
+	Close() error
 }
 
 // ServiceData keeps data required for service work
