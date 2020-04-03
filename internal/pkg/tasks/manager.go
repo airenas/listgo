@@ -90,7 +90,7 @@ func (m *Manager) start(key string, in map[string]string) error {
 	}
 	m.currentKey = key
 	if !m.runner.Running() {
-		return errors.Wrap(err, "Preload task is not running or terminated")
+		return errors.New("Preload task is not running or terminated")
 	}
 	return nil
 }
