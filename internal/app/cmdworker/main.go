@@ -90,7 +90,7 @@ func initPreloadManager() (PreloadTaskManager, error) {
 	if kp == "" {
 		return &fakePreloadManager{}, nil
 	}
-	return tasks.NewManager(kp)
+	return tasks.NewManager(kp, cmdapp.Config.GetString("worker.workingDir"))
 }
 
 type fakePreloadManager struct{}
