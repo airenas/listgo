@@ -79,9 +79,10 @@ func TestEnsure_StartOnNotRunning(t *testing.T) {
 func TestEnsure_CloseOnRunning(t *testing.T) {
 	m := newTestManager(t)
 	m.currentKey = "key"
-	pegomock.When(runnerMock.Running()).ThenReturn(true).ThenReturn(false)
+	pegomock.When(runnerMock.Running()).ThenReturn(false)
 	err := m.EnsureRunning(newMap("", "olia cmd"))
 	runnerMock.VerifyWasCalledOnce().Close()
+	runnerMock.VerifyWasCalled(pegomock.Never()).Run(pegomock.AnyString(), pegomock.AnyStringSlice())
 	assert.Nil(t, err)
 }
 

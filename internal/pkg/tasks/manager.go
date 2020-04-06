@@ -64,6 +64,7 @@ func (m *Manager) EnsureRunning(in map[string]string) error {
 			cmdapp.Log.Warn(err)
 		}
 		m.currentKey = ""
+		return nil
 	}
 
 	if key != m.currentKey {
@@ -78,7 +79,7 @@ func (m *Manager) EnsureRunning(in map[string]string) error {
 	}
 
 	if !m.runner.Running() {
-		cmdapp.Log.Info("Preload task is not running. rying to start...")
+		cmdapp.Log.Info("Preload task is not running. Trying to start...")
 		return m.start(key, in)
 	}
 	cmdapp.Log.Info("Preload task is running.")
