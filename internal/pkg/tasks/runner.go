@@ -43,13 +43,27 @@ func (r *Runner) Close() error {
 
 	if r.cmd != nil && r.running && r.cmd.Process != nil {
 		cmdapp.Log.Infof("Closing pid: %d", r.cmd.Process.Pid)
-		err := r.cmd.Process.Signal(syscall.SIGTERM)
+		syscall.Kill(r.cmd.Process.Pid, syscall.SIGTERM)
+		return r.waitForFinish()
+	}
+	return nil
+}
+
+func (r *Runner) waitForFinish() error {
+	c := make(chan bool, 1)
+	go func() {
 		for r.running {
 			time.Sleep(10 * time.Millisecond)
 		}
-		return err
+		c <- true
+	}()
+
+	select {
+	case <-c:
+		return nil
+	case <-time.After(10 * time.Second):
+		return errors.Errorf("Timeout waiting to finish")
 	}
-	return nil
 }
 
 // Run starts the preocess
@@ -65,6 +79,7 @@ func (r *Runner) Run(cmdStr string, envs []string) error {
 	}
 
 	r.cmd = exec.Command(cmdArr[0], cmdArr[1:]...)
+	r.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	r.cmd.Dir = r.workingDir
 	r.cmd.Env = os.Environ()
 	for _, env := range envs {
