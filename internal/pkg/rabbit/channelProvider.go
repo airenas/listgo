@@ -40,9 +40,6 @@ func NewChannelProvider() (*ChannelProvider, error) {
 	}
 	finalURL = finalURL + url
 	prefix := cmdapp.Config.GetString("messageServer.prefix")
-	if prefix == "" {
-		cmdapp.Log.Warning("No queue prefix 'messageServer.prefix' configured!")
-	}
 	return &ChannelProvider{url: finalURL, qPrefix: prefix}, nil
 }
 
