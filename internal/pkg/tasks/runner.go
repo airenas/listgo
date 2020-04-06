@@ -43,7 +43,7 @@ func (r *Runner) Close() error {
 
 	if r.cmd != nil && r.running && r.cmd.Process != nil {
 		cmdapp.Log.Infof("Closing pid: %d", r.cmd.Process.Pid)
-		syscall.Kill(r.cmd.Process.Pid, syscall.SIGTERM)
+		syscall.Kill(-r.cmd.Process.Pid, syscall.SIGTERM) // send terminate to group with -pid
 		return r.waitForFinish()
 	}
 	return nil
