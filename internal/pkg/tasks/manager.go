@@ -53,7 +53,7 @@ func newManager(prefix string, r ProcessRunner) (*Manager, error) {
 func (m *Manager) EnsureRunning(in map[string]string) error {
 	key, f := in[m.keyPrefix+"_key"]
 	if !f {
-		return errors.New("No preload key found for the task")
+		return errors.Errorf("No preload key '%s' found for the task", m.keyPrefix+"_key")
 	}
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -88,7 +88,7 @@ func (m *Manager) EnsureRunning(in map[string]string) error {
 func (m *Manager) start(key string, in map[string]string) error {
 	cmd, f := in[m.keyPrefix+"_cmd"]
 	if !f || cmd == "" {
-		return errors.New("No preload command found for the task")
+		return errors.Errorf("No preload command '%s' found for the task", m.keyPrefix+"_cmd")
 	}
 	cmdapp.Log.Info("Starting preload task " + cmd)
 	err := m.runner.Run(cmd, makeEnv(in))
