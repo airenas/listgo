@@ -7,7 +7,6 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 //ProcessRunner executes external process and manages it
@@ -32,8 +31,9 @@ func NewManager(prefix string, workingDir string) (*Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.outWriter = cmdapp.Log.Writer()
-	r.errWriter = cmdapp.Log.WriterLevel(logrus.ErrorLevel)
+	logWriter := cmdapp.Log.Writer()
+	r.outWriter = logWriter
+	r.errWriter = logWriter
 	return newManager(prefix, r)
 }
 
