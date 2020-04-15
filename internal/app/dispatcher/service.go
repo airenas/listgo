@@ -26,6 +26,7 @@ func StartWorkerService(data *ServiceData) error {
 		return errors.New("No Registration channel")
 	}
 	go listenRegistrationQueue(data)
+	go checkForExpiredWorkers(data.wrkrs)
 	return nil
 }
 

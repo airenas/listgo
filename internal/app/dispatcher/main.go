@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/streadway/amqp"
 )
 
 var appName = "LiST Dispatcher Service"
@@ -47,8 +48,9 @@ func run(cmd *cobra.Command, args []string) {
 	err = ch.Qos(1, 0, false)
 	cmdapp.CheckOrPanic(err, "Can't set Qos")
 
-	registrationQueue := cmdapp.Config.GetString("worker.registrationQueue")
+	registrationQueue := cmdapp.Config.GetString("messageServer.registrationQueue")
 
+	err = initRegistrationQueue(msgChannelProvider, registrationQueue)
 	data.RegistrationCh, err = rabbit.NewChannel(ch, registrationQueue)
 	cmdapp.CheckOrPanic(err, "Can't listen "+registrationQueue+" channel")
 
@@ -60,11 +62,18 @@ func run(cmd *cobra.Command, args []string) {
 }
 
 func validateConfig() error {
-	if cmdapp.Config.GetString("worker.taskName") == "" {
-		return errors.New("No worker.taskName configured")
-	}
-	if cmdapp.Config.GetString("worker.command") == "" {
-		return errors.New("No worker.command configured")
+	if cmdapp.Config.GetString("messageServer.registrationQueue") == "" {
+		return errors.New("No messageServer.registrationQueue configured")
 	}
 	return nil
+}
+
+func initRegistrationQueue(prv *rabbit.ChannelProvider, qName string) error {
+	return prv.RunOnChannelWithRetry(func(ch *amqp.Channel) error {
+		_, err := rabbit.DeclareQueue(ch, prv.QueueName(qName))
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 }
