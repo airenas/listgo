@@ -31,6 +31,23 @@ type InformMessage struct {
 	At   time.Time `json:"at"`
 }
 
+//ManagerMessage message for registering worker
+type ManagerMessage struct {
+	Queue     string `json:"queue"`
+	Timestamp int64  `json:"timestamp"` //time.Unix in seconds
+	Working   bool   `json:"working"`
+	Type      string `json:"type"` // see MngrTypeXxx consts
+}
+
+const (
+	//MngrTypeRegister indicates registration
+	MngrTypeRegister = "Register"
+	//MngrTypeExit stops worker
+	MngrTypeExit = "Exit"
+	//MngrTypeBeat alive beat
+	MngrTypeBeat = "Beat"
+)
+
 //NewQueueMessageFromM copies message
 func NewQueueMessageFromM(m *QueueMessage) *QueueMessage {
 	return &QueueMessage{ID: m.ID, Recognizer: m.Recognizer, Tags: m.Tags}

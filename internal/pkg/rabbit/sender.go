@@ -24,6 +24,11 @@ func NewSender(provider *ChannelProvider) *Sender {
 
 //Send sends the message
 func (sender *Sender) Send(message messages.Message, queue string, replyQueue string) error {
+	return sender.SendWithCorreration(message, queue, replyQueue, "")
+}
+
+//SendWithCorreration sends the message
+func (sender *Sender) SendWithCorreration(message messages.Message, queue string, replyQueue string, corrID string) error {
 	realQueue := sender.ChannelProvider.QueueName(queue)
 	cmdapp.Log.Infof("Sending message to %s", realQueue)
 
@@ -39,10 +44,11 @@ func (sender *Sender) Send(message messages.Message, queue string, replyQueue st
 			false, // mandatory
 			false,
 			amqp.Publishing{
-				DeliveryMode: amqp.Persistent,
-				ContentType:  "application/json",
-				Body:         msgBytes,
-				ReplyTo:      replyQueue,
+				DeliveryMode:  amqp.Persistent,
+				ContentType:   "application/json",
+				Body:          msgBytes,
+				ReplyTo:       replyQueue,
+				CorrelationId: corrID,
 			})
 	})
 	if err != nil {
