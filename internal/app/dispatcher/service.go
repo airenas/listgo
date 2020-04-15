@@ -15,23 +15,23 @@ type ServiceData struct {
 	fc    *utils.MultiCloseChannel
 	wrkrs *workers
 
-	MessageSender messages.Sender
-	ManagerCh     <-chan amqp.Delivery
+	MessageSender  messages.Sender
+	RegistrationCh <-chan amqp.Delivery
 }
 
 //StartWorkerService starts the event queue listener service to listen for manager and work events
 func StartWorkerService(data *ServiceData) error {
 	cmdapp.Log.Infof("Starting listen for messages")
-	if data.ManagerCh == nil {
-		return errors.New("No Manager channel")
+	if data.RegistrationCh == nil {
+		return errors.New("No Registration channel")
 	}
-	go listenManagerQueue(data)
+	go listenRegistrationQueue(data)
 	return nil
 }
 
-func listenManagerQueue(data *ServiceData) {
-	for d := range data.ManagerCh {
-		err := processManagerMsg(&d, data)
+func listenRegistrationQueue(data *ServiceData) {
+	for d := range data.RegistrationCh {
+		err := processRegistrationMsg(&d, data)
 		if err != nil {
 			cmdapp.Log.Error("Message error", err)
 		}
@@ -40,12 +40,12 @@ func listenManagerQueue(data *ServiceData) {
 			cmdapp.Log.Error("Ack error", err)
 		}
 	}
-	cmdapp.Log.Infof("Stopped listening manager queue")
+	cmdapp.Log.Infof("Stopped listening registration queue")
 	data.fc.Close()
 }
 
-func processManagerMsg(d *amqp.Delivery, data *ServiceData) error {
-	var message messages.ManagerMessage
+func processRegistrationMsg(d *amqp.Delivery, data *ServiceData) error {
+	var message messages.RegistrationMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
 		return errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
 	}

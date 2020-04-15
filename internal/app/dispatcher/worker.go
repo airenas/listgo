@@ -34,17 +34,17 @@ func newWorkers() *workers {
 	return res
 }
 
-func processWorker(wrks *workers, msg *messages.ManagerMessage) error {
+func processWorker(wrks *workers, msg *messages.RegistrationMessage) error {
 	if expired(time.Unix(msg.Timestamp, 0), time.Now()) {
 		return nil
 	}
-	if msg.Type == messages.MngrTypeExit {
+	if msg.Type == messages.RgrTypeExit {
 		return exitWorker(wrks, msg)
 	}
-	if msg.Type == messages.MngrTypeRegister {
+	if msg.Type == messages.RgrTypeRegister {
 		return registerWorker(wrks, msg)
 	}
-	if msg.Type == messages.MngrTypeBeat {
+	if msg.Type == messages.RgrTypeBeat {
 		return beatWorker(wrks, msg)
 	}
 	return errors.Errorf("Unknown msg type: '%s'", msg.Type)
@@ -54,7 +54,7 @@ func expired(t time.Time, now time.Time) bool {
 	return t.Add(120 * time.Second).Before(now)
 }
 
-func exitWorker(wrks *workers, msg *messages.ManagerMessage) error {
+func exitWorker(wrks *workers, msg *messages.RegistrationMessage) error {
 	wrks.lock.Lock()
 	defer wrks.lock.Unlock()
 
@@ -70,7 +70,7 @@ func exitWorker(wrks *workers, msg *messages.ManagerMessage) error {
 	return nil
 }
 
-func registerWorker(wrks *workers, msg *messages.ManagerMessage) error {
+func registerWorker(wrks *workers, msg *messages.RegistrationMessage) error {
 	wrks.lock.Lock()
 	defer wrks.lock.Unlock()
 
@@ -96,7 +96,7 @@ func dropWorker(wrks *workers, w *worker) {
 	go wrks.changedFunc()
 }
 
-func beatWorker(wrks *workers, msg *messages.ManagerMessage) error {
+func beatWorker(wrks *workers, msg *messages.RegistrationMessage) error {
 	return registerWorker(wrks, msg)
 }
 

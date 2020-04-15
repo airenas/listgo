@@ -47,10 +47,10 @@ func run(cmd *cobra.Command, args []string) {
 	err = ch.Qos(1, 0, false)
 	cmdapp.CheckOrPanic(err, "Can't set Qos")
 
-	managerQueue := cmdapp.Config.GetString("worker.managerQueue")
+	registrationQueue := cmdapp.Config.GetString("worker.registrationQueue")
 
-	data.ManagerCh, err = rabbit.NewChannel(ch, managerQueue)
-	cmdapp.CheckOrPanic(err, "Can't listen "+managerQueue+" channel")
+	data.RegistrationCh, err = rabbit.NewChannel(ch, registrationQueue)
+	cmdapp.CheckOrPanic(err, "Can't listen "+registrationQueue+" channel")
 
 	err = StartWorkerService(&data)
 	cmdapp.CheckOrPanic(err, "Can't start service")
