@@ -2,6 +2,7 @@ package dispatcher
 
 import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/config"
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
 	"bitbucket.org/airenas/listgo/internal/pkg/strategy"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
@@ -76,6 +77,11 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't init strategy")
 	data.selectionStrategy, err = newStrategyWrapper(strg)
 	cmdapp.CheckOrPanic(err, "Can't init strategy wrapper")
+
+	recProvider, err := config.NewFileRecognizerInfoLoader(cmdapp.Config.GetString("recognizerConfig.path"))
+	cmdapp.CheckOrPanic(err, "Can't init recognizer config (Did you provide correct setting 'recognizerConfig.path'?)")
+	data.modelTypeGetter, err = newTypeGetter(recProvider, cmdapp.Config.GetString("recognizerConfig.key"))
+	cmdapp.CheckOrPanic(err, "Can't init model type getter")
 
 	err = StartWorkerService(&data)
 	cmdapp.CheckOrPanic(err, "Can't start service")
