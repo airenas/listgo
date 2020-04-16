@@ -15,9 +15,10 @@ type task struct {
 	d   *amqp.Delivery
 	msg *messages.QueueMessage
 
-	requiredModelType string
-	expectedDuration  time.Duration
-	addedAt           time.Time
+	requiredModelType    string
+	expDuration          time.Duration
+	expModelLoadDuration time.Duration
+	addedAt              time.Time
 
 	worker    *worker
 	started   bool

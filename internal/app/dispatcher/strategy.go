@@ -45,7 +45,7 @@ func mapTasks(tsks *tasks) []*api.Task {
 		if !v.started {
 			nt := &api.Task{}
 			nt.TaskType = v.requiredModelType
-			nt.Duration = v.expectedDuration
+			nt.Duration = v.expDuration
 			nt.ArrivedAt = v.addedAt
 			res = append(res, nt)
 		}

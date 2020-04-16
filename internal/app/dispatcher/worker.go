@@ -131,10 +131,16 @@ func checkForExpired(wrks *workers, t time.Time) error {
 func (w *worker) completeTask() {
 	w.task = nil
 	w.working = false
+	w.endAt = time.Now()
 }
 
 func (w *worker) startTask(t *task) {
 	w.working = true
 	w.task = t
 	w.started = time.Now()
+	w.endAt = w.started.Add(t.expDuration)
+	if w.mType != t.requiredModelType {
+		w.mType = t.requiredModelType
+		w.endAt = w.endAt.Add(t.expModelLoadDuration)
+	}
 }

@@ -2,6 +2,7 @@ package dispatcher
 
 import (
 	"encoding/json"
+	"time"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
@@ -21,6 +22,7 @@ type ServiceData struct {
 	tsks  *tasks
 
 	selectionStrategy selectionStrategy
+	modelLoadDuration time.Duration
 
 	replySender messages.Sender
 	workSender  messages.Sender

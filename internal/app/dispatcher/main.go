@@ -71,7 +71,8 @@ func run(cmd *cobra.Command, args []string) {
 	data.WorkCh, err = initWorkQueue(msgWorkChannelProvider)
 	cmdapp.CheckOrPanic(err, "Can't listen channel")
 	//end work queue
-	strg, err := strategy.NewCost(cmdapp.Config.GetDuration("strategy.modelLoadDuration"))
+	data.modelLoadDuration = cmdapp.Config.GetDuration("strategy.modelLoadDuration")
+	strg, err := strategy.NewCost(data.modelLoadDuration)
 	cmdapp.CheckOrPanic(err, "Can't init strategy")
 	data.selectionStrategy, err = newStrategyWrapper(strg)
 	cmdapp.CheckOrPanic(err, "Can't init strategy wrapper")
