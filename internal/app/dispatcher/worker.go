@@ -33,6 +33,7 @@ func newWorkers() *workers {
 	res := &workers{}
 	res.lock = &sync.Mutex{}
 	res.workers = make(map[string]*worker)
+	res.changedFunc = func() {}
 	return res
 }
 
