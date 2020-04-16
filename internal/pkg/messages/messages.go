@@ -36,7 +36,7 @@ type RegistrationMessage struct {
 	Queue     string `json:"queue"`
 	Timestamp int64  `json:"timestamp"` //time.Unix in seconds
 	Working   bool   `json:"working"`
-	Type      string `json:"type"` // see MngrTypeXxx consts
+	Type      string `json:"type"` // see RgrTypeXxx consts
 }
 
 const (

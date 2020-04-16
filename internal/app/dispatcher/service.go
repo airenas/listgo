@@ -15,6 +15,18 @@ type selectionStrategy interface {
 	findBest(wrks []*worker, tsks *tasks, wi int) (*task, error)
 }
 
+type durationGetter interface {
+	Get(v string) (time.Duration, error)
+}
+
+type modelTypeGetter interface {
+	Get(v string) (string, error)
+}
+
+type startTimeGetter interface {
+	Get(tags []messages.Tag) (time.Time, error)
+}
+
 // ServiceData keeps data required for service work
 type ServiceData struct {
 	fc    *utils.MultiCloseChannel
@@ -23,6 +35,10 @@ type ServiceData struct {
 
 	selectionStrategy selectionStrategy
 	modelLoadDuration time.Duration
+
+	startTimeGetter startTimeGetter
+	modelTypeGetter modelTypeGetter
+	durationGetter  durationGetter
 
 	replySender messages.Sender
 	workSender  messages.Sender
@@ -35,6 +51,24 @@ type ServiceData struct {
 //StartWorkerService starts the event queue listener service to listen for manager and work events
 func StartWorkerService(data *ServiceData) error {
 	cmdapp.Log.Infof("Starting listen for messages")
+	err := validate(data)
+	if err != nil {
+		return err
+	}
+
+	data.tsks.changedFunc = func() { changed(data) }
+	data.wrkrs.changedFunc = func() { changed(data) }
+
+	go listenRegistrationQueue(data)
+	go checkForExpiredWorkers(data.wrkrs)
+
+	go listenWorkQueue(data)
+	go listenResponseQueue(data)
+
+	return nil
+}
+
+func validate(data *ServiceData) error {
 	if data.RegistrationCh == nil {
 		return errors.New("No Registration channel")
 	}
@@ -50,16 +84,18 @@ func StartWorkerService(data *ServiceData) error {
 	if data.workSender == nil {
 		return errors.New("No work sender")
 	}
-
-	data.tsks.changedFunc = func() { changed(data) }
-	data.wrkrs.changedFunc = func() { changed(data) }
-
-	go listenRegistrationQueue(data)
-	go checkForExpiredWorkers(data.wrkrs)
-
-	go listenWorkQueue(data)
-	go listenResponseQueue(data)
-
+	if data.durationGetter == nil {
+		return errors.New("No duration getter")
+	}
+	if data.modelTypeGetter == nil {
+		return errors.New("No model type getter")
+	}
+	if data.selectionStrategy == nil {
+		return errors.New("No selection strategy")
+	}
+	if data.startTimeGetter == nil {
+		return errors.New("No start time getter")
+	}
 	return nil
 }
 
@@ -119,7 +155,24 @@ func processWorkMsg(data *ServiceData, d *amqp.Delivery) error {
 
 func addTask(data *ServiceData, d *amqp.Delivery, msg *messages.QueueMessage) error {
 	cmdapp.Log.Infof("Got task %s", msg.ID)
-	return data.tsks.addTask(d, msg)
+	t := newTask()
+	t.d = d
+	t.msg = msg
+	var err error
+	t.addedAt, err = data.startTimeGetter.Get(msg.Tags)
+	if err != nil {
+		cmdapp.Log.Error(err, "Can't get startTime")
+	}
+	t.expModelLoadDuration = data.modelLoadDuration
+	t.expDuration, err = data.durationGetter.Get(msg.ID)
+	if err != nil {
+		cmdapp.Log.Error(err, "Can't get duration")
+	}
+	t.requiredModelType, err = data.modelTypeGetter.Get(msg.Recognizer)
+	if err != nil {
+		cmdapp.Log.Error(err, "Can't get model type")
+	}
+	return data.tsks.addTask(t)
 }
 
 // the main task deliver procedure

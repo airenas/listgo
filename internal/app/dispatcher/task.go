@@ -51,13 +51,10 @@ func failRequeueTask(t *task) {
 	t.failCount++
 }
 
-func (ts *tasks) addTask(d *amqp.Delivery, msg *messages.QueueMessage) error {
+func (ts *tasks) addTask(t *task) error {
 	ts.lock.Lock()
 	defer ts.lock.Unlock()
-	t := newTask()
-	t.d = d
-	t.msg = msg
-	ts.tsks[msg.ID] = t
+	ts.tsks[t.msg.ID] = t
 	go ts.changedFunc()
 	return nil
 }
