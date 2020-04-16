@@ -15,8 +15,9 @@ type task struct {
 	d   *amqp.Delivery
 	msg *messages.QueueMessage
 
-	responseQueue string
-	workType      string
+	requiredModelType string
+	expectedDuration  time.Duration
+	addedAt           time.Time
 
 	worker    *worker
 	started   bool
@@ -102,7 +103,7 @@ func (t *task) startOn(w *worker, sender messages.Sender) error {
 	cmdapp.Log.Infof("Delivering the task %s", t.msg.ID)
 	err := sender.Send(t.msg, w.queue, t.msg.ID)
 	if err != nil {
-		return errors.Wrap(err, "Can't send msg to "+t.responseQueue)
+		return errors.Wrap(err, "Can't send msg")
 	}
 	w.startTask(t)
 	t.worker = w

@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
+	"bitbucket.org/airenas/listgo/internal/pkg/strategy"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
 	"github.com/pkg/errors"
@@ -70,6 +71,10 @@ func run(cmd *cobra.Command, args []string) {
 	data.WorkCh, err = initWorkQueue(msgWorkChannelProvider)
 	cmdapp.CheckOrPanic(err, "Can't listen channel")
 	//end work queue
+	strg, err := strategy.NewCost(cmdapp.Config.GetDuration("strategy.modelLoadDuration"))
+	cmdapp.CheckOrPanic(err, "Can't init strategy")
+	data.selectionStrategy, err = newStrategyWrapper(strg)
+	cmdapp.CheckOrPanic(err, "Can't init strategy wrapper")
 
 	err = StartWorkerService(&data)
 	cmdapp.CheckOrPanic(err, "Can't start service")

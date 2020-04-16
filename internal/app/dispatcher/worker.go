@@ -16,6 +16,8 @@ type worker struct {
 
 	task    *task
 	started time.Time
+	mType   string
+	endAt   time.Time
 }
 
 type changedFunc func()

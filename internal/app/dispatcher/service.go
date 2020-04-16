@@ -10,11 +10,17 @@ import (
 	"github.com/streadway/amqp"
 )
 
+type selectionStrategy interface {
+	findBest(wrks []*worker, tsks *tasks, wi int) (*task, error)
+}
+
 // ServiceData keeps data required for service work
 type ServiceData struct {
 	fc    *utils.MultiCloseChannel
 	wrkrs *workers
 	tsks  *tasks
+
+	selectionStrategy selectionStrategy
 
 	replySender messages.Sender
 	workSender  messages.Sender
@@ -125,7 +131,7 @@ func changed(data *ServiceData) {
 	}
 	for i, w := range wrks {
 		if w.working == false {
-			t, err := getTask(data, wrks, data.tsks, i)
+			t, err := data.selectionStrategy.findBest(wrks, data.tsks, i)
 			if err != nil {
 				cmdapp.Log.Error("Can't get task", err)
 			}
@@ -137,13 +143,4 @@ func changed(data *ServiceData) {
 			}
 		}
 	}
-}
-
-func getTask(data *ServiceData, wrks []*worker, tsks *tasks, wi int) (*task, error) {
-	for _, t := range tsks.tsks {
-		if !t.started {
-			return t, nil
-		}
-	}
-	return nil, nil
 }
