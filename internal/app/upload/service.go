@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"bitbucket.org/airenas/listgo/internal/app/upload/api"
 
@@ -143,7 +144,8 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tags := []messages.Tag{messages.NewTag("number_of_speakers", numberOfSpeakers)}
+	tags := []messages.Tag{messages.NewTag(messages.TagNumberOfSpeakers, numberOfSpeakers),
+		messages.NewTag(messages.TagTimestamp, strconv.FormatInt(time.Now().Unix(), 10))}
 
 	err = h.data.MessageSender.Send(messages.NewQueueMessage(id, recID, tags), messages.Decode, "")
 	if err != nil {

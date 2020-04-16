@@ -10,6 +10,13 @@ type Tag struct {
 	Value string `json:"value"`
 }
 
+const (
+	//TagTimestamp transcription add time in time.Unix()
+	TagTimestamp = "timestamp"
+	//TagNumberOfSpeakers number of speakers arameter
+	TagNumberOfSpeakers = "number_of_speakers"
+)
+
 //QueueMessage message going throuht broker
 type QueueMessage struct {
 	ID         string `json:"id"`

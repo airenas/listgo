@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -305,7 +306,30 @@ func TestPOST_NumberOfSpeakersPassed(t *testing.T) {
 	assert.Equal(t, messages.Decode, q)
 	assert.NotNil(t, qmsg)
 	assert.NotNil(t, qmsg.Tags)
-	assert.Equal(t, "2", getTag(qmsg.Tags, "number_of_speakers"))
+	assert.Equal(t, "2", getTag(qmsg.Tags, messages.TagNumberOfSpeakers))
+}
+
+func TestPOST_TimestampAdded(t *testing.T) {
+	initTest(t)
+	req := newReqMap("file.wav", map[string]string{"email": "a@a.lt",
+		"recognizer": "rec"})
+	resp := httptest.NewRecorder()
+	newRouter().ServeHTTP(resp, req)
+
+	msg, q, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
+		pegomock.AnyString()).GetCapturedArguments()
+
+	assert.Equal(t, messages.Decode, q)
+	qmsg, ok := msg.(*messages.QueueMessage)
+	assert.True(t, ok)
+	assert.Equal(t, messages.Decode, q)
+	assert.NotNil(t, qmsg)
+	assert.NotNil(t, qmsg.Tags)
+	s := getTag(qmsg.Tags, messages.TagTimestamp)
+	ti, _ := strconv.Atoi(s)
+	sTime := time.Unix(int64(ti), 0)
+	assert.True(t, time.Now().Add(time.Second).After(sTime))
+	assert.True(t, time.Now().Add(-time.Second).Before(sTime))
 }
 
 func TestPOST_NumberOfSpeakersNotPassed(t *testing.T) {
@@ -323,7 +347,7 @@ func TestPOST_NumberOfSpeakersNotPassed(t *testing.T) {
 	assert.True(t, ok)
 	assert.NotNil(t, qmsg)
 	assert.NotNil(t, qmsg.Tags)
-	assert.Equal(t, "", getTag(qmsg.Tags, "number_of_speakers"))
+	assert.Equal(t, "", getTag(qmsg.Tags, messages.TagNumberOfSpeakers))
 }
 
 func TestPOST_FailOnUnknownFormData(t *testing.T) {
