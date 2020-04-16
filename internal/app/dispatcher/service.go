@@ -14,9 +14,14 @@ import (
 type ServiceData struct {
 	fc    *utils.MultiCloseChannel
 	wrkrs *workers
+	tsks  *tasks
 
-	MessageSender  messages.Sender
+	replySender messages.Sender
+	workSender  messages.Sender
+
 	RegistrationCh <-chan amqp.Delivery
+	WorkCh         <-chan amqp.Delivery
+	ResponseCh     <-chan amqp.Delivery
 }
 
 //StartWorkerService starts the event queue listener service to listen for manager and work events
@@ -25,14 +30,34 @@ func StartWorkerService(data *ServiceData) error {
 	if data.RegistrationCh == nil {
 		return errors.New("No Registration channel")
 	}
+	if data.WorkCh == nil {
+		return errors.New("No Work channel")
+	}
+	if data.ResponseCh == nil {
+		return errors.New("No Response channel")
+	}
+	if data.replySender == nil {
+		return errors.New("No reply sender")
+	}
+	if data.workSender == nil {
+		return errors.New("No work sender")
+	}
+
+	data.tsks.changedFunc = func() { changed(data) }
+	data.wrkrs.changedFunc = func() { changed(data) }
+
 	go listenRegistrationQueue(data)
 	go checkForExpiredWorkers(data.wrkrs)
+
+	go listenWorkQueue(data)
+	go listenResponseQueue(data)
+
 	return nil
 }
 
 func listenRegistrationQueue(data *ServiceData) {
 	for d := range data.RegistrationCh {
-		err := processRegistrationMsg(&d, data)
+		err := processRegistrationMsg(data, &d)
 		if err != nil {
 			cmdapp.Log.Error("Message error", err)
 		}
@@ -45,7 +70,30 @@ func listenRegistrationQueue(data *ServiceData) {
 	data.fc.Close()
 }
 
-func processRegistrationMsg(d *amqp.Delivery, data *ServiceData) error {
+func listenWorkQueue(data *ServiceData) {
+	for d := range data.WorkCh {
+		err := processWorkMsg(data, &d)
+		if err != nil {
+			cmdapp.Log.Error("Message error", err)
+			d.Nack(false, false)
+		}
+	}
+	cmdapp.Log.Infof("Stopped listening work queue")
+	data.fc.Close()
+}
+
+func listenResponseQueue(data *ServiceData) {
+	for d := range data.ResponseCh {
+		err := data.tsks.processResponse(&d, data.replySender)
+		if err != nil {
+			cmdapp.Log.Error("Message error", err)
+		}
+	}
+	cmdapp.Log.Infof("Stopped listening work queue")
+	data.fc.Close()
+}
+
+func processRegistrationMsg(data *ServiceData, d *amqp.Delivery) error {
 	var message messages.RegistrationMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
 		return errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
@@ -53,6 +101,49 @@ func processRegistrationMsg(d *amqp.Delivery, data *ServiceData) error {
 	return processWorker(data.wrkrs, &message)
 }
 
-func changed() {
+func processWorkMsg(data *ServiceData, d *amqp.Delivery) error {
+	var msg messages.QueueMessage
+	if err := json.Unmarshal(d.Body, &msg); err != nil {
+		return errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
+	}
+	return addTask(data, d, &msg)
+}
 
+func addTask(data *ServiceData, d *amqp.Delivery, msg *messages.QueueMessage) error {
+	cmdapp.Log.Infof("Got task %s", msg.ID)
+	return data.tsks.addTask(d, msg)
+}
+
+// the main task deliver procedure
+func changed(data *ServiceData) {
+	data.wrkrs.lock.Lock()
+	defer data.wrkrs.lock.Unlock()
+
+	wrks := make([]*worker, 0)
+	for _, k := range data.wrkrs.workers {
+		wrks = append(wrks, k)
+	}
+	for i, w := range wrks {
+		if w.working == false {
+			t, err := getTask(data, wrks, data.tsks, i)
+			if err != nil {
+				cmdapp.Log.Error("Can't get task", err)
+			}
+			if t != nil {
+				err = t.startOn(w, data.workSender)
+				if err != nil {
+					cmdapp.Log.Error("Can't start task", err)
+				}
+			}
+		}
+	}
+}
+
+func getTask(data *ServiceData, wrks []*worker, tsks *tasks, wi int) (*task, error) {
+	for _, t := range tsks.tsks {
+		if !t.started {
+			return t, nil
+		}
+	}
+	return nil, nil
 }

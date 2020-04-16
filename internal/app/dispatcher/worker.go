@@ -14,7 +14,8 @@ type worker struct {
 	beatTime time.Time
 	working  bool
 
-	task *task
+	task    *task
+	started time.Time
 }
 
 type changedFunc func()
@@ -30,7 +31,6 @@ func newWorkers() *workers {
 	res := &workers{}
 	res.lock = &sync.Mutex{}
 	res.workers = make(map[string]*worker)
-	res.changedFunc = changed
 	return res
 }
 
@@ -124,4 +124,15 @@ func checkForExpired(wrks *workers, t time.Time) error {
 		}
 	}
 	return nil
+}
+
+func (w *worker) completeTask() {
+	w.task = nil
+	w.working = false
+}
+
+func (w *worker) startTask(t *task) {
+	w.working = true
+	w.task = t
+	w.started = time.Now()
 }

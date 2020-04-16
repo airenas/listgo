@@ -36,12 +36,14 @@ func run(cmd *cobra.Command, args []string) {
 	data := ServiceData{}
 	data.fc = utils.NewMultiCloseChannel()
 	data.wrkrs = newWorkers()
+	data.tsks = newTasks()
 
 	msgChannelProvider, err := rabbit.NewChannelProvider()
 	cmdapp.CheckOrPanic(err, "Can't init rabbit channel provider")
 	defer msgChannelProvider.Close()
 
-	data.MessageSender = rabbit.NewSender(msgChannelProvider)
+	rbSender := rabbit.NewSender(msgChannelProvider)
+	data.replySender = rbSender
 
 	ch, err := msgChannelProvider.Channel()
 	cmdapp.CheckOrPanic(err, "Can't open channel")
@@ -54,6 +56,21 @@ func run(cmd *cobra.Command, args []string) {
 	data.RegistrationCh, err = rabbit.NewChannel(ch, registrationQueue)
 	cmdapp.CheckOrPanic(err, "Can't listen "+registrationQueue+" channel")
 
+	respQName := ""
+	data.ResponseCh, respQName, err = initResponseQueue(ch)
+	cmdapp.CheckOrPanic(err, "Can't init response queue")
+	data.workSender, err = newMsgWithCorrSender(rbSender, respQName)
+	cmdapp.CheckOrPanic(err, "Can't init work queue sender")
+
+	// work queue initialization
+	msgWorkChannelProvider, err := rabbit.NewChannelProvider()
+	cmdapp.CheckOrPanic(err, "Can't init rabbit work channel provider")
+	defer msgWorkChannelProvider.Close()
+
+	data.WorkCh, err = initWorkQueue(msgWorkChannelProvider)
+	cmdapp.CheckOrPanic(err, "Can't listen channel")
+	//end work queue
+
 	err = StartWorkerService(&data)
 	cmdapp.CheckOrPanic(err, "Can't start service")
 
@@ -61,13 +78,18 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Infof("Exiting service")
 }
 
+///////////////////////////////////////////////////////////////////////////
 func validateConfig() error {
 	if cmdapp.Config.GetString("messageServer.registrationQueue") == "" {
 		return errors.New("No messageServer.registrationQueue configured")
 	}
+	if cmdapp.Config.GetString("dispatcher.workQueue") == "" {
+		return errors.New("No dispatcher.workQueue configured")
+	}
 	return nil
 }
 
+///////////////////////////////////////////////////////////////////////////
 func initRegistrationQueue(prv *rabbit.ChannelProvider, qName string) error {
 	return prv.RunOnChannelWithRetry(func(ch *amqp.Channel) error {
 		_, err := rabbit.DeclareQueue(ch, prv.QueueName(qName))
@@ -76,4 +98,48 @@ func initRegistrationQueue(prv *rabbit.ChannelProvider, qName string) error {
 		}
 		return nil
 	})
+}
+
+///////////////////////////////////////////////////////////////////////////
+func initResponseQueue(ch *amqp.Channel) (<-chan amqp.Delivery, string, error) {
+	q, err := ch.QueueDeclare("", // name
+		false, // durable
+		true,  // delete when unused
+		true,  // exclusive
+		false, // noWait
+		nil,   // arguments
+	)
+	if err != nil {
+		return nil, "", errors.Wrap(err, "Can't init queue")
+	}
+	cd, err := ch.Consume(
+		q.Name, // queue
+		"",     // consumer
+		true,   // auto-ack
+		false,  // exclusive
+		false,  // no-local
+		false,  // no-wait
+		nil,    // args
+	)
+	return cd, q.Name, err
+}
+
+///////////////////////////////////////////////////////////////////////////
+func initWorkQueue(chPrv *rabbit.ChannelProvider) (<-chan amqp.Delivery, error) {
+	workCh, err := chPrv.Channel()
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't open work channel")
+	}
+	preload := cmdapp.Config.GetInt("dispatcher.preload")
+	cmdapp.Log.Infof("Msg preload count %d", preload)
+	err = workCh.Qos(preload, 0, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't set Qos for work channel")
+	}
+	workQueue := cmdapp.Config.GetString("dispatcher.workQueue")
+	wCh, err := rabbit.NewChannel(workCh, workQueue)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't listen "+workQueue+" channel")
+	}
+	return wCh, nil
 }
