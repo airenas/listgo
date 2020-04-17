@@ -7,6 +7,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/recognizer"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"github.com/petergtz/pegomock"
@@ -42,6 +43,7 @@ func initData(t *testing.T, wc chan amqp.Delivery) ServiceData {
 	data.RecInfoLoader = recInfoLoaderMock
 	data.PreloadManager = preloadTaskManagerMock
 	data.WorkCh = wc
+	data.quitChannel = utils.NewMultiCloseChannel()
 	return data
 }
 
@@ -50,11 +52,11 @@ func TestHandlesWrongMessages(t *testing.T) {
 	wc := make(chan amqp.Delivery)
 	data := initData(t, wc)
 
-	fc, _ := StartWorkerService(&data)
+	StartWorkerService(&data)
 	message.Body = make([]byte, 0)
 	wc <- message
 	close(wc)
-	<-fc // wait for complete
+	<-data.quitChannel.C // wait for complete
 	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
 	ackMock.VerifyWasCalledOnce().Nack(pegomock.AnyUint64(), pegomock.AnyBool(), pegomock.AnyBool())
 }
@@ -63,12 +65,12 @@ func TestHandlesWrongWithReply(t *testing.T) {
 	initTest(t)
 	wc := make(chan amqp.Delivery)
 	data := initData(t, wc)
-	fc, _ := StartWorkerService(&data)
+	StartWorkerService(&data)
 
 	message.ReplyTo = "rt"
 	wc <- message
 	close(wc)
-	<-fc // wait for complete
+	<-data.quitChannel.C // wait for complete
 	msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
 	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 }
@@ -77,11 +79,11 @@ func TestHandlesGoodNoReply(t *testing.T) {
 	initTest(t)
 	wc := make(chan amqp.Delivery)
 	data := initData(t, wc)
-	fc, _ := StartWorkerService(&data)
+	StartWorkerService(&data)
 
 	wc <- message
 	close(wc)
-	<-fc // wait for complete
+	<-data.quitChannel.C // wait for complete
 	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
 	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 }
@@ -90,13 +92,13 @@ func TestHandlesWhenTaskFails(t *testing.T) {
 	initTest(t)
 	wc := make(chan amqp.Delivery)
 	data := initData(t, wc)
-	fc, _ := StartWorkerService(&data)
+	StartWorkerService(&data)
 
 	data.Command = "lsss"
 	message.ReplyTo = "rt"
 	wc <- message
 	close(wc)
-	<-fc // wait for complete
+	<-data.quitChannel.C // wait for complete
 	cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
 		pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
 	assert.NotEmpty(t, cMsg.(*messages.QueueMessage).Error)
@@ -107,12 +109,12 @@ func TestHandlesWhenPreloadFails(t *testing.T) {
 	initTest(t)
 	wc := make(chan amqp.Delivery)
 	data := initData(t, wc)
-	fc, _ := StartWorkerService(&data)
+	StartWorkerService(&data)
 	pegomock.When(preloadTaskManagerMock.EnsureRunning(matchers.AnyMapOfStringToString())).ThenReturn(errors.New("error"))
 	message.ReplyTo = "rt"
 	wc <- message
 	close(wc)
-	<-fc // wait for complete
+	<-data.quitChannel.C // wait for complete
 	cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
 		pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
 	assert.NotEmpty(t, cMsg.(*messages.QueueMessage).Error)
@@ -123,7 +125,7 @@ func TestHandlesLoaderFails(t *testing.T) {
 	initTest(t)
 	wc := make(chan amqp.Delivery)
 	data := initData(t, wc)
-	fc, _ := StartWorkerService(&data)
+	StartWorkerService(&data)
 
 	pegomock.When(recInfoLoaderMock.Get(pegomock.AnyString())).ThenReturn(nil, errors.New("error"))
 	message.ReplyTo = "rt"
@@ -131,7 +133,7 @@ func TestHandlesLoaderFails(t *testing.T) {
 	wc <- message
 	close(wc)
 
-	<-fc // wait for complete
+	<-data.quitChannel.C // wait for complete
 	cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
 		pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
 	assert.NotEmpty(t, cMsg.(*messages.QueueMessage).Error)
@@ -142,12 +144,12 @@ func TestHandlesLoaderFailsWithNoReply(t *testing.T) {
 	initTest(t)
 	wc := make(chan amqp.Delivery)
 	data := initData(t, wc)
-	fc, _ := StartWorkerService(&data)
+	StartWorkerService(&data)
 
 	pegomock.When(recInfoLoaderMock.Get(pegomock.AnyString())).ThenReturn(nil, errors.New("error"))
 	wc <- message
 	close(wc)
-	<-fc // wait for complete
+	<-data.quitChannel.C // wait for complete
 	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 }
 
@@ -155,7 +157,7 @@ func TestHandlesResultRequired(t *testing.T) {
 	initTest(t)
 	wc := make(chan amqp.Delivery)
 	data := initData(t, wc)
-	fc, _ := StartWorkerService(&data)
+	StartWorkerService(&data)
 
 	data.ReadFunc = func(file string, id string) (string, error) {
 		return "olia", nil
@@ -165,7 +167,7 @@ func TestHandlesResultRequired(t *testing.T) {
 
 	wc <- message
 	close(wc)
-	<-fc // wait for complete
+	<-data.quitChannel.C // wait for complete
 	cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
 		pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
 	assert.Equal(t, cMsg.(*messages.ResultMessage).Result, "olia")
@@ -176,7 +178,7 @@ func TestHandlesWithResultFailing(t *testing.T) {
 	initTest(t)
 	wc := make(chan amqp.Delivery)
 	data := initData(t, wc)
-	fc, _ := StartWorkerService(&data)
+	StartWorkerService(&data)
 
 	data.ReadFunc = func(file string, id string) (string, error) {
 		return "", errors.New("error")
@@ -186,7 +188,7 @@ func TestHandlesWithResultFailing(t *testing.T) {
 
 	wc <- message
 	close(wc)
-	<-fc // wait for completeBuildTestingFailHandler
+	<-data.quitChannel.C // wait for completeBuildTestingFailHandler
 	cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
 		pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
 	assert.NotEmpty(t, cMsg.(*messages.ResultMessage).Error)
@@ -202,7 +204,7 @@ func TestCheckInputParametersNoFunction(t *testing.T) {
 	data.WorkCh = wc
 
 	data.ResultFile = "olia"
-	_, error := StartWorkerService(&data)
+	error := StartWorkerService(&data)
 	assert.NotNil(t, error)
 }
 
@@ -212,7 +214,7 @@ func TestCheckInputParametersWithFunction(t *testing.T) {
 	wc := make(chan amqp.Delivery)
 	data := initData(t, wc)
 	data.ReadFunc = ReadFile
-	_, error := StartWorkerService(&data)
+	error := StartWorkerService(&data)
 	assert.Nil(t, error)
 }
 
@@ -222,7 +224,7 @@ func Test_NoRecInfoLoader(t *testing.T) {
 	data := initData(t, wc)
 	data.RecInfoLoader = nil
 
-	_, err := StartWorkerService(&data)
+	err := StartWorkerService(&data)
 	assert.NotNil(t, err)
 	close(wc)
 }
@@ -233,7 +235,7 @@ func Test_NoPreloadManager(t *testing.T) {
 	data := initData(t, wc)
 	data.PreloadManager = nil
 
-	_, err := StartWorkerService(&data)
+	err := StartWorkerService(&data)
 	assert.NotNil(t, err)
 	close(wc)
 }

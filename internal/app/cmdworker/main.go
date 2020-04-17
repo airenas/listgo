@@ -1,10 +1,14 @@
 package cmdworker
 
 import (
+	"io"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/config"
+	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
 	"bitbucket.org/airenas/listgo/internal/pkg/tasks"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -36,6 +40,7 @@ func run(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 	data := ServiceData{}
+	data.quitChannel = utils.NewSignalChannel()
 
 	data.RecInfoLoader, err = config.NewFileRecognizerInfoLoader(cmdapp.Config.GetString("recognizerConfig.path"))
 	cmdapp.CheckOrPanic(err, "Can't init recognizer info loader config (Did you provide correct setting 'recognizerConfig.path'?)")
@@ -44,11 +49,11 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't init rabbit channel provider")
 	defer msgChannelProvider.Close()
 
-	data.MessageSender = rabbit.NewSender(msgChannelProvider)
+	rabbitSender := rabbit.NewSender(msgChannelProvider)
+	data.MessageSender = rabbitSender
 	queueName := ""
 	data.WorkCh, queueName, err = initWorkQueue(msgChannelProvider)
 	cmdapp.CheckOrPanic(err, "Can't connect/prepare work queue")
-	_ = queueName
 
 	data.Name = cmdapp.Config.GetString("worker.name")
 	data.Command = cmdapp.Config.GetString("worker.command")
@@ -61,10 +66,14 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't init preload task manager")
 	defer data.PreloadManager.Close()
 
-	fc, err := StartWorkerService(&data)
+	registrator, err := initRegistrator(rabbitSender, queueName, data.quitChannel)
+	cmdapp.CheckOrPanic(err, "Can't start registrator")
+	defer registrator.Close()
+
+	err = StartWorkerService(&data)
 	cmdapp.CheckOrPanic(err, "Can't start service")
 
-	<-fc
+	<-data.quitChannel.C
 	cmdapp.Log.Infof("Exiting service")
 }
 
@@ -150,3 +159,20 @@ func initWorkQueue(msgChannelProvider *rabbit.ChannelProvider) (<-chan amqp.Deli
 	cmdapp.Log.Infof("Creating private worker queue")
 	return getPrivateQueue(ch)
 }
+
+///////////////////////////////////////////////////////////////////////////
+func initRegistrator(sender messages.Sender, qName string, closeChan *utils.MultiCloseChannel) (io.Closer, error) {
+	rQueue := cmdapp.Config.GetString("registry.queue")
+	if rQueue != "" {
+		return newQueueRegistrator(sender, qName, closeChan)
+	}
+	return &fakeCloser{}, nil
+}
+
+type fakeCloser struct{}
+
+func (fc *fakeCloser) Close() error {
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////

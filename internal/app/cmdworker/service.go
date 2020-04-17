@@ -10,6 +10,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/recognizer"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
@@ -43,6 +44,7 @@ type ServiceData struct {
 
 	MessageSender messages.Sender
 	WorkCh        <-chan amqp.Delivery
+	quitChannel   *utils.MultiCloseChannel
 }
 
 //StartWorkerService starts the event queue listener service to listen for configured events
@@ -52,28 +54,26 @@ type ServiceData struct {
 // fc, err := StartWorkerService(data)
 // handle err
 // <-fc // waits for finish
-func StartWorkerService(data *ServiceData) (<-chan bool, error) {
+func StartWorkerService(data *ServiceData) error {
 	cmdapp.Log.Infof("Starting listen for messages")
 	if data.Name == "" {
-		return nil, errors.New("No Name")
+		return errors.New("No Name")
 	}
 	if data.Command == "" {
-		return nil, errors.New("No command")
+		return errors.New("No command")
 	}
 	if data.ResultFile != "" && data.ReadFunc == nil {
-		return nil, errors.New("No command")
+		return errors.New("No command")
 	}
 	if data.RecInfoLoader == nil {
-		return nil, errors.New("No recognizer info loader")
+		return errors.New("No recognizer info loader")
 	}
 	if data.PreloadManager == nil {
-		return nil, errors.New("No Preload manager set")
+		return errors.New("No Preload manager set")
 	}
 
-	fc := make(chan bool)
-
-	go listenQueue(data, fc)
-	return fc, nil
+	go listenQueue(data)
+	return nil
 }
 
 //work is main method to process of the worker
@@ -105,7 +105,7 @@ func work(data *ServiceData, msg *messages.QueueMessage) error {
 	return RunCommand(data.Command, data.WorkingDir, msg.ID, envs, logOutput)
 }
 
-func listenQueue(data *ServiceData, fc chan<- bool) {
+func listenQueue(data *ServiceData) {
 	for d := range data.WorkCh {
 		msg, err := processMsg(&d, data)
 		if err != nil {
@@ -124,7 +124,7 @@ func listenQueue(data *ServiceData, fc chan<- bool) {
 		d.Ack(false)
 	}
 	cmdapp.Log.Infof("Stopped listening queue")
-	fc <- true
+	data.quitChannel.Close()
 }
 
 func processMsg(d *amqp.Delivery, data *ServiceData) (messages.Message, error) {
