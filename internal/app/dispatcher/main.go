@@ -83,7 +83,7 @@ func run(cmd *cobra.Command, args []string) {
 	recProvider, err := config.NewFileRecognizerInfoLoader(cmdapp.Config.GetString("recognizerConfig.path"))
 	cmdapp.CheckOrPanic(err, "Can't init recognizer config (Did you provide correct setting 'recognizerConfig.path'?)")
 	data.modelTypeGetter, err = newTypeGetter(recProvider, cmdapp.Config.GetString("recognizerConfig.key"))
-	cmdapp.CheckOrPanic(err, "Can't init model type getter")
+	cmdapp.CheckOrPanic(err, "Can't init model type getter. recognizerConfig.key config missing?")
 	data.durationGetter, err = newDurationLoader(cmdapp.Config.GetString("duration.pathPattern"))
 	cmdapp.CheckOrPanic(err, "Can't init duration loader. duration.pathPattern config missing?")
 	data.startTimeGetter = newTimeGetter()

@@ -11,6 +11,12 @@ type typeGetter struct {
 }
 
 func newTypeGetter(recognizerInfo *config.FileRecognizerInfoLoader, key string) (*typeGetter, error) {
+	if recognizerInfo == nil {
+		return nil, errors.New("No recognizer Info loader provided")
+	}
+	if key == "" {
+		return nil, errors.New("No key for model type getter")
+	}
 	return &typeGetter{recognizerInfo: recognizerInfo, key: key}, nil
 }
 
