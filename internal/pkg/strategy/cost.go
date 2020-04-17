@@ -1,22 +1,39 @@
 package strategy
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sort"
 	"time"
 
+	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/strategy/api"
 )
 
 //Cost based strategy
 type Cost struct {
-	modelLoadTime time.Duration
+	modelLoadTime   time.Duration
+	rtFactor        float32
+	delayCostPerSec float32
 }
 
 //NewCost init new Cost task selection strategy
 func NewCost(modelLoadTime time.Duration) (*Cost, error) {
-	return &Cost{modelLoadTime: modelLoadTime}, nil
+	res := &Cost{}
+	res.modelLoadTime = cmdapp.Config.GetDuration("strategy.modelLoadDuration")
+	if res.modelLoadTime <= 0 {
+		return nil, errors.New("Wrong or no strategy.modelLoadDuration")
+	}
+	res.rtFactor = float32(cmdapp.Config.GetFloat64("strategy.realTimeFactor"))
+	if res.rtFactor <= 0.01 || res.rtFactor > 300 {
+		return nil, errors.New("Wrong or no strategy.realTimeFactor")
+	}
+	res.delayCostPerSec = float32(cmdapp.Config.GetFloat64("strategy.delayCostPerSecond"))
+	if res.delayCostPerSec <= 0 {
+		return nil, errors.New("Wrong or no strategy.delayCostPerSecond")
+	}
+	return res, nil
 }
 
 //FindBest is the main selection method
