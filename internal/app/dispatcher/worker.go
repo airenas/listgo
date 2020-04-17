@@ -115,7 +115,7 @@ func checkForExpiredWorkers(wrks *workers) {
 }
 
 func checkForExpired(wrks *workers, t time.Time) error {
-	tp := t.Add(120 * time.Second)
+	tp := t.Add(-100 * time.Second)
 	wrks.lock.Lock()
 	defer wrks.lock.Unlock()
 
