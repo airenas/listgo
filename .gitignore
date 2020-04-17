@@ -24,4 +24,4 @@ internal/pkg/tensorflow_serving/**
 cmd/cleanService/config.yaml
 cmd/cleanService/cleanService
 example/**
-cmd/dispatcherService/config.yaml
+cmd/**/config.yaml
