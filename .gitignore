@@ -25,3 +25,4 @@ cmd/cleanService/config.yaml
 cmd/cleanService/cleanService
 example/**
 cmd/**/config.yaml
+cmd/dispatcherService/dispatcherService
