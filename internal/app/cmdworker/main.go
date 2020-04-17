@@ -69,6 +69,7 @@ func run(cmd *cobra.Command, args []string) {
 	registrator, err := initRegistrator(rabbitSender, queueName, data.quitChannel)
 	cmdapp.CheckOrPanic(err, "Can't start registrator")
 	defer registrator.Close()
+	data.skipAck = isRegistrator()
 
 	err = StartWorkerService(&data)
 	cmdapp.CheckOrPanic(err, "Can't start service")
@@ -149,8 +150,7 @@ func initWorkQueue(msgChannelProvider *rabbit.ChannelProvider) (<-chan amqp.Deli
 	if err != nil {
 		return nil, "", errors.Wrap(err, "Can't set Qos")
 	}
-	rQueue := cmdapp.Config.GetString("registry.queue")
-	if rQueue == "" {
+	if !isRegistrator() {
 		queue := cmdapp.Config.GetString("worker.queue")
 		cmdapp.Log.Infof("Try listen static queue %s", queue)
 		if queue == "" {
@@ -167,10 +167,13 @@ func initWorkQueue(msgChannelProvider *rabbit.ChannelProvider) (<-chan amqp.Deli
 	return getPrivateQueue(ch)
 }
 
+func isRegistrator() bool {
+	return cmdapp.Config.GetString("registry.queue") != ""
+}
+
 ///////////////////////////////////////////////////////////////////////////
 func initRegistrator(sender messages.Sender, qName string, closeChan *utils.MultiCloseChannel) (io.Closer, error) {
-	rQueue := cmdapp.Config.GetString("registry.queue")
-	if rQueue != "" {
+	if isRegistrator() {
 		reg, err := newQueueRegistrator(sender, qName, closeChan)
 		if err != nil {
 			return nil, errors.Wrap(err, "Can't init registrator")

@@ -44,7 +44,9 @@ type ServiceData struct {
 
 	MessageSender messages.SenderWithCorr
 	WorkCh        <-chan amqp.Delivery
-	quitChannel   *utils.MultiCloseChannel
+
+	skipAck     bool
+	quitChannel *utils.MultiCloseChannel
 }
 
 //StartWorkerService starts the event queue listener service to listen for configured events
@@ -110,18 +112,24 @@ func listenQueue(data *ServiceData) {
 		msg, err := processMsg(&d, data)
 		if err != nil {
 			cmdapp.Log.Error("Message error", err)
-			d.Nack(false, false)
+			if !data.skipAck {
+				d.Nack(false, false)
+			}
 			continue
 		}
 		if d.ReplyTo != "" {
 			err = data.MessageSender.SendWithCorr(msg, d.ReplyTo, "", d.CorrelationId)
 			if err != nil {
 				cmdapp.Log.Error("Can't reply result", err)
-				d.Nack(false, !d.Redelivered) // try redeliver for first time
+				if !data.skipAck {
+					d.Nack(false, !d.Redelivered) // try redeliver for first time
+				}
 				continue
 			}
 		}
-		d.Ack(false)
+		if !data.skipAck {
+			d.Ack(false)
+		}
 	}
 	cmdapp.Log.Infof("Stopped listening queue")
 	data.quitChannel.Close()
