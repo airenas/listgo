@@ -117,7 +117,7 @@ func listenRegistrationQueue(data *ServiceData) {
 
 func listenWorkQueue(data *ServiceData) {
 	for d := range data.WorkCh {
-		err := processWorkMsg(data, &d)
+		err := processWorkMsg(data, d)
 		if err != nil {
 			cmdapp.Log.Error("Message error", err)
 			d.Nack(false, false)
@@ -146,12 +146,12 @@ func processRegistrationMsg(data *ServiceData, d *amqp.Delivery) error {
 	return processWorker(data.wrkrs, &message)
 }
 
-func processWorkMsg(data *ServiceData, d *amqp.Delivery) error {
+func processWorkMsg(data *ServiceData, d amqp.Delivery) error {
 	var msg messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &msg); err != nil {
 		return errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
 	}
-	return addTask(data, d, &msg)
+	return addTask(data, &d, &msg)
 }
 
 func addTask(data *ServiceData, d *amqp.Delivery, msg *messages.QueueMessage) error {
