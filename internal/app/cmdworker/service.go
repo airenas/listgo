@@ -42,7 +42,7 @@ type ServiceData struct {
 	RecInfoLoader  RecInfoLoader
 	PreloadManager PreloadTaskManager
 
-	MessageSender messages.Sender
+	MessageSender messages.SenderWithCorr
 	WorkCh        <-chan amqp.Delivery
 	quitChannel   *utils.MultiCloseChannel
 }
@@ -114,7 +114,7 @@ func listenQueue(data *ServiceData) {
 			continue
 		}
 		if d.ReplyTo != "" {
-			err = data.MessageSender.Send(msg, d.ReplyTo, "")
+			err = data.MessageSender.SendWithCorr(msg, d.ReplyTo, "", d.CorrelationId)
 			if err != nil {
 				cmdapp.Log.Error("Can't reply result", err)
 				d.Nack(false, !d.Redelivered) // try redeliver for first time

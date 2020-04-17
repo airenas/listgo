@@ -16,6 +16,8 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=messageSender.go -m bitbucket.org/airenas/listgo/internal/pkg/messages Sender
 
+//go:generate pegomock generate --package=mocks --output=messageSenderWithCorr.go -m bitbucket.org/airenas/listgo/internal/pkg/messages SenderWithCorr
+
 //go:generate pegomock generate --package=mocks --output=wsConn.go -m bitbucket.org/airenas/listgo/internal/app/status WsConn
 
 //go:generate pegomock generate --package=mocks --output=statusProvider.go -m bitbucket.org/airenas/listgo/internal/app/status Provider

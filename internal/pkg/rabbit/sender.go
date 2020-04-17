@@ -24,11 +24,11 @@ func NewSender(provider *ChannelProvider) *Sender {
 
 //Send sends the message
 func (sender *Sender) Send(message messages.Message, queue string, replyQueue string) error {
-	return sender.SendWithCorreration(message, queue, replyQueue, "")
+	return sender.SendWithCorr(message, queue, replyQueue, "")
 }
 
-//SendWithCorreration sends the message
-func (sender *Sender) SendWithCorreration(message messages.Message, queue string, replyQueue string, corrID string) error {
+//SendWithCorr sends the message with correlationID
+func (sender *Sender) SendWithCorr(message messages.Message, queue string, replyQueue string, corrID string) error {
 	realQueue := sender.ChannelProvider.QueueName(queue)
 	cmdapp.Log.Infof("Sending message to %s", realQueue)
 

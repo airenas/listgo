@@ -8,3 +8,8 @@ type Message interface {
 type Sender interface {
 	Send(message Message, queue string, replyQueue string) error
 }
+
+// SenderWithCorr sends a messages to message broker adding correlationID
+type SenderWithCorr interface {
+	SendWithCorr(message Message, queue string, replyQueue string, corrID string) error
+}

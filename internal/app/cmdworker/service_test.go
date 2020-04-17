@@ -18,7 +18,7 @@ import (
 
 var ackMock *mocks.MockAcknowledger
 var message amqp.Delivery
-var msgSenderMock *mocks.MockSender
+var msgSenderMock *mocks.MockSenderWithCorr
 var recInfoLoaderMock *mocks.MockRecInfoLoader
 var preloadTaskManagerMock *mocks.MockPreloadTaskManager
 
@@ -28,7 +28,7 @@ func initTest(t *testing.T) {
 	msgdata, _ := json.Marshal(messages.NewQueueMessage("1", "rec", nil))
 	message = amqp.Delivery{Body: msgdata}
 	message.Acknowledger = ackMock
-	msgSenderMock = mocks.NewMockSender()
+	msgSenderMock = mocks.NewMockSenderWithCorr()
 	recInfoLoaderMock = mocks.NewMockRecInfoLoader()
 	preloadTaskManagerMock = mocks.NewMockPreloadTaskManager()
 	pegomock.When(recInfoLoaderMock.Get(pegomock.AnyString())).ThenReturn(&recognizer.Info{}, nil)
@@ -57,7 +57,7 @@ func TestHandlesWrongMessages(t *testing.T) {
 	wc <- message
 	close(wc)
 	<-data.quitChannel.C // wait for complete
-	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+	msgSenderMock.VerifyWasCalled(pegomock.Never()).SendWithCorr(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString())
 	ackMock.VerifyWasCalledOnce().Nack(pegomock.AnyUint64(), pegomock.AnyBool(), pegomock.AnyBool())
 }
 
@@ -71,7 +71,7 @@ func TestHandlesWrongWithReply(t *testing.T) {
 	wc <- message
 	close(wc)
 	<-data.quitChannel.C // wait for complete
-	msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+	msgSenderMock.VerifyWasCalled(pegomock.Once()).SendWithCorr(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString())
 	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 }
 
@@ -84,7 +84,7 @@ func TestHandlesGoodNoReply(t *testing.T) {
 	wc <- message
 	close(wc)
 	<-data.quitChannel.C // wait for complete
-	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+	msgSenderMock.VerifyWasCalled(pegomock.Never()).SendWithCorr(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString())
 	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 }
 
@@ -99,8 +99,8 @@ func TestHandlesWhenTaskFails(t *testing.T) {
 	wc <- message
 	close(wc)
 	<-data.quitChannel.C // wait for complete
-	cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-		pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
+	cMsg, _, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).SendWithCorr(matchers.AnyMessagesMessage(),
+		pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
 	assert.NotEmpty(t, cMsg.(*messages.QueueMessage).Error)
 	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 }
@@ -115,8 +115,8 @@ func TestHandlesWhenPreloadFails(t *testing.T) {
 	wc <- message
 	close(wc)
 	<-data.quitChannel.C // wait for complete
-	cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-		pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
+	cMsg, _, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).SendWithCorr(matchers.AnyMessagesMessage(),
+		pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
 	assert.NotEmpty(t, cMsg.(*messages.QueueMessage).Error)
 	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 }
@@ -134,8 +134,8 @@ func TestHandlesLoaderFails(t *testing.T) {
 	close(wc)
 
 	<-data.quitChannel.C // wait for complete
-	cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-		pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
+	cMsg, _, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).SendWithCorr(matchers.AnyMessagesMessage(),
+		pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
 	assert.NotEmpty(t, cMsg.(*messages.QueueMessage).Error)
 	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 }
@@ -168,8 +168,8 @@ func TestHandlesResultRequired(t *testing.T) {
 	wc <- message
 	close(wc)
 	<-data.quitChannel.C // wait for complete
-	cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-		pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
+	cMsg, _, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).SendWithCorr(matchers.AnyMessagesMessage(),
+		pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
 	assert.Equal(t, cMsg.(*messages.ResultMessage).Result, "olia")
 	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 }
@@ -189,8 +189,8 @@ func TestHandlesWithResultFailing(t *testing.T) {
 	wc <- message
 	close(wc)
 	<-data.quitChannel.C // wait for completeBuildTestingFailHandler
-	cMsg, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(),
-		pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
+	cMsg, _, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).SendWithCorr(matchers.AnyMessagesMessage(),
+		pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
 	assert.NotEmpty(t, cMsg.(*messages.ResultMessage).Error)
 	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 }
