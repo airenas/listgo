@@ -85,7 +85,7 @@ func run(cmd *cobra.Command, args []string) {
 	data.modelTypeGetter, err = newTypeGetter(recProvider, cmdapp.Config.GetString("recognizerConfig.key"))
 	cmdapp.CheckOrPanic(err, "Can't init model type getter")
 	data.durationGetter, err = newDurationLoader(cmdapp.Config.GetString("duration.pathPattern"))
-	cmdapp.CheckOrPanic(err, "Can't init duration loader")
+	cmdapp.CheckOrPanic(err, "Can't init duration loader. duration.pathPattern config missing?")
 	data.startTimeGetter = newTimeGetter()
 
 	err = StartWorkerService(&data)

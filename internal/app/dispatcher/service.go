@@ -162,16 +162,16 @@ func addTask(data *ServiceData, d *amqp.Delivery, msg *messages.QueueMessage) er
 	var err error
 	t.addedAt, err = data.startTimeGetter.Get(msg.Tags)
 	if err != nil {
-		cmdapp.Log.Error(err, "Can't get startTime")
+		cmdapp.Log.Error("Can't get startTime. ", err)
 	}
 	t.expModelLoadDuration = data.modelLoadDuration
 	t.expDuration, err = data.durationGetter.Get(msg.ID)
 	if err != nil {
-		cmdapp.Log.Error(err, "Can't get duration")
+		cmdapp.Log.Error("Can't get duration. ", err)
 	}
 	t.requiredModelType, err = data.modelTypeGetter.Get(msg.Recognizer)
 	if err != nil {
-		cmdapp.Log.Error(err, "Can't get model type")
+		cmdapp.Log.Error("Can't get model type. ", err)
 	}
 	return data.tsks.addTask(t)
 }

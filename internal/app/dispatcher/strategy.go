@@ -23,7 +23,14 @@ func (sw *strategyWrapper) findBest(wrks []*worker, tsks *tasks, wi int) (*task,
 		return nil, errors.Wrap(err, "Can't select best task")
 	}
 	if rt != nil {
-		return rt.RealObject.(*task), nil
+		if rt.RealObject == nil {
+			return nil, errors.New("No wrapped task object")
+		}
+		res := rt.RealObject.(*task)
+		if res == nil {
+			return nil, errors.New("No wrapped task object")
+		}
+		return res, nil
 	}
 	return nil, nil
 }
@@ -47,6 +54,7 @@ func mapTasks(tsks *tasks) []*api.Task {
 			nt.TaskType = v.requiredModelType
 			nt.Duration = v.expDuration
 			nt.ArrivedAt = v.addedAt
+			nt.RealObject = v
 			res = append(res, nt)
 		}
 	}

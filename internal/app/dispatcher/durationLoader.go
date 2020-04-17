@@ -16,6 +16,9 @@ type durationLoader struct {
 }
 
 func newDurationLoader(pathPattern string) (*durationLoader, error) {
+	// if pathPattern == "" {
+	// 	return nil, errors.New("No duration path pattern set")
+	// }
 	return &durationLoader{pathPattern: pathPattern}, nil
 }
 
