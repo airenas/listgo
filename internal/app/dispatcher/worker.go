@@ -87,12 +87,14 @@ func registerWorker(wrks *workers, msg *messages.RegistrationMessage) error {
 	}
 	w.beatTime = time.Unix(msg.Timestamp, 0)
 	go wrks.changedFunc()
+	cmdapp.Log.Infof("W count: %d", len(wrks.workers))
 	return nil
 }
 
 func dropWorker(wrks *workers, w *worker) {
 	cmdapp.Log.Infof("Drop worker %s", w.queue)
 	delete(wrks.workers, w.queue)
+	cmdapp.Log.Infof("W count: %d", len(wrks.workers))
 	if w.task != nil {
 		failRequeueTask(w.task)
 	}

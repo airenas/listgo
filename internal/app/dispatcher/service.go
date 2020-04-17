@@ -2,6 +2,7 @@ package dispatcher
 
 import (
 	"encoding/json"
+	"sync"
 	"time"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
@@ -133,7 +134,7 @@ func listenResponseQueue(data *ServiceData) {
 			cmdapp.Log.Error("Message error", err)
 		}
 	}
-	cmdapp.Log.Infof("Stopped listening work queue")
+	cmdapp.Log.Infof("Stopped listening response queue")
 	data.fc.Close()
 }
 
@@ -175,8 +176,15 @@ func addTask(data *ServiceData, d *amqp.Delivery, msg *messages.QueueMessage) er
 	return data.tsks.addTask(t)
 }
 
+var changedStartup sync.Once
+
 // the main task deliver procedure
 func changed(data *ServiceData) {
+	//allow to read tasks and workers on service startup
+	changedStartup.Do(func() {
+		cmdapp.Log.Info("Do wait for the first time")
+		time.Sleep(3 * time.Second)
+	})
 	data.wrkrs.lock.Lock()
 	defer data.wrkrs.lock.Unlock()
 

@@ -70,7 +70,7 @@ func TestRemoveOnExpire(t *testing.T) {
 	processWorker(wrks, newMsg("1", messages.RgrTypeRegister, time.Now()))
 	processWorker(wrks, newMsg("2", messages.RgrTypeRegister, time.Now().Add(45*time.Second)))
 	assert.Equal(t, 2, len(wrks.workers))
-	checkForExpired(wrks, time.Now().Add(1*time.Minute))
+	checkForExpired(wrks, time.Now().Add(2*time.Minute))
 	assert.Equal(t, 1, len(wrks.workers))
 }
 
