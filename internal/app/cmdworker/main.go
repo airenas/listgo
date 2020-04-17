@@ -77,9 +77,16 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Infof("Exiting service")
 }
 
+///////////////////////////////////////////////////////////////////////////////////
 func validateConfig() error {
-	if cmdapp.Config.GetString("worker.taskName") == "" {
-		return errors.New("No worker.taskName configured")
+	if cmdapp.Config.GetString("worker.name") == "" {
+		return errors.New("No worker.name configured")
+	}
+	if cmdapp.Config.GetString("worker.queue") == "" && cmdapp.Config.GetString("registry.queue") == "" {
+		return errors.New("Either static worker.queue or dynamic registry.queue must be configured")
+	}
+	if cmdapp.Config.GetString("worker.queue") != "" && cmdapp.Config.GetString("registry.queue") != "" {
+		cmdapp.Log.Warn("worker.queue config will be ignored because of registry.queue")
 	}
 	if cmdapp.Config.GetString("worker.command") == "" {
 		return errors.New("No worker.command configured")
@@ -164,7 +171,12 @@ func initWorkQueue(msgChannelProvider *rabbit.ChannelProvider) (<-chan amqp.Deli
 func initRegistrator(sender messages.Sender, qName string, closeChan *utils.MultiCloseChannel) (io.Closer, error) {
 	rQueue := cmdapp.Config.GetString("registry.queue")
 	if rQueue != "" {
-		return newQueueRegistrator(sender, qName, closeChan)
+		reg, err := newQueueRegistrator(sender, qName, closeChan)
+		if err != nil {
+			return nil, errors.Wrap(err, "Can't init registrator")
+		}
+		go reg.live()
+		return reg, nil
 	}
 	return &fakeCloser{}, nil
 }
