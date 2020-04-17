@@ -81,7 +81,7 @@ func registerWorker(wrks *workers, msg *messages.RegistrationMessage) error {
 	if !f {
 		w = &worker{}
 		w.queue = msg.Queue
-		w.working = msg.Working
+		//w.working = msg.Working
 		wrks.workers[w.queue] = w
 		cmdapp.Log.Infof("Registered worker %s", w.queue)
 	}
@@ -105,17 +105,17 @@ func beatWorker(wrks *workers, msg *messages.RegistrationMessage) error {
 
 func checkForExpiredWorkers(wrks *workers) {
 	for {
-		cmdapp.Log.Info("Check for old workers")
+		time.Sleep(30 * time.Second)
+		cmdapp.Log.Info("Check for expired workers")
 		err := checkForExpired(wrks, time.Now())
 		if err != nil {
 			cmdapp.Log.Error(err)
 		}
-		time.Sleep(30 * time.Second)
 	}
 }
 
 func checkForExpired(wrks *workers, t time.Time) error {
-	tp := t.Add(-45 * time.Second)
+	tp := t.Add(120 * time.Second)
 	wrks.lock.Lock()
 	defer wrks.lock.Unlock()
 
