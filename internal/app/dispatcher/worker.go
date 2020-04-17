@@ -141,7 +141,7 @@ func (w *worker) startTask(t *task) {
 	w.working = true
 	w.task = t
 	w.started = time.Now()
-	w.endAt = w.started.Add(t.expDuration)
+	w.endAt = w.started.Add(t.expDuration * time.Duration(t.rtFactor))
 	if w.mType != t.requiredModelType {
 		w.mType = t.requiredModelType
 		w.endAt = w.endAt.Add(t.expModelLoadDuration)

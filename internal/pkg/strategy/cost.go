@@ -41,6 +41,9 @@ func NewCost(modelLoadTime time.Duration) (*Cost, error) {
 func (c *Cost) FindBest(ws []*api.Worker, ts []*api.Task, workerIndex int) (*api.Task, error) {
 	ctx := newContext(time.Now())
 	ctx.modelLoadTime = c.modelLoadTime
+	ctx.delayCostPerSec = c.delayCostPerSec
+	ctx.rtFactor = c.rtFactor
+
 	tskg := groupTasks(ts)
 	res := findTask(ws, tskg, workerIndex, ctx)
 	return res, nil
@@ -52,9 +55,11 @@ type taskGroups struct {
 }
 
 type context struct {
-	now           time.Time
-	modelLoadTime time.Duration
-	max           float32
+	now             time.Time
+	modelLoadTime   time.Duration
+	max             float32
+	rtFactor        float32
+	delayCostPerSec float32
 }
 
 func newContext(t time.Time) *context {
@@ -80,7 +85,9 @@ func calcCost(w *api.Worker, t []*api.Task, ctx *context) float32 {
 		res += float32(ctx.modelLoadTime.Seconds())
 	}
 	d := ctx.now.Sub(t[0].ArrivedAt)
-	res -= float32(d.Seconds())
+	if d > 0 {
+		res -= float32(d.Seconds()) * ctx.delayCostPerSec
+	}
 	return res
 }
 
@@ -209,7 +216,10 @@ func addToLowest(arr *[]float32, t *api.Task, ctx *context) {
 		}
 	}
 	d := ctx.now.Sub(t.ArrivedAt)
-	(*arr)[bi] += float32(t.Duration.Seconds()) - float32(d.Seconds())
+	(*arr)[bi] += float32(t.Duration.Seconds())
+	if d > 0 {
+		(*arr)[bi] -= float32(d.Seconds()) * ctx.delayCostPerSec
+	}
 }
 
 func getBest(mtrx [][]float32, tg *taskGroups, wi int, ctx *context) string {

@@ -36,6 +36,7 @@ type ServiceData struct {
 
 	selectionStrategy selectionStrategy
 	modelLoadDuration time.Duration
+	rtFactor          float32
 
 	startTimeGetter startTimeGetter
 	modelTypeGetter modelTypeGetter
@@ -165,6 +166,7 @@ func addTask(data *ServiceData, d *amqp.Delivery, msg *messages.QueueMessage) er
 		cmdapp.Log.Error("Can't get startTime. ", err)
 	}
 	t.expModelLoadDuration = data.modelLoadDuration
+	t.rtFactor = data.rtFactor
 	t.expDuration, err = data.durationGetter.Get(msg.ID)
 	if err != nil {
 		cmdapp.Log.Error("Can't get duration. ", err)
