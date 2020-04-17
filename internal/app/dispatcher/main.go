@@ -54,7 +54,7 @@ func run(cmd *cobra.Command, args []string) {
 	err = ch.Qos(1, 0, false)
 	cmdapp.CheckOrPanic(err, "Can't set Qos")
 
-	registrationQueue := cmdapp.Config.GetString("messageServer.registrationQueue")
+	registrationQueue := cmdapp.Config.GetString("dispatcher.registrationQueue")
 
 	err = initRegistrationQueue(msgChannelProvider, registrationQueue)
 	data.RegistrationCh, err = rabbit.NewChannel(ch, registrationQueue)
@@ -97,8 +97,8 @@ func run(cmd *cobra.Command, args []string) {
 
 ///////////////////////////////////////////////////////////////////////////
 func validateConfig() error {
-	if cmdapp.Config.GetString("messageServer.registrationQueue") == "" {
-		return errors.New("No messageServer.registrationQueue configured")
+	if cmdapp.Config.GetString("dispatcher.registrationQueue") == "" {
+		return errors.New("No dispatcher.registrationQueue configured")
 	}
 	if cmdapp.Config.GetString("dispatcher.workQueue") == "" {
 		return errors.New("No dispatcher.workQueue configured")
