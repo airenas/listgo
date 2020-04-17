@@ -36,7 +36,7 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Configuration error")
 
 	data := ServiceData{}
-	data.fc = utils.NewMultiCloseChannel()
+	data.fc = utils.NewSignalChannel()
 	data.wrkrs = newWorkers()
 	data.tsks = newTasks()
 	// make same lock
@@ -92,7 +92,7 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't start service")
 
 	<-data.fc.C
-	cmdapp.Log.Infof("Exiting service")
+	cmdapp.Log.Infof("Bye")
 }
 
 ///////////////////////////////////////////////////////////////////////////
