@@ -39,6 +39,8 @@ func run(cmd *cobra.Command, args []string) {
 	data.fc = utils.NewMultiCloseChannel()
 	data.wrkrs = newWorkers()
 	data.tsks = newTasks()
+	// make same lock
+	data.tsks.lock = data.wrkrs.lock
 
 	msgChannelProvider, err := rabbit.NewChannelProvider()
 	cmdapp.CheckOrPanic(err, "Can't init rabbit channel provider")
