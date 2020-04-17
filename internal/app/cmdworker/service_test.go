@@ -37,7 +37,7 @@ func initData(t *testing.T, wc chan amqp.Delivery) ServiceData {
 	data := ServiceData{}
 	data.Command = "ls -la"
 	data.WorkingDir = "."
-	data.TaskName = "olia"
+	data.Name = "olia"
 	data.MessageSender = msgSenderMock
 	data.RecInfoLoader = recInfoLoaderMock
 	data.PreloadManager = preloadTaskManagerMock
@@ -198,7 +198,7 @@ func TestCheckInputParametersNoFunction(t *testing.T) {
 	data := ServiceData{}
 	data.Command = "ls -la"
 	data.WorkingDir = "."
-	data.TaskName = "olia"
+	data.Name = "olia"
 	data.WorkCh = wc
 
 	data.ResultFile = "olia"

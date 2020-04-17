@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/streadway/amqp"
 )
 
 var appName = "LiST Worker Service"
@@ -44,17 +45,12 @@ func run(cmd *cobra.Command, args []string) {
 	defer msgChannelProvider.Close()
 
 	data.MessageSender = rabbit.NewSender(msgChannelProvider)
+	queueName := ""
+	data.WorkCh, queueName, err = initWorkQueue(msgChannelProvider)
+	cmdapp.CheckOrPanic(err, "Can't connect/prepare work queue")
+	_ = queueName
 
-	ch, err := msgChannelProvider.Channel()
-	cmdapp.CheckOrPanic(err, "Can't open channel")
-	err = ch.Qos(1, 0, false)
-	cmdapp.CheckOrPanic(err, "Can't set Qos")
-
-	data.TaskName = cmdapp.Config.GetString("worker.taskName")
-
-	data.WorkCh, err = rabbit.NewChannel(ch, msgChannelProvider.QueueName(data.TaskName))
-	cmdapp.CheckOrPanic(err, "Can't listen "+data.TaskName+" channel")
-
+	data.Name = cmdapp.Config.GetString("worker.name")
 	data.Command = cmdapp.Config.GetString("worker.command")
 	data.WorkingDir = cmdapp.Config.GetString("worker.workingDir")
 	data.ResultFile = cmdapp.Config.GetString("worker.resultFile")
@@ -104,3 +100,53 @@ func (pm *fakePreloadManager) Close() error {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
+func getPrivateQueue(ch *amqp.Channel) (<-chan amqp.Delivery, string, error) {
+	q, err := ch.QueueDeclare("", // name
+		false, // durable
+		true,  // delete when unused
+		true,  // exclusive
+		false, // noWait
+		nil,   // arguments
+	)
+	if err != nil {
+		return nil, "", errors.Wrap(err, "Can't init private queue")
+	}
+	cd, err := ch.Consume(
+		q.Name, // queue
+		"",     // consumer
+		true,   // auto-ack
+		false,  // exclusive
+		false,  // no-local
+		false,  // no-wait
+		nil,    // args
+	)
+	return cd, q.Name, err
+}
+
+///////////////////////////////////////////////////////////////////////////
+func initWorkQueue(msgChannelProvider *rabbit.ChannelProvider) (<-chan amqp.Delivery, string, error) {
+	ch, err := msgChannelProvider.Channel()
+	if err != nil {
+		return nil, "", errors.Wrap(err, "Can't open channel")
+	}
+	err = ch.Qos(1, 0, false)
+	if err != nil {
+		return nil, "", errors.Wrap(err, "Can't set Qos")
+	}
+	rQueue := cmdapp.Config.GetString("registry.queue")
+	if rQueue == "" {
+		queue := cmdapp.Config.GetString("worker.queue")
+		cmdapp.Log.Infof("Try listen static queue %s", queue)
+		if queue == "" {
+			return nil, "", errors.Errorf("No worker.queue configured!")
+		}
+		res, err := rabbit.NewChannel(ch, queue)
+		if err != nil {
+			return nil, "", errors.Wrap(err, "Can't listen "+queue+" channel")
+		}
+		return res, queue, nil
+	}
+
+	cmdapp.Log.Infof("Creating private worker queue")
+	return getPrivateQueue(ch)
+}

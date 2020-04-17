@@ -29,7 +29,7 @@ type PreloadTaskManager interface {
 
 // ServiceData keeps data required for service work
 type ServiceData struct {
-	TaskName   string
+	Name       string
 	Command    string
 	WorkingDir string
 	//ResultFile if non empty then tries to pass result to reply message from the file
@@ -54,8 +54,8 @@ type ServiceData struct {
 // <-fc // waits for finish
 func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 	cmdapp.Log.Infof("Starting listen for messages")
-	if data.TaskName == "" {
-		return nil, errors.New("No Task Name")
+	if data.Name == "" {
+		return nil, errors.New("No Name")
 	}
 	if data.Command == "" {
 		return nil, errors.New("No command")
@@ -78,7 +78,7 @@ func StartWorkerService(data *ServiceData) (<-chan bool, error) {
 
 //work is main method to process of the worker
 func work(data *ServiceData, msg *messages.QueueMessage) error {
-	cmdapp.Log.Infof("Got task %s for ID: %s, rec: %s", data.TaskName, msg.ID, msg.Recognizer)
+	cmdapp.Log.Infof("Got task %s for ID: %s, rec: %s", data.Name, msg.ID, msg.Recognizer)
 	rp, err := data.RecInfoLoader.Get(msg.Recognizer)
 	if err != nil {
 		return errors.Wrap(err, "Can't load description")
