@@ -1,16 +1,21 @@
 package dispatcher
 
 import (
-	"bitbucket.org/airenas/listgo/internal/pkg/config"
+	"bitbucket.org/airenas/listgo/internal/pkg/recognizer"
 	"github.com/pkg/errors"
 )
 
+//recInfoLoader loads recognizer information
+type recInfoLoader interface {
+	Get(key string) (*recognizer.Info, error)
+}
+
 type typeGetter struct {
-	recognizerInfo *config.FileRecognizerInfoLoader
+	recognizerInfo recInfoLoader
 	key            string
 }
 
-func newTypeGetter(recognizerInfo *config.FileRecognizerInfoLoader, key string) (*typeGetter, error) {
+func newTypeGetter(recognizerInfo recInfoLoader, key string) (*typeGetter, error) {
 	if recognizerInfo == nil {
 		return nil, errors.New("No recognizer Info loader provided")
 	}
