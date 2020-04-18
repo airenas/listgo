@@ -239,3 +239,32 @@ func Test_NoPreloadManager(t *testing.T) {
 	assert.NotNil(t, err)
 	close(wc)
 }
+
+func TestHandlesFailureWithNoAck(t *testing.T) {
+	initTest(t)
+	wc := make(chan amqp.Delivery)
+	data := initData(t, wc)
+	data.skipAck = true
+	StartWorkerService(&data)
+
+	message.ReplyTo = "rt"
+	wc <- message
+	close(wc)
+	<-data.quitChannel.C // wait for complete
+	msgSenderMock.VerifyWasCalled(pegomock.Once()).SendWithCorr(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString())
+	ackMock.VerifyWasCalled(pegomock.Never()).Ack(pegomock.AnyUint64(), pegomock.AnyBool())
+}
+
+func TestHandlesOKWithNoAck(t *testing.T) {
+	initTest(t)
+	wc := make(chan amqp.Delivery)
+	data := initData(t, wc)
+	data.skipAck = true
+	StartWorkerService(&data)
+
+	wc <- message
+	close(wc)
+	<-data.quitChannel.C // wait for complete
+	msgSenderMock.VerifyWasCalled(pegomock.Never()).SendWithCorr(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString())
+	ackMock.VerifyWasCalled(pegomock.Never()).Ack(pegomock.AnyUint64(), pegomock.AnyBool())
+}
