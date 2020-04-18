@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"github.com/pkg/errors"
 )
 
 type timeGetter struct {
@@ -30,7 +31,7 @@ func (g *timeGetter) get(tags []messages.Tag, def time.Time) (time.Time, error) 
 func toTime(s string, def time.Time) (time.Time, error) {
 	i, err := strconv.Atoi(s)
 	if err != nil {
-		return def, err
+		return def, errors.Wrapf(err, "Can't parse %s", s)
 	}
 	return time.Unix(int64(i), 0), err
 }
