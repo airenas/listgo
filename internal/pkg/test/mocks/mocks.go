@@ -68,6 +68,12 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=loader.go -m bitbucket.org/airenas/listgo/internal/app/dispatcher Loader
 
+//go:generate pegomock generate --package=mocks --output=durationGetter.go -m bitbucket.org/airenas/listgo/internal/app/dispatcher DurationGetter
+
+//go:generate pegomock generate --package=mocks --output=modelTypeGetter.go -m bitbucket.org/airenas/listgo/internal/app/dispatcher ModelTypeGetter
+
+//go:generate pegomock generate --package=mocks --output=startTimeGetter.go -m bitbucket.org/airenas/listgo/internal/app/dispatcher StartTimeGetter
+
 //go:generate pegomock generate --package=mocks --output=taskSelector.go -m bitbucket.org/airenas/listgo/internal/pkg/strategy/api TaskSelector
 
 //AttachMockToTest register pegomock verification to be passed to testing engine

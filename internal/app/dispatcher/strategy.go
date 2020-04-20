@@ -18,7 +18,7 @@ func newStrategyWrapper(realStrategy api.TaskSelector) (*strategyWrapper, error)
 	return res, nil
 }
 
-func (sw *strategyWrapper) findBest(wrks []*worker, tsks map[string]*task, wi int) (*task, error) {
+func (sw *strategyWrapper) FindBest(wrks []*worker, tsks map[string]*task, wi int) (*task, error) {
 	rws := mapWorkers(wrks)
 	rts := mapTasks(tsks)
 

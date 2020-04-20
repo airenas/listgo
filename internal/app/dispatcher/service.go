@@ -12,19 +12,23 @@ import (
 	"github.com/streadway/amqp"
 )
 
-type selectionStrategy interface {
-	findBest(wrks []*worker, tsks map[string]*task, wi int) (*task, error)
+//SelectionStrategy type returns task work worker
+type SelectionStrategy interface {
+	FindBest(wrks []*worker, tsks map[string]*task, wi int) (*task, error)
 }
 
-type durationGetter interface {
+//DurationGetter type provider duration for transcription ID
+type DurationGetter interface {
 	Get(v string) (time.Duration, error)
 }
 
-type modelTypeGetter interface {
+//ModelTypeGetter type provides requires preload model type for transcription ID
+type ModelTypeGetter interface {
 	Get(v string) (string, error)
 }
 
-type startTimeGetter interface {
+//StartTimeGetter type provides start time for the transcription
+type StartTimeGetter interface {
 	Get(tags []messages.Tag) (time.Time, error)
 }
 
@@ -34,13 +38,13 @@ type ServiceData struct {
 	wrkrs *workers
 	tsks  *tasks
 
-	selectionStrategy selectionStrategy
+	selectionStrategy SelectionStrategy
 	modelLoadDuration time.Duration
 	rtFactor          float32
 
-	startTimeGetter startTimeGetter
-	modelTypeGetter modelTypeGetter
-	durationGetter  durationGetter
+	startTimeGetter StartTimeGetter
+	modelTypeGetter ModelTypeGetter
+	durationGetter  DurationGetter
 
 	replySender messages.Sender
 	workSender  messages.Sender
@@ -197,7 +201,7 @@ func changed(data *ServiceData) {
 	cmdapp.Log.Infof("Workers: %d, tasks: %d", len(wrks), len(data.tsks.tsks))
 	for i, w := range wrks {
 		if w.working == false {
-			t, err := data.selectionStrategy.findBest(wrks, data.tsks.tsks, i)
+			t, err := data.selectionStrategy.FindBest(wrks, data.tsks.tsks, i)
 			if err != nil {
 				cmdapp.Log.Error("Can't get task", err)
 			}

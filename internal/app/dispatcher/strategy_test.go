@@ -68,7 +68,7 @@ func TestStrategy_FindBest(t *testing.T) {
 	pegomock.When(taskSelectorMock.FindBest(matchers.AnySliceOfPtrToApiWorker(), matchers.AnySliceOfPtrToApiTask(),
 		pegomock.AnyInt())).ThenReturn(rTask, nil)
 	tsks := map[string]*task{"1": tsk}
-	res, err := s.findBest(wrks, tsks, 0)
+	res, err := s.FindBest(wrks, tsks, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, tsk, res)
 }
@@ -82,6 +82,6 @@ func TestStrategy_FindBestWithError(t *testing.T) {
 	pegomock.When(taskSelectorMock.FindBest(matchers.AnySliceOfPtrToApiWorker(), matchers.AnySliceOfPtrToApiTask(),
 		pegomock.AnyInt())).ThenReturn(nil, errors.New("error"))
 	tsks := map[string]*task{"1": tsk}
-	_, err := s.findBest(wrks, tsks, 0)
+	_, err := s.FindBest(wrks, tsks, 0)
 	assert.NotNil(t, err)
 }
