@@ -152,9 +152,13 @@ func (w *worker) completeTask() {
 }
 
 func (w *worker) startTask(t *task) {
+	w.startTaskAt(t, time.Now())
+}
+
+func (w *worker) startTaskAt(t *task, now time.Time) {
 	w.working = true
 	w.task = t
-	w.started = time.Now()
+	w.started = now
 	w.endAt = w.started.Add(t.expDuration * time.Duration(t.rtFactor))
 	if w.mType != t.requiredModelType {
 		if t.requiredModelType != "" {

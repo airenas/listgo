@@ -84,6 +84,49 @@ func TestDoesNotRemoveOnExpire(t *testing.T) {
 	assert.Equal(t, 1, len(wrks.workers))
 }
 
+func TestWorkerComplete(t *testing.T) {
+	wrk := newWorker()
+	wrk.task = newTask()
+	wrk.working = true
+
+	wrk.completeTask()
+
+	assert.Equal(t, false, wrk.working)
+	assert.Nil(t, wrk.task)
+	assert.False(t, wrk.endAt.After(time.Now()))
+}
+
+func TestWorkerStartTask(t *testing.T) {
+	wrk := newWorker()
+	tsk := newTask()
+	tsk.expDuration = time.Second
+	tsk.expModelLoadDuration = time.Minute
+	tsk.rtFactor = 2
+	tsk.requiredModelType = ""
+	now := time.Now()
+	wrk.startTaskAt(tsk, now)
+
+	assert.Equal(t, true, wrk.working)
+	assert.Equal(t, tsk, wrk.task)
+	assert.Equal(t, noneWorkerModelType, wrk.mType)
+	assert.Equal(t, now.Add(time.Minute+time.Second*2), wrk.endAt)
+}
+
+func TestWorkerStartTask_NoModelLoad(t *testing.T) {
+	wrk := newWorker()
+	tsk := newTask()
+	tsk.expDuration = time.Second
+	tsk.expModelLoadDuration = time.Minute
+	tsk.rtFactor = 2
+	tsk.requiredModelType = "M1"
+	now := time.Now()
+	wrk.mType = "M1"
+	wrk.startTaskAt(tsk, now)
+
+	assert.Equal(t, "M1", wrk.mType)
+	assert.Equal(t, now.Add(time.Second*2), wrk.endAt)
+}
+
 func newMsg(name string, tp string, t time.Time) *messages.RegistrationMessage {
 	return &messages.RegistrationMessage{Queue: name, Type: tp, Working: false, Timestamp: t.Unix()}
 }
