@@ -4,13 +4,18 @@ import (
 	"testing"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
-
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 	"github.com/streadway/amqp"
+	"github.com/stretchr/testify/assert"
 )
 
 // var ackMock *mocks.MockAcknowledger
 // var message amqp.Delivery
-// var msgSenderMock *mocks.MockSender
+var wrkSenderMock *mocks.MockSender
+var durGetterMock *mocks.MockDurationGetter
+var modelTypeGetterMock *mocks.MockModelTypeGetter
+var startTimeGetterMock *mocks.MockStartTimeGetter
+
 // var recInfoLoaderMock *mocks.MockRecInfoLoader
 // var preloadTaskManagerMock *mocks.MockPreloadTaskManager
 
@@ -20,34 +25,77 @@ func initTest(t *testing.T) {
 	// msgdata, _ := json.Marshal(messages.NewQueueMessage("1", "rec", nil))
 	// message = amqp.Delivery{Body: msgdata}
 	// message.Acknowledger = ackMock
-	// msgSenderMock = mocks.NewMockSender()
-	// recInfoLoaderMock = mocks.NewMockRecInfoLoader()
-	// preloadTaskManagerMock = mocks.NewMockPreloadTaskManager()
-	// pegomock.When(recInfoLoaderMock.Get(pegomock.AnyString())).ThenReturn(&recognizer.Info{}, nil)
+	msgSenderMock = mocks.NewMockSender()
+	wrkSenderMock = mocks.NewMockSender()
+	durGetterMock = mocks.NewMockDurationGetter()
+	modelTypeGetterMock = mocks.NewMockModelTypeGetter()
+	taskSelectorMock = mocks.NewMockTaskSelector()
+	startTimeGetterMock = mocks.NewMockStartTimeGetter()
 }
 
-func initData(t *testing.T, wc chan amqp.Delivery) ServiceData {
-	data := ServiceData{}
-	// data.Command = "ls -la"
-	// data.WorkingDir = "."
-	// data.TaskName = "olia"
-	// data.MessageSender = msgSenderMock
-	// data.RecInfoLoader = recInfoLoaderMock
-	// data.PreloadManager = preloadTaskManagerMock
-	// data.WorkCh = wc
+func initTestData(t *testing.T) *ServiceData {
+	data := &ServiceData{}
+	data.fc = utils.NewMultiCloseChannel()
+	data.wrkrs = newWorkers()
+	data.tsks = newTasks()
+	// make same lock
+	data.tsks.lock = data.wrkrs.lock
+
+	data.startTimeGetter = startTimeGetterMock
+	data.durationGetter = durGetterMock
+	data.modelTypeGetter = modelTypeGetterMock
+	data.selectionStrategy, _ = newStrategyWrapper(taskSelectorMock)
+
+	data.replySender = msgSenderMock
+	data.workSender = wrkSenderMock
+	data.RegistrationCh = make(chan amqp.Delivery)
+	data.WorkCh = make(chan amqp.Delivery)
+	data.ResponseCh = make(chan amqp.Delivery)
 	return data
 }
 
-func TestHandlesWrongWithReply(t *testing.T) {
+func TestServiceInit(t *testing.T) {
 	initTest(t)
-	// wc := make(chan amqp.Delivery)
-	// data := initData(t, wc)
-	// fc, _ := StartWorkerService(&data)
+	data := initTestData(t)
+	err := StartWorkerService(data)
+	assert.Nil(t, err)
+}
 
-	// message.ReplyTo = "rt"
-	// wc <- message
-	// close(wc)
-	// <-fc // wait for complete
-	// msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
-	// ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
+func TestServiceInit_Fails(t *testing.T) {
+	initTest(t)
+	data := initTestData(t)
+	data.durationGetter = nil
+	assert.NotNil(t, StartWorkerService(data))
+
+	data = initTestData(t)
+	data.fc = nil
+	assert.NotNil(t, StartWorkerService(data))
+
+	data = initTestData(t)
+	data.modelTypeGetter = nil
+	assert.NotNil(t, StartWorkerService(data))
+
+	data = initTestData(t)
+	data.replySender = nil
+	assert.NotNil(t, StartWorkerService(data))
+
+	data = initTestData(t)
+	data.selectionStrategy = nil
+	assert.NotNil(t, StartWorkerService(data))
+
+	data = initTestData(t)
+	data.startTimeGetter = nil
+	assert.NotNil(t, StartWorkerService(data))
+
+	data = initTestData(t)
+	data.workSender = nil
+	assert.NotNil(t, StartWorkerService(data))
+
+	data = initTestData(t)
+	data.wrkrs = nil
+	assert.NotNil(t, StartWorkerService(data))
+
+	data = initTestData(t)
+	data.tsks = nil
+	assert.NotNil(t, StartWorkerService(data))
 }

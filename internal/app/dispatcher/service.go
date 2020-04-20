@@ -65,7 +65,7 @@ func StartWorkerService(data *ServiceData) error {
 	data.tsks.changedFunc = func() { changed(data) }
 	data.wrkrs.changedFunc = func() { changed(data) }
 
-	go listenRegistrationQueue(data)
+	go listenRegistryQueue(data)
 	go checkForExpiredWorkers(data.wrkrs)
 
 	go listenWorkQueue(data)
@@ -102,10 +102,19 @@ func validate(data *ServiceData) error {
 	if data.startTimeGetter == nil {
 		return errors.New("No start time getter")
 	}
+	if data.fc == nil {
+		return errors.New("No quit channel")
+	}
+	if data.tsks == nil {
+		return errors.New("No tasks")
+	}
+	if data.wrkrs == nil {
+		return errors.New("No workers channel")
+	}
 	return nil
 }
 
-func listenRegistrationQueue(data *ServiceData) {
+func listenRegistryQueue(data *ServiceData) {
 	for d := range data.RegistrationCh {
 		err := processRegistrationMsg(data, &d)
 		if err != nil {
