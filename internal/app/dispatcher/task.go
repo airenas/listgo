@@ -43,6 +43,7 @@ func newTasks() *tasks {
 	res := &tasks{}
 	res.lock = &sync.Mutex{}
 	res.tsks = make(map[string]*task)
+	res.changedFunc = func() {}
 	return res
 }
 
@@ -55,6 +56,15 @@ func failRequeueTask(t *task) {
 func (ts *tasks) addTask(t *task) error {
 	ts.lock.Lock()
 	defer ts.lock.Unlock()
+	if t.msg == nil {
+		return errors.New("No msg set")
+	}
+	if t.d == nil {
+		return errors.New("No delivery set")
+	}
+	if ts.changedFunc == nil {
+		return errors.New("No change func")
+	}
 	ts.tsks[t.msg.ID] = t
 	go ts.changedFunc()
 	return nil
@@ -103,7 +113,10 @@ func (ts *tasks) processResponse(d *amqp.Delivery, sender messages.Sender) error
 	if w != nil {
 		w.completeTask()
 		delete(ts.tsks, id)
+	} else {
+		cmdapp.Log.Error("Task has no worker")
 	}
+
 	go ts.changedFunc()
 	return nil
 }
