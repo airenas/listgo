@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"sync"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
@@ -44,6 +45,7 @@ type ServiceData struct {
 
 	MessageSender messages.SenderWithCorr
 	WorkCh        <-chan amqp.Delivery
+	reapLock      *sync.RWMutex
 
 	skipAck     bool
 	quitChannel *utils.MultiCloseChannel
@@ -80,6 +82,9 @@ func StartWorkerService(data *ServiceData) error {
 
 //work is main method to process of the worker
 func work(data *ServiceData, msg *messages.QueueMessage) error {
+	data.reapLock.Lock()
+	defer data.reapLock.Unlock()
+
 	cmdapp.Log.Infof("Got task %s for ID: %s, rec: %s", data.Name, msg.ID, msg.Recognizer)
 	rp, err := data.RecInfoLoader.Get(msg.Recognizer)
 	if err != nil {

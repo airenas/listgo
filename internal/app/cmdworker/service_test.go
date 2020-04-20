@@ -2,6 +2,7 @@ package cmdworker
 
 import (
 	"encoding/json"
+	"sync"
 	"testing"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/recognizer"
@@ -44,6 +45,7 @@ func initData(t *testing.T, wc chan amqp.Delivery) ServiceData {
 	data.PreloadManager = preloadTaskManagerMock
 	data.WorkCh = wc
 	data.quitChannel = utils.NewMultiCloseChannel()
+	data.reapLock = &sync.RWMutex{}
 	return data
 }
 

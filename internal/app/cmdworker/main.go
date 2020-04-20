@@ -2,6 +2,7 @@ package cmdworker
 
 import (
 	"io"
+	"sync"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/config"
@@ -9,9 +10,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
 	"bitbucket.org/airenas/listgo/internal/pkg/tasks"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
-
 	"github.com/pkg/errors"
-	"github.com/ramr/go-reaper"
 	"github.com/spf13/cobra"
 	"github.com/streadway/amqp"
 )
@@ -73,7 +72,8 @@ func run(cmd *cobra.Command, args []string) {
 	data.skipAck = isRegistrator()
 
 	// init zombies reaper
-	go reaper.Reap()
+	data.reapLock = &sync.RWMutex{}
+	go reapChildren(data.reapLock)
 
 	err = StartWorkerService(&data)
 	cmdapp.CheckOrPanic(err, "Can't start service")
