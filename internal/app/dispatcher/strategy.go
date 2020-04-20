@@ -10,11 +10,15 @@ type strategyWrapper struct {
 }
 
 func newStrategyWrapper(realStrategy api.TaskSelector) (*strategyWrapper, error) {
-	res := &strategyWrapper{realStrategy: realStrategy}
+	res := &strategyWrapper{}
+	if realStrategy == nil {
+		return nil, errors.New("No task selector provided")
+	}
+	res.realStrategy = realStrategy
 	return res, nil
 }
 
-func (sw *strategyWrapper) findBest(wrks []*worker, tsks *tasks, wi int) (*task, error) {
+func (sw *strategyWrapper) findBest(wrks []*worker, tsks map[string]*task, wi int) (*task, error) {
 	rws := mapWorkers(wrks)
 	rts := mapTasks(tsks)
 
@@ -46,9 +50,9 @@ func mapWorkers(wrks []*worker) []*api.Worker {
 	return res
 }
 
-func mapTasks(tsks *tasks) []*api.Task {
+func mapTasks(tsks map[string]*task) []*api.Task {
 	res := make([]*api.Task, 0)
-	for _, v := range tsks.tsks {
+	for _, v := range tsks {
 		if !v.started {
 			nt := &api.Task{}
 			nt.TaskType = v.requiredModelType

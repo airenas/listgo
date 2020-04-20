@@ -13,7 +13,7 @@ import (
 )
 
 type selectionStrategy interface {
-	findBest(wrks []*worker, tsks *tasks, wi int) (*task, error)
+	findBest(wrks []*worker, tsks map[string]*task, wi int) (*task, error)
 }
 
 type durationGetter interface {
@@ -196,7 +196,7 @@ func changed(data *ServiceData) {
 	}
 	for i, w := range wrks {
 		if w.working == false {
-			t, err := data.selectionStrategy.findBest(wrks, data.tsks, i)
+			t, err := data.selectionStrategy.findBest(wrks, data.tsks.tsks, i)
 			if err != nil {
 				cmdapp.Log.Error("Can't get task", err)
 			}
