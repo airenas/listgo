@@ -18,7 +18,7 @@ func RunCommand(command string, workingDir string, id string, envs []string, out
 	realCommand := strings.Replace(command, "{ID}", id, -1)
 	cmdapp.Log.Infof("Running command: %s", realCommand)
 	logger.Printf("===== Running command: %s", realCommand)
-	cmdapp.Log.Infof("Working Dir: %s", workingDir)
+	cmdapp.Log.Debugf("Working Dir: %s", workingDir)
 	cmdArr := strings.Split(realCommand, " ")
 	if len(cmdArr) < 2 {
 		return errors.New("Wrong command. No parameter " + realCommand)
