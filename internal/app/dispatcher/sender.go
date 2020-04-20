@@ -1,6 +1,7 @@
 package dispatcher
 
 import (
+	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"github.com/pkg/errors"
 )
@@ -24,5 +25,6 @@ func newMsgWithCorrSender(realSender messages.SenderWithCorr, replyQName string)
 }
 
 func (sender *msgWithCorrSender) Send(message messages.Message, queue string, corrID string) error {
+	cmdapp.Log.Infof("Sending message to %s, corrID: %s, reply: %s", queue, corrID, sender.replyQName)
 	return sender.realSender.SendWithCorr(message, queue, sender.replyQName, corrID)
 }

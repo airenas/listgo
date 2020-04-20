@@ -49,7 +49,7 @@ func newQueueRegistrator(sender messages.Sender, qName string, closeChan *utils.
 func (qr *queueRegistrator) live() {
 	for {
 		if qr.close {
-			cmdapp.Log.Info("registrator is going to die. Exit live function")
+			cmdapp.Log.Info("Registrator is going to die. Exit live function")
 			return
 		}
 		err := qr.heartbeat()
@@ -76,7 +76,7 @@ func (qr *queueRegistrator) heartbeat() error {
 }
 
 func (qr *queueRegistrator) sendMsg(mt string) error {
-	cmdapp.Log.Infof("Sending msg %s to %s", mt, qr.registryQueue)
+	cmdapp.Log.Debugf("Sending msg %s to %s", mt, qr.registryQueue)
 	msg := messages.RegistrationMessage{}
 	msg.Queue = qr.ownQueue
 	msg.Type = mt

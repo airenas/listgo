@@ -131,6 +131,7 @@ func listenQueue(data *ServiceData) {
 				}
 				continue
 			}
+			cmdapp.Log.Infof("Sent reply message to %s, corrID: %s", d.ReplyTo, d.CorrelationId)
 		}
 		if !data.skipAck {
 			d.Ack(false)

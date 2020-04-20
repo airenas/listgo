@@ -30,7 +30,7 @@ func (sender *Sender) Send(message messages.Message, queue string, replyQueue st
 //SendWithCorr sends the message with correlationID
 func (sender *Sender) SendWithCorr(message messages.Message, queue string, replyQueue string, corrID string) error {
 	realQueue := sender.ChannelProvider.QueueName(queue)
-	cmdapp.Log.Infof("Sending message to %s", realQueue)
+	cmdapp.Log.Debugf("Sending message to %s", realQueue)
 
 	msgBytes, err := json.Marshal(message)
 	if err != nil {
