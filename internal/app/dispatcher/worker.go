@@ -9,7 +9,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-var timeFormat = "15:04:05"
+const (
+	timeFormat          = "15:04:05"
+	noneWorkerModelType = "<none>"
+)
 
 type worker struct {
 	queue    string
@@ -36,6 +39,12 @@ func newWorkers() *workers {
 	res.lock = &sync.Mutex{}
 	res.workers = make(map[string]*worker)
 	res.changedFunc = func() {}
+	return res
+}
+
+func newWorker() *worker {
+	res := &worker{}
+	res.mType = noneWorkerModelType
 	return res
 }
 
@@ -81,7 +90,7 @@ func registerWorker(wrks *workers, msg *messages.RegistrationMessage) error {
 
 	w, f := wrks.workers[msg.Queue]
 	if !f {
-		w = &worker{}
+		w = newWorker()
 		w.queue = msg.Queue
 		//w.working = msg.Working
 		wrks.workers[w.queue] = w
@@ -148,7 +157,11 @@ func (w *worker) startTask(t *task) {
 	w.started = time.Now()
 	w.endAt = w.started.Add(t.expDuration * time.Duration(t.rtFactor))
 	if w.mType != t.requiredModelType {
-		w.mType = t.requiredModelType
+		if t.requiredModelType != "" {
+			w.mType = t.requiredModelType
+		} else {
+			w.mType = noneWorkerModelType
+		}
 		w.endAt = w.endAt.Add(t.expModelLoadDuration)
 	}
 	cmdapp.Log.Infof("Estimated complete time at %s", w.endAt.Format(timeFormat))
