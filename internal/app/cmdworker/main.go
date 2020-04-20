@@ -11,6 +11,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
 	"github.com/pkg/errors"
+	"github.com/ramr/go-reaper"
 	"github.com/spf13/cobra"
 	"github.com/streadway/amqp"
 )
@@ -70,6 +71,9 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't start registrator")
 	defer registrator.Close()
 	data.skipAck = isRegistrator()
+
+	// init zombies reaper
+	go reaper.Reap()
 
 	err = StartWorkerService(&data)
 	cmdapp.CheckOrPanic(err, "Can't start service")
