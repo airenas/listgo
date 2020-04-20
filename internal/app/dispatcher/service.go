@@ -194,6 +194,7 @@ func changed(data *ServiceData) {
 	for _, k := range data.wrkrs.workers {
 		wrks = append(wrks, k)
 	}
+	cmdapp.Log.Infof("Workers: %d, tasks: %d", len(wrks), len(data.tsks.tsks))
 	for i, w := range wrks {
 		if w.working == false {
 			t, err := data.selectionStrategy.findBest(wrks, data.tsks.tsks, i)

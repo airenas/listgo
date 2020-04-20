@@ -108,7 +108,7 @@ func (ts *tasks) processResponse(d *amqp.Delivery, sender messages.Sender) error
 }
 
 func (t *task) startOn(w *worker, sender messages.Sender) error {
-	cmdapp.Log.Infof("Delivering the task %s", t.msg.ID)
+	cmdapp.Log.Infof("Delivering task(%s) %s to %s", t.requiredModelType, t.msg.ID, w.queue)
 	err := sender.Send(t.msg, w.queue, t.msg.ID)
 	if err != nil {
 		return errors.Wrap(err, "Can't send msg")

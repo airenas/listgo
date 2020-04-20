@@ -86,15 +86,15 @@ func registerWorker(wrks *workers, msg *messages.RegistrationMessage) error {
 		cmdapp.Log.Infof("Registered worker %s", w.queue)
 	}
 	w.beatTime = time.Unix(msg.Timestamp, 0)
+	cmdapp.Log.Debugf("Worker count: %d", len(wrks.workers))
 	go wrks.changedFunc()
-	cmdapp.Log.Infof("W count: %d", len(wrks.workers))
 	return nil
 }
 
 func dropWorker(wrks *workers, w *worker) {
 	cmdapp.Log.Infof("Drop worker %s", w.queue)
 	delete(wrks.workers, w.queue)
-	cmdapp.Log.Infof("W count: %d", len(wrks.workers))
+	cmdapp.Log.Debugf("Worker count: %d", len(wrks.workers))
 	if w.task != nil {
 		failRequeueTask(w.task)
 	}
@@ -108,7 +108,7 @@ func beatWorker(wrks *workers, msg *messages.RegistrationMessage) error {
 func checkForExpiredWorkers(wrks *workers) {
 	for {
 		time.Sleep(30 * time.Second)
-		cmdapp.Log.Info("Check for expired workers")
+		cmdapp.Log.Debug("Check for expired workers")
 		err := checkForExpired(wrks, time.Now())
 		if err != nil {
 			cmdapp.Log.Error(err)
@@ -121,7 +121,7 @@ func checkForExpired(wrks *workers, t time.Time) error {
 	wrks.lock.Lock()
 	defer wrks.lock.Unlock()
 
-	cmdapp.Log.Infof("W count: %d", len(wrks.workers))
+	cmdapp.Log.Debugf("Worker count: %d", len(wrks.workers))
 	for _, w := range wrks.workers {
 		if w.beatTime.Before(tp) {
 			cmdapp.Log.Infof("Worker is dead? %s. Last seen %v", w.queue, w.beatTime)
@@ -146,4 +146,5 @@ func (w *worker) startTask(t *task) {
 		w.mType = t.requiredModelType
 		w.endAt = w.endAt.Add(t.expModelLoadDuration)
 	}
+	cmdapp.Log.Infof("Estimated complete time at %s", w.endAt.Format("15:04:05"))
 }
