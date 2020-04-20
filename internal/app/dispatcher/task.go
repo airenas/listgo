@@ -90,6 +90,7 @@ func (ts *tasks) processResponse(d *amqp.Delivery, sender messages.Sender) error
 			}
 			acked = true
 		}
+		cmdapp.Log.Infof("Sent response to %s, corrID: %s", t.d.ReplyTo, id)
 	}
 	if !acked {
 		err := t.d.Ack(false)

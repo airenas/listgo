@@ -9,6 +9,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+var timeFormat = "15:04:05"
+
 type worker struct {
 	queue    string
 	beatTime time.Time
@@ -84,10 +86,10 @@ func registerWorker(wrks *workers, msg *messages.RegistrationMessage) error {
 		//w.working = msg.Working
 		wrks.workers[w.queue] = w
 		cmdapp.Log.Infof("Registered worker %s", w.queue)
+		go wrks.changedFunc()
 	}
 	w.beatTime = time.Unix(msg.Timestamp, 0)
 	cmdapp.Log.Debugf("Worker count: %d", len(wrks.workers))
-	go wrks.changedFunc()
 	return nil
 }
 
@@ -102,6 +104,7 @@ func dropWorker(wrks *workers, w *worker) {
 }
 
 func beatWorker(wrks *workers, msg *messages.RegistrationMessage) error {
+	cmdapp.Log.Debugf("Got heartbeat from %s", msg.Queue)
 	return registerWorker(wrks, msg)
 }
 
@@ -132,6 +135,8 @@ func checkForExpired(wrks *workers, t time.Time) error {
 }
 
 func (w *worker) completeTask() {
+	cmdapp.Log.Infof("Task response received from %s at %s. Was estimated %s.", w.queue,
+		time.Now().Format(timeFormat), w.endAt.Format(timeFormat))
 	w.task = nil
 	w.working = false
 	w.endAt = time.Now()
@@ -146,5 +151,5 @@ func (w *worker) startTask(t *task) {
 		w.mType = t.requiredModelType
 		w.endAt = w.endAt.Add(t.expModelLoadDuration)
 	}
-	cmdapp.Log.Infof("Estimated complete time at %s", w.endAt.Format("15:04:05"))
+	cmdapp.Log.Infof("Estimated complete time at %s", w.endAt.Format(timeFormat))
 }
