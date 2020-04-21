@@ -206,6 +206,8 @@ func changed(data *ServiceData) {
 	wrks := make([]*worker, 0)
 	for _, k := range data.wrkrs.workers {
 		wrks = append(wrks, k)
+		cmdapp.Log.Debugf("Worker: %s, mt: %s, working: %v, started: %s, endsAt: %s",
+			k.queue, k.mType, k.working, k.started.Format(timeFormat), k.endAt.Format(timeFormat))
 	}
 	cmdapp.Log.Infof("Workers: %d, tasks: %d", len(wrks), len(data.tsks.tsks))
 	for i, w := range wrks {

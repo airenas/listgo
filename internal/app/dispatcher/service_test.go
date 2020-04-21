@@ -1,30 +1,26 @@
 package dispatcher
 
 import (
+	"errors"
 	"testing"
+	"time"
 
+	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
+	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/petergtz/pegomock"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
 )
 
-// var ackMock *mocks.MockAcknowledger
-// var message amqp.Delivery
 var wrkSenderMock *mocks.MockSender
 var durGetterMock *mocks.MockDurationGetter
 var modelTypeGetterMock *mocks.MockModelTypeGetter
 var startTimeGetterMock *mocks.MockStartTimeGetter
 
-// var recInfoLoaderMock *mocks.MockRecInfoLoader
-// var preloadTaskManagerMock *mocks.MockPreloadTaskManager
-
 func initTest(t *testing.T) {
 	mocks.AttachMockToTest(t)
-	// ackMock = mocks.NewMockAcknowledger()
-	// msgdata, _ := json.Marshal(messages.NewQueueMessage("1", "rec", nil))
-	// message = amqp.Delivery{Body: msgdata}
-	// message.Acknowledger = ackMock
 	msgSenderMock = mocks.NewMockSender()
 	wrkSenderMock = mocks.NewMockSender()
 	durGetterMock = mocks.NewMockDurationGetter()
@@ -98,4 +94,54 @@ func TestServiceInit_Fails(t *testing.T) {
 	data = initTestData(t)
 	data.tsks = nil
 	assert.NotNil(t, StartWorkerService(data))
+}
+
+func TestServiceAddTask(t *testing.T) {
+	initTest(t)
+	data := initTestData(t)
+	err := StartWorkerService(data)
+	assert.Nil(t, err)
+	msg := messages.NewQueueMessage("ID", "model", nil)
+	d := newTestDelivery(msg)
+	now := time.Now()
+	pegomock.When(startTimeGetterMock.Get(matchers.AnySliceOfMessagesTag())).ThenReturn(now, nil)
+	pegomock.When(modelTypeGetterMock.Get(pegomock.AnyString())).ThenReturn("mmm", nil)
+	pegomock.When(durGetterMock.Get(pegomock.AnyString())).ThenReturn(time.Second, nil)
+
+	err = addTask(data, d, msg)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(data.tsks.tsks))
+	tsk := data.tsks.tsks["ID"]
+	assert.NotNil(t, tsk)
+	assert.Equal(t, msg, tsk.msg)
+	assert.Equal(t, d, tsk.d)
+	assert.Equal(t, now, tsk.addedAt)
+	assert.Equal(t, "mmm", tsk.requiredModelType)
+	assert.Equal(t, time.Second, tsk.expDuration)
+}
+
+func TestServiceAddOnFailure(t *testing.T) {
+	initTest(t)
+	data := initTestData(t)
+	err := StartWorkerService(data)
+	assert.Nil(t, err)
+	msg := messages.NewQueueMessage("ID", "model", nil)
+	d := newTestDelivery(msg)
+	now := time.Now()
+	pegomock.When(startTimeGetterMock.Get(matchers.AnySliceOfMessagesTag())).ThenReturn(now, errors.New("olia"))
+	pegomock.When(modelTypeGetterMock.Get(pegomock.AnyString())).ThenReturn("", errors.New("olia"))
+	pegomock.When(durGetterMock.Get(pegomock.AnyString())).ThenReturn(time.Second, errors.New("olia"))
+
+	err = addTask(data, d, msg)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(data.tsks.tsks))
+	tsk := data.tsks.tsks["ID"]
+	assert.NotNil(t, tsk)
+	assert.Equal(t, msg, tsk.msg)
+	assert.Equal(t, d, tsk.d)
+	assert.Equal(t, now, tsk.addedAt)
+	assert.Equal(t, "", tsk.requiredModelType)
+	assert.Equal(t, time.Second, tsk.expDuration)
 }
