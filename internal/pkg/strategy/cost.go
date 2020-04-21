@@ -19,20 +19,26 @@ type Cost struct {
 }
 
 //NewCost init new Cost task selection strategy
-func NewCost(modelLoadTime time.Duration) (*Cost, error) {
+func NewCost() (*Cost, error) {
+	return newCost(cmdapp.Config.GetDuration("strategy.modelLoadDuration"),
+		float32(cmdapp.Config.GetFloat64("strategy.realTimeFactor")),
+		float32(cmdapp.Config.GetFloat64("strategy.delayCostPerSecond")))
+}
+
+func newCost(modelLoadTime time.Duration, rtFactor float32, delayCostPerSec float32) (*Cost, error) {
 	res := &Cost{}
-	res.modelLoadTime = cmdapp.Config.GetDuration("strategy.modelLoadDuration")
-	if res.modelLoadTime <= 0 {
+	if modelLoadTime <= 0 {
 		return nil, errors.New("Wrong or no strategy.modelLoadDuration")
 	}
-	res.rtFactor = float32(cmdapp.Config.GetFloat64("strategy.realTimeFactor"))
-	if res.rtFactor <= 0.01 || res.rtFactor > 300 {
+	res.modelLoadTime = modelLoadTime
+	if rtFactor <= 0.01 || rtFactor > 300 {
 		return nil, errors.New("Wrong or no strategy.realTimeFactor")
 	}
-	res.delayCostPerSec = float32(cmdapp.Config.GetFloat64("strategy.delayCostPerSecond"))
-	if res.delayCostPerSec <= 0 {
+	res.rtFactor = rtFactor
+	if delayCostPerSec <= 0 {
 		return nil, errors.New("Wrong or no strategy.delayCostPerSecond")
 	}
+	res.delayCostPerSec = delayCostPerSec
 	return res, nil
 }
 
