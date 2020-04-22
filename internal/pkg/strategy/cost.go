@@ -1,7 +1,6 @@
 package strategy
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -9,6 +8,7 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/strategy/api"
+	"github.com/pkg/errors"
 )
 
 //Cost based strategy
@@ -51,8 +51,7 @@ func (c *Cost) FindBest(ws []*api.Worker, ts []*api.Task, workerIndex int) (*api
 	ctx.rtFactor = c.rtFactor
 
 	tskg := groupTasks(ts)
-	res := findTask(ws, tskg, workerIndex, ctx)
-	return res, nil
+	return findTask(ws, tskg, workerIndex, ctx)
 }
 
 type taskGroups struct {
@@ -69,17 +68,23 @@ type context struct {
 }
 
 func newContext(t time.Time) *context {
-	return &context{now: t, max: 1000.0}
+	return &context{now: t, max: 100000.0}
 }
 
-func findTask(ws []*api.Worker, tg *taskGroups, wi int, ctx *context) *api.Task {
+func findTask(ws []*api.Worker, tg *taskGroups, wi int, ctx *context) (*api.Task, error) {
+	if len(ws) == 0 {
+		return nil, errors.New("No workers")
+	}
+	if wi < 0 || wi >= len(ws) {
+		return nil, errors.Errorf("Wrong worker index %d of %d", wi, len(ws))
+	}
 	m := calcMatrix(ws, tg, ctx)
 	bg := getBest(m, tg, wi, ctx)
 	if bg != "" {
 		res := tg.data[bg][0]
-		return res
+		return res, nil
 	}
-	return getTaskByV2(ws, tg, wi, ctx)
+	return getTaskByV2(ws, tg, wi, ctx), nil
 }
 
 func calcCost(w *api.Worker, t []*api.Task, ctx *context) float32 {
@@ -222,7 +227,7 @@ func addToLowest(arr *[]float32, t *api.Task, ctx *context) {
 		}
 	}
 	d := ctx.now.Sub(t.ArrivedAt)
-	(*arr)[bi] += float32(t.Duration.Seconds())
+	(*arr)[bi] += float32(t.Duration.Seconds()) * ctx.rtFactor
 	if d > 0 {
 		(*arr)[bi] -= float32(d.Seconds()) * ctx.delayCostPerSec
 	}
