@@ -28,15 +28,15 @@ func NewCost() (*Cost, error) {
 func newCost(modelLoadTime time.Duration, rtFactor float32, delayCostPerSec float32) (*Cost, error) {
 	res := &Cost{}
 	if modelLoadTime <= 0 {
-		return nil, errors.New("Wrong or no strategy.modelLoadDuration")
+		return nil, errors.Errorf("Wrong or no strategy.modelLoadDuration, %v <= 0", modelLoadTime)
 	}
 	res.modelLoadTime = modelLoadTime
 	if rtFactor <= 0.01 || rtFactor > 300 {
-		return nil, errors.New("Wrong or no strategy.realTimeFactor")
+		return nil, errors.Errorf("Wrong or no strategy.realTimeFactor, %f not in [0.001. 300)", rtFactor)
 	}
 	res.rtFactor = rtFactor
-	if delayCostPerSec <= 0 {
-		return nil, errors.New("Wrong or no strategy.delayCostPerSecond")
+	if delayCostPerSec <= 0 || delayCostPerSec > 10 {
+		return nil, errors.Errorf("Wrong or no strategy.delayCostPerSecond, %f not in [0.001. 10)", delayCostPerSec)
 	}
 	res.delayCostPerSec = delayCostPerSec
 	return res, nil

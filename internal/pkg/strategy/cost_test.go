@@ -29,6 +29,8 @@ func TestInit_Fails(t *testing.T) {
 	assert.NotNil(t, err)
 	_, err = newCost(time.Second, 2, 0)
 	assert.NotNil(t, err)
+	_, err = newCost(time.Second, 2, 11)
+	assert.NotNil(t, err)
 }
 
 func TestFind_Fails(t *testing.T) {
@@ -59,6 +61,43 @@ func TestFind(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, bt)
 	assert.Equal(t, "2", bt.TaskType)
+}
+
+func TestFind_SelectLatest(t *testing.T) {
+	testInit(t)
+	s, _ := newCost(time.Second*100, 2, 3)
+	assert.NotNil(t, s)
+	t1 := testT("1", 0, 20)
+	t2 := testT("1", 10, 20)
+	t3 := testT("1", 20, 20)
+
+	bt, err := s.FindBest(testWrks(testW("1", 0), testW("2", 0)), testTsks(t1, t2, t3), 0)
+	assert.Nil(t, err)
+	assert.Equal(t, t3, bt)
+}
+
+func TestFind_DoesReturn(t *testing.T) {
+	testInit(t)
+	s, _ := newCost(time.Second*100, 1, 0.01)
+	assert.NotNil(t, s)
+	t1 := testT("1", 0, 20)
+	t2 := testT("1", 10, 20)
+	t3 := testT("1", 20, 80)
+
+	bt, _ := s.FindBest(testWrks(testW("1", 0), testW("2", 0)), testTsks(t1, t2, t3), 1)
+	assert.Nil(t, bt)
+}
+
+func TestFind_StartsNewSame(t *testing.T) {
+	testInit(t)
+	s, _ := newCost(time.Second*100, 1, 0.01)
+	assert.NotNil(t, s)
+	t1 := testT("1", 0, 20)
+	t2 := testT("1", 10, 20)
+	t3 := testT("1", 20, 90)
+
+	bt, _ := s.FindBest(testWrks(testW("1", 0), testW("2", 0)), testTsks(t1, t2, t3), 1)
+	assert.Equal(t, t1, bt)
 }
 
 func testWrks(wrks ...*api.Worker) []*api.Worker {

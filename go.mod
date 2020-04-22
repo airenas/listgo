@@ -20,7 +20,6 @@ require (
 	github.com/heptiolabs/healthcheck v0.0.0-20180807145615-6ff867650f40
 	github.com/heralight/logrus_mate v1.0.1
 	github.com/hoisie/redis v0.0.0-20160730154456-b5c6e81454e0 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jordan-wright/email v0.0.0-20190218024454-3ea4d25e7cf8
 	github.com/onsi/ginkgo v1.12.0 // indirect
 	github.com/petergtz/pegomock v2.7.0+incompatible
