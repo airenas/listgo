@@ -76,7 +76,7 @@ func run(cmd *cobra.Command, args []string) {
 	//end work queue
 	data.modelLoadDuration = cmdapp.Config.GetDuration("strategy.modelLoadDuration")
 	data.rtFactor = float32(cmdapp.Config.GetFloat64("strategy.realTimeFactor"))
-	cmdapp.Log.Info("Dispatch params: modelLoadTime=%v, rt=%f", data.modelLoadDuration, data.rtFactor)
+	cmdapp.Log.Infof("Dispatch params: modelLoadTime=%v, rt=%f", data.modelLoadDuration, data.rtFactor)
 	strg, err := strategy.NewCost()
 	cmdapp.CheckOrPanic(err, "Can't init strategy")
 	data.selectionStrategy, err = newStrategyWrapper(strg)
