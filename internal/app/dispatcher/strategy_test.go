@@ -1,10 +1,11 @@
 package dispatcher
 
 import (
-	"bitbucket.org/airenas/listgo/internal/pkg/strategy/api"
 	"errors"
 	"testing"
 	"time"
+
+	"bitbucket.org/airenas/listgo/internal/pkg/strategy/api"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
@@ -60,10 +61,18 @@ func TestStrategy_MapsTask_SkipsStarted(t *testing.T) {
 
 func TestStrategy_MapsTask_SkipsFailed(t *testing.T) {
 	now := time.Now()
-	tsk := &task{addedAt: now, expDuration: time.Second, requiredModelType: "olia", started: true}
+	tsk := &task{addedAt: now, expDuration: time.Second, requiredModelType: "olia", started: false}
 	tsk.failCount = maxTaskFailCount + 1
 	res := mapTasks(map[string]*task{"1": tsk})
 	assert.Equal(t, 0, len(res))
+}
+
+func TestStrategy_MapsFailedTask(t *testing.T) {
+	now := time.Now()
+	tsk := &task{addedAt: now, expDuration: time.Second, requiredModelType: "olia", started: false}
+	tsk.failCount = maxTaskFailCount - 1
+	res := mapTasks(map[string]*task{"1": tsk})
+	assert.Equal(t, 1, len(res))
 }
 
 func TestStrategy_FindBest(t *testing.T) {

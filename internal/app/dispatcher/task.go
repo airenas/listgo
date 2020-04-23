@@ -1,6 +1,7 @@
 package dispatcher
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -79,6 +80,50 @@ func (ts *tasks) addTask(t *task) error {
 	return nil
 }
 
+func (ts *tasks) cleanFailing(sender messages.Sender) error {
+	ts.lock.Lock()
+	defer ts.lock.Unlock()
+	var lastErr error
+	for k, v := range ts.tsks {
+		if !v.started && v.failCount >= maxTaskFailCount {
+			err := sendFailureResponse(v, sender)
+			if err != nil {
+				lastErr = err
+			} else {
+				cmdapp.Log.Warnf("Drop failing task %s", v.msg.ID)
+				delete(ts.tsks, k)
+			}
+		}
+	}
+	return lastErr
+}
+
+func sendFailureResponse(t *task, sender messages.Sender) error {
+	id := t.msg.ID
+	cmdapp.Log.Infof("Sending failure for the task %s as it faile for %d times", id, t.failCount)
+	acked := false
+	if t.d.ReplyTo != "" {
+		err := sender.Send(messages.NewQueueMsgWithError(t.msg.ID, fmt.Sprintf("Message processing failed %d times",
+			t.failCount)), t.d.ReplyTo, "")
+		if err != nil {
+			cmdapp.Log.Error("Can't reply result", err)
+			err := t.d.Nack(false, !t.d.Redelivered) // try redeliver for first time
+			if err != nil {
+				cmdapp.Log.Error(err, "Can't nack")
+			}
+			acked = true
+		}
+		cmdapp.Log.Infof("Sent failure response to %s, corrID: %s", t.d.ReplyTo, id)
+	}
+	if !acked {
+		err := t.d.Ack(false)
+		if err != nil {
+			cmdapp.Log.Error(err, "Can't ack")
+		}
+	}
+	return nil
+}
+
 func (ts *tasks) processResponse(d *amqp.Delivery, sender messages.Sender) error {
 	ts.lock.Lock()
 	defer ts.lock.Unlock()
@@ -118,6 +163,7 @@ func (ts *tasks) processResponse(d *amqp.Delivery, sender messages.Sender) error
 		delete(ts.tsks, id)
 	} else {
 		cmdapp.Log.Error("Task has no worker")
+		delete(ts.tsks, id)
 	}
 
 	go ts.changedFunc()

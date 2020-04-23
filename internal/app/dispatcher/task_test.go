@@ -175,6 +175,37 @@ func TestStartOn_WorkerFails_Error(t *testing.T) {
 	assert.Equal(t, false, tsk.started)
 }
 
+func TestCleanFailing_Skip(t *testing.T) {
+	initTestTask(t)
+	tsks := newTasks()
+	tsk := newTask()
+	tsk.msg = messages.NewQueueMessage("cID", "res", nil)
+	tsk.d = newTestDelivery(tsk.msg)
+	tsk.d.ReplyTo = "rQ"
+	tsk.failCount = maxTaskFailCount
+	tsks.addTask(tsk)
+	err := tsks.cleanFailing(msgSenderMock)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(tsks.tsks))
+	msgSenderMock.VerifyWasCalledOnce().
+		Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+}
+
+func TestCleanFailing(t *testing.T) {
+	initTestTask(t)
+	tsks := newTasks()
+	tsk := newTask()
+	tsk.msg = messages.NewQueueMessage("cID", "res", nil)
+	tsk.d = newTestDelivery(tsk.msg)
+	tsk.d.ReplyTo = "rQ"
+	tsks.addTask(tsk)
+	err := tsks.cleanFailing(msgSenderMock)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(tsks.tsks))
+	msgSenderMock.VerifyWasCalled(pegomock.Never()).
+		Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+}
+
 func newTestDelivery(msg *messages.QueueMessage) *amqp.Delivery {
 	msgdata, _ := json.Marshal(msg)
 	res := amqp.Delivery{Body: msgdata, CorrelationId: msg.ID}

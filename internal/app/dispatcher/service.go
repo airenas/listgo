@@ -70,6 +70,7 @@ func StartWorkerService(data *ServiceData) error {
 
 	go listenWorkQueue(data)
 	go listenResponseQueue(data)
+	go cleanFailingTasks(data)
 
 	return nil
 }
@@ -150,6 +151,16 @@ func listenResponseQueue(data *ServiceData) {
 	}
 	cmdapp.Log.Infof("Stopped listening response queue")
 	data.fc.Close()
+}
+
+func cleanFailingTasks(data *ServiceData) {
+	for {
+		time.Sleep(time.Minute * 10)
+		err := data.tsks.cleanFailing(data.replySender)
+		if err != nil {
+			cmdapp.Log.Error(err)
+		}
+	}
 }
 
 func processRegistrationMsg(data *ServiceData, d *amqp.Delivery) error {
