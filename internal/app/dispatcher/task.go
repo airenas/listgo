@@ -10,6 +10,8 @@ import (
 	"github.com/streadway/amqp"
 )
 
+const maxTaskFailCount = 10
+
 type task struct {
 	d   *amqp.Delivery
 	msg *messages.QueueMessage
@@ -117,7 +119,7 @@ func (ts *tasks) processResponse(d *amqp.Delivery, sender messages.Sender) error
 	} else {
 		cmdapp.Log.Error("Task has no worker")
 	}
-	
+
 	go ts.changedFunc()
 	return nil
 }
@@ -126,12 +128,16 @@ func (t *task) startOn(w *worker, sender messages.Sender) error {
 	cmdapp.Log.Infof("Delivering task(%s) %s to %s", t.requiredModelType, t.msg.ID, w.queue)
 	err := sender.Send(t.msg, w.queue, t.msg.ID)
 	if err != nil {
+		t.failCount++
 		return errors.Wrap(err, "Can't send msg")
 	}
 	err = w.startTask(t)
 	if err != nil {
+		t.failCount++
 		return errors.Wrap(err, "Can't mark worker as started")
 	}
 	t.worker = w
+	t.started = true
+	t.startedAt = time.Now()
 	return nil
 }

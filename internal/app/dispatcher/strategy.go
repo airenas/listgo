@@ -53,7 +53,7 @@ func mapWorkers(wrks []*worker) []*api.Worker {
 func mapTasks(tsks map[string]*task) []*api.Task {
 	res := make([]*api.Task, 0)
 	for _, v := range tsks {
-		if !v.started {
+		if !v.started && v.failCount < maxTaskFailCount {
 			nt := &api.Task{}
 			nt.TaskType = v.requiredModelType
 			nt.Duration = v.expDuration

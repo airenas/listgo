@@ -58,6 +58,14 @@ func TestStrategy_MapsTask_SkipsStarted(t *testing.T) {
 	assert.Equal(t, 0, len(res))
 }
 
+func TestStrategy_MapsTask_SkipsFailed(t *testing.T) {
+	now := time.Now()
+	tsk := &task{addedAt: now, expDuration: time.Second, requiredModelType: "olia", started: true}
+	tsk.failCount = maxTaskFailCount + 1
+	res := mapTasks(map[string]*task{"1": tsk})
+	assert.Equal(t, 0, len(res))
+}
+
 func TestStrategy_FindBest(t *testing.T) {
 	initTestStrategy(t)
 	s, _ := newStrategyWrapper(taskSelectorMock)

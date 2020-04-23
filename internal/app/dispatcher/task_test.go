@@ -144,6 +144,7 @@ func TestStartOn(t *testing.T) {
 	assert.Nil(t, err)
 	msgSenderMock.VerifyWasCalledOnce().Send(matchers.EqMessagesMessage(tsk.msg), pegomock.AnyString(), pegomock.AnyString())
 	assert.Equal(t, tsk, w.task)
+	assert.Equal(t, true, tsk.started)
 }
 
 func TestStartOn_SenderFails_Error(t *testing.T) {
@@ -157,6 +158,7 @@ func TestStartOn_SenderFails_Error(t *testing.T) {
 	err := tsk.startOn(w, msgSenderMock)
 	assert.NotNil(t, err)
 	assert.Nil(t, w.task)
+	assert.Equal(t, false, tsk.started)
 }
 
 func TestStartOn_WorkerFails_Error(t *testing.T) {
@@ -170,6 +172,7 @@ func TestStartOn_WorkerFails_Error(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, w.task)
 	assert.Nil(t, tsk.worker)
+	assert.Equal(t, false, tsk.started)
 }
 
 func newTestDelivery(msg *messages.QueueMessage) *amqp.Delivery {
