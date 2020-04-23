@@ -32,7 +32,7 @@ func (sender *Sender) SendWithCorr(message messages.Message, queue string, reply
 	realQueue := sender.ChannelProvider.QueueName(queue)
 	cmdapp.Log.Debugf("Sending message to %s", realQueue)
 
-	msgBytes, err := json.Marshal(message)
+	msgBytes, err := getBytes(message)
 	if err != nil {
 		return errors.Wrap(err, "Can't marshal message")
 	}
@@ -55,4 +55,16 @@ func (sender *Sender) SendWithCorr(message messages.Message, queue string, reply
 		return errors.Wrap(err, "Can't send message")
 	}
 	return nil
+}
+
+func getBytes(msg messages.Message) ([]byte, error) {
+	res, isBytes := msg.([]byte)
+	if isBytes {
+		return res, nil
+	}
+	res, err := json.Marshal(msg)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't marshal message")
+	}
+	return res, nil
 }
