@@ -100,6 +100,50 @@ func TestFind_StartsNewSame(t *testing.T) {
 	assert.Equal(t, t1, bt)
 }
 
+func TestFind_StartsNewSame_WorkerEndTime(t *testing.T) {
+	testInit(t)
+	s, _ := newCost(time.Second*100, 1, 0.01)
+	assert.NotNil(t, s)
+	t1 := testT("1", 0, 20)
+	t2 := testT("1", 1, 20)
+	t3 := testT("1", 2, 20)
+
+	bt, _ := s.FindBest(testWrks(testW("1", 80), testW("2", 0)), testTsks(t1, t2, t3), 1)
+	assert.Equal(t, t1, bt)
+	bt, _ = s.FindBest(testWrks(testW("1", 60), testW("2", 0)), testTsks(t1, t2, t3), 1)
+	assert.Nil(t, bt)
+	bt, _ = s.FindBest(testWrks(testW("1", 90), testW("2", 0)), testTsks(t1, t2, t3), 1)
+	assert.Equal(t, t2, bt)
+	bt, _ = s.FindBest(testWrks(testW("1", 110), testW("2", 0)), testTsks(t1, t2, t3), 1)
+	assert.Equal(t, t3, bt)
+}
+
+func TestFind_StartsNewSame_WorkerEndTimeAndRT(t *testing.T) {
+	testInit(t)
+	s, _ := newCost(time.Second*100, 2, 0.01)
+	assert.NotNil(t, s)
+	t1 := testT("1", 0, 20)
+	t2 := testT("1", 1, 20)
+	t3 := testT("1", 2, 20)
+
+	bt, _ := s.FindBest(testWrks(testW("1", 100), testW("2", 0)), testTsks(t1, t2, t3), 1)
+	assert.Equal(t, t2, bt)
+	bt, _ = s.FindBest(testWrks(testW("1", 60), testW("2", 0)), testTsks(t1, t2, t3), 1)
+	assert.Equal(t, t1, bt)
+}
+
+func TestFind_StartsNewSame_LongWait(t *testing.T) {
+	testInit(t)
+	s, _ := newCost(time.Second*100, 1, 0.01)
+	assert.NotNil(t, s)
+	t1 := testT("1", 0, 20)
+	t2 := testT("1", 1, 20)
+	t3 := testT("1", 2, 20)
+
+	bt, _ := s.FindBest(testWrks(testW("1", 200), testW("2", 0)), testTsks(t1, t2, t3), 1)
+	assert.Equal(t, t3, bt)
+}
+
 func testWrks(wrks ...*api.Worker) []*api.Worker {
 	return wrks
 }
