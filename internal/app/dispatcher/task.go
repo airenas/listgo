@@ -64,6 +64,14 @@ func (ts *tasks) addTask(t *task) error {
 	if ts.changedFunc == nil {
 		return errors.New("No change func")
 	}
+	ot, found := ts.tsks[t.msg.ID]
+	if found {
+		cmdapp.Log.Warnf("The same task arrived %s", t.msg.ID)
+		if ot.worker != nil {
+			cmdapp.Log.Warnf("Hmm. What to do with old task worker. Marking as free %s", ot.worker.queue)
+			ot.worker.completeTask()
+		}
+	}
 	ts.tsks[t.msg.ID] = t
 	go ts.changedFunc()
 	return nil
@@ -101,12 +109,15 @@ func (ts *tasks) processResponse(d *amqp.Delivery, sender messages.Sender) error
 
 	w := t.worker
 	if w != nil {
-		w.completeTask()
+		err := w.completeTask()
+		if err != nil {
+			cmdapp.Log.Error("Can'not mark worker as completed", err)
+		}
 		delete(ts.tsks, id)
 	} else {
 		cmdapp.Log.Error("Task has no worker")
 	}
-
+	
 	go ts.changedFunc()
 	return nil
 }
@@ -117,7 +128,10 @@ func (t *task) startOn(w *worker, sender messages.Sender) error {
 	if err != nil {
 		return errors.Wrap(err, "Can't send msg")
 	}
-	w.startTask(t)
+	err = w.startTask(t)
+	if err != nil {
+		return errors.Wrap(err, "Can't mark worker as started")
+	}
 	t.worker = w
 	return nil
 }

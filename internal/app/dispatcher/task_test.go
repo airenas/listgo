@@ -53,6 +53,29 @@ func TestAddTask_Fail(t *testing.T) {
 	assert.Equal(t, 0, len(tsks.tsks))
 }
 
+func TestAddTask_OnExisting_MarkWorkerFree(t *testing.T) {
+	initTestTask(t)
+	tsks := newTasks()
+	tsk := newTask()
+	tsk.msg = messages.NewQueueMessage("cID", "res", nil)
+	tsk.d = newTestDelivery(tsk.msg)
+
+	err := tsks.addTask(tsk)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(tsks.tsks))
+	tsk.worker = newWorker()
+	tsk.worker.working = true
+
+	// lets do another
+	tsk1 := newTask()
+	tsk1.msg = messages.NewQueueMessage("cID", "res", nil)
+	tsk1.d = newTestDelivery(tsk.msg)
+	err = tsks.addTask(tsk)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(tsks.tsks))
+	assert.Equal(t, false, tsk.worker.working)
+}
+
 func TestProcessResponse(t *testing.T) {
 	initTestTask(t)
 	tsks := newTasks()
@@ -134,6 +157,19 @@ func TestStartOn_SenderFails_Error(t *testing.T) {
 	err := tsk.startOn(w, msgSenderMock)
 	assert.NotNil(t, err)
 	assert.Nil(t, w.task)
+}
+
+func TestStartOn_WorkerFails_Error(t *testing.T) {
+	initTestTask(t)
+	tsk := newTask()
+	tsk.msg = messages.NewQueueMessage("cID", "res", nil)
+	tsk.d = newTestDelivery(tsk.msg)
+	w := newWorker()
+	w.working = true
+	err := tsk.startOn(w, msgSenderMock)
+	assert.NotNil(t, err)
+	assert.Nil(t, w.task)
+	assert.Nil(t, tsk.worker)
 }
 
 func newTestDelivery(msg *messages.QueueMessage) *amqp.Delivery {
