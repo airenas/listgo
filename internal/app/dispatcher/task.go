@@ -1,7 +1,6 @@
 package dispatcher
 
 import (
-	"encoding/json"
 	"sync"
 	"time"
 
@@ -82,16 +81,7 @@ func (ts *tasks) processResponse(d *amqp.Delivery, sender messages.Sender) error
 
 	acked := false
 	if t.d.ReplyTo != "" {
-		var msg messages.QueueMessage
-		if err := json.Unmarshal(d.Body, &msg); err != nil {
-			cmdapp.Log.Error(errors.Wrap(err, "Can't unmarshal message "+string(d.Body)))
-			err := t.d.Nack(false, !t.d.Redelivered) // try redeliver for first time
-			if err != nil {
-				cmdapp.Log.Error(err, "Can't nack")
-			}
-			acked = true
-		}
-		err := sender.Send(msg, t.d.ReplyTo, "")
+		err := sender.Send(d.Body, t.d.ReplyTo, "")
 		if err != nil {
 			cmdapp.Log.Error("Can't reply result", err)
 			err := t.d.Nack(false, !t.d.Redelivered) // try redeliver for first time

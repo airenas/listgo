@@ -91,6 +91,26 @@ func TestProcessResponse_NackOnFailure(t *testing.T) {
 	assert.Equal(t, 0, len(tsks.tsks))
 }
 
+func TestProcessResponse_BodyResend(t *testing.T) {
+	initTestTask(t)
+	tsks := newTasks()
+	tsk := newTask()
+	tsk.worker = newWorker()
+	tsk.msg = messages.NewQueueMessage("cID", "res", nil)
+	tsk.d = newTestDelivery(tsk.msg)
+	tsk.d.ReplyTo = "replyQ"
+	err := tsks.addTask(tsk)
+	assert.Nil(t, err)
+	message := newTestDelivery(messages.NewQueueMessage("cID", "res", nil))
+	message.Body = []byte("body")
+	err = tsks.processResponse(message, msgSenderMock)
+	assert.Nil(t, err)
+	cMsg, cQ, cRQ := msgSenderMock.VerifyWasCalledOnce().Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString()).GetCapturedArguments()
+	assert.Equal(t, []byte("body"), cMsg)
+	assert.Equal(t, "replyQ", cQ)
+	assert.Equal(t, "", cRQ)
+}
+
 func TestStartOn(t *testing.T) {
 	initTestTask(t)
 	tsk := newTask()
