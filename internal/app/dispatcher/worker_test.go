@@ -96,6 +96,15 @@ func TestWorkerComplete(t *testing.T) {
 	assert.False(t, wrk.endAt.After(time.Now()))
 }
 
+func TestWorkerCompleteFails(t *testing.T) {
+	wrk := newWorker()
+	wrk.working = false
+
+	err := wrk.completeTask()
+	assert.NotNil(t, err)
+	assert.Equal(t, false, wrk.working)
+}
+
 func TestWorkerStartTask(t *testing.T) {
 	wrk := newWorker()
 	tsk := newTask()
@@ -121,10 +130,19 @@ func TestWorkerStartTask_NoModelLoad(t *testing.T) {
 	tsk.requiredModelType = "M1"
 	now := time.Now()
 	wrk.mType = "M1"
-	wrk.startTaskAt(tsk, now)
+	err := wrk.startTaskAt(tsk, now)
 
+	assert.Nil(t, err)
 	assert.Equal(t, "M1", wrk.mType)
 	assert.Equal(t, now.Add(time.Second*2), wrk.endAt)
+}
+
+func TestWorkerStartTask_Fails(t *testing.T) {
+	wrk := newWorker()
+	tsk := newTask()
+	wrk.working = true
+	err := wrk.startTaskAt(tsk, time.Now())
+	assert.NotNil(t, err)
 }
 
 func newMsg(name string, tp string, t time.Time) *messages.RegistrationMessage {

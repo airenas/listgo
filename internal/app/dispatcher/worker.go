@@ -64,6 +64,13 @@ func processWorker(wrks *workers, msg *messages.RegistrationMessage) error {
 	return errors.Errorf("Unknown msg type: '%s'", msg.Type)
 }
 
+func (wrks *workers) log() {
+	for _, k := range wrks.workers {
+		cmdapp.Log.Debugf("Worker: %s, mt: %s, working: %v, started: %s, endsAt: %s",
+			k.queue, k.mType, k.working, k.started.Format(timeFormat), k.endAt.Format(timeFormat))
+	}
+}
+
 func expired(t time.Time, now time.Time) bool {
 	return t.Add(120 * time.Second).Before(now)
 }
@@ -143,19 +150,26 @@ func checkForExpired(wrks *workers, t time.Time) error {
 	return nil
 }
 
-func (w *worker) completeTask() {
+func (w *worker) completeTask() error {
 	cmdapp.Log.Infof("Task response received from %s at %s. Was estimated %s.", w.queue,
 		time.Now().Format(timeFormat), w.endAt.Format(timeFormat))
+	if w.working == false {
+		return errors.New("Task already not working")
+	}
 	w.task = nil
 	w.working = false
 	w.endAt = time.Now()
+	return nil
 }
 
-func (w *worker) startTask(t *task) {
-	w.startTaskAt(t, time.Now())
+func (w *worker) startTask(t *task) error {
+	return w.startTaskAt(t, time.Now())
 }
 
-func (w *worker) startTaskAt(t *task, now time.Time) {
+func (w *worker) startTaskAt(t *task, now time.Time) error {
+	if w.working {
+		return errors.Errorf("Tryning to start worker %s, but it is already marked as working", w.queue)
+	}
 	w.working = true
 	w.task = t
 	w.started = now
@@ -169,4 +183,5 @@ func (w *worker) startTaskAt(t *task, now time.Time) {
 		w.endAt = w.endAt.Add(t.expModelLoadDuration)
 	}
 	cmdapp.Log.Infof("Estimated complete time at %s", w.endAt.Format(timeFormat))
+	return nil
 }
