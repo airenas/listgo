@@ -11,6 +11,8 @@ const (
 	Diarization string = "Diarization"
 	// Transcription queue
 	Transcription string = "Transcription"
+	// Rescore queue
+	Rescore string = "Rescore"
 	// ResultMake queue
 	ResultMake string = "ResultMake"
 )

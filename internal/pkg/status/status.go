@@ -20,5 +20,8 @@ var Diarization = Status{"Diarization"}
 //Transcription in progress
 var Transcription = Status{"Transcription"}
 
+//Rescore in progress
+var Rescore = Status{"Rescore"}
+
 //ResultMake indicates preparing result in progress
 var ResultMake = Status{"ResultMake"}

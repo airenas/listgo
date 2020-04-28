@@ -39,6 +39,7 @@ type ServiceData struct {
 	AudioConvertCh      <-chan amqp.Delivery
 	DiarizationCh       <-chan amqp.Delivery
 	TranscriptionCh     <-chan amqp.Delivery
+	RescoreCh           <-chan amqp.Delivery
 	ResultMakeCh        <-chan amqp.Delivery
 }
 
@@ -68,6 +69,7 @@ func StartWorkerService(data *ServiceData) (<-chan struct{}, error) {
 	go listenQueue(data.AudioConvertCh, audioConvertFinish, data, fc)
 	go listenQueue(data.DiarizationCh, diarizationFinish, data, fc)
 	go listenQueue(data.TranscriptionCh, transcriptionFinish, data, fc)
+	go listenQueue(data.RescoreCh, rescoreFinish, data, fc)
 	go listenQueue(data.ResultMakeCh, resultMakeFinish, data, fc)
 
 	return fc.c, nil
@@ -155,13 +157,32 @@ func diarizationFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 
 //transcriptionFinish processes transcription result messages
 // 1. logs status
-// 2. sends 'ResultMake' message
+// 2. sends 'Rescore' message
 func transcriptionFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	var message messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
 		return false, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
 	}
-	c, err := processStatus(&message, data, messages.Transcription, status.ResultMake)
+	c, err := processStatus(&message, data, messages.Transcription, status.Rescore)
+	if !c {
+		if err != nil {
+			cmdapp.Log.Error(err)
+		}
+		return true, err
+	}
+	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message),
+		messages.Rescore, messages.ResultQueueFor(messages.Rescore))
+}
+
+//rescoreFinish processes rescore result messages
+// 1. logs status
+// 2. sends 'ResultMake' message
+func rescoreFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
+	var message messages.QueueMessage
+	if err := json.Unmarshal(d.Body, &message); err != nil {
+		return false, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
+	}
+	c, err := processStatus(&message, data, messages.Rescore, status.ResultMake)
 	if !c {
 		if err != nil {
 			cmdapp.Log.Error(err)
