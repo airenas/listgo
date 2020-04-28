@@ -2,31 +2,16 @@ package manager
 
 import (
 	"encoding/json"
-	"sync"
 	"time"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
-
-type multiCloseChannel struct {
-	c    chan struct{}
-	once sync.Once
-}
-
-func newMultiCloseChannel() *multiCloseChannel {
-	return &multiCloseChannel{c: make(chan struct{})}
-}
-
-func (mc *multiCloseChannel) close() {
-	mc.once.Do(func() {
-		close(mc.c)
-	})
-}
 
 // ServiceData keeps data required for service work
 type ServiceData struct {
@@ -41,41 +26,40 @@ type ServiceData struct {
 	TranscriptionCh     <-chan amqp.Delivery
 	RescoreCh           <-chan amqp.Delivery
 	ResultMakeCh        <-chan amqp.Delivery
+	fc                  *utils.MultiCloseChannel
 }
 
 //return true if it can be redelivered
 type prFunc func(d *amqp.Delivery, data *ServiceData) (bool, error)
 
 //StartWorkerService starts the event queue listener service to listen for events
-func StartWorkerService(data *ServiceData) (<-chan struct{}, error) {
+func StartWorkerService(data *ServiceData) error {
 	if data.ResultSaver == nil {
-		return nil, errors.New("Result saver not provided")
+		return errors.New("Result saver not provided")
 	}
 	if data.Publisher == nil {
-		return nil, errors.New("Publisher not provided")
+		return errors.New("Publisher not provided")
 	}
 	if data.MessageSender == nil {
-		return nil, errors.New("MessageSender not provided")
+		return errors.New("MessageSender not provided")
 	}
 	if data.InformMessageSender == nil {
-		return nil, errors.New("InformMessageSender not provided")
+		return errors.New("InformMessageSender not provided")
 	}
 
 	cmdapp.Log.Infof("Starting listen for messages")
 
-	fc := newMultiCloseChannel()
+	go listenQueue(data.DecodeCh, decode, data)
+	go listenQueue(data.AudioConvertCh, audioConvertFinish, data)
+	go listenQueue(data.DiarizationCh, diarizationFinish, data)
+	go listenQueue(data.TranscriptionCh, transcriptionFinish, data)
+	go listenQueue(data.RescoreCh, rescoreFinish, data)
+	go listenQueue(data.ResultMakeCh, resultMakeFinish, data)
 
-	go listenQueue(data.DecodeCh, decode, data, fc)
-	go listenQueue(data.AudioConvertCh, audioConvertFinish, data, fc)
-	go listenQueue(data.DiarizationCh, diarizationFinish, data, fc)
-	go listenQueue(data.TranscriptionCh, transcriptionFinish, data, fc)
-	go listenQueue(data.RescoreCh, rescoreFinish, data, fc)
-	go listenQueue(data.ResultMakeCh, resultMakeFinish, data, fc)
-
-	return fc.c, nil
+	return nil
 }
 
-func listenQueue(q <-chan amqp.Delivery, f prFunc, data *ServiceData, fc *multiCloseChannel) {
+func listenQueue(q <-chan amqp.Delivery, f prFunc, data *ServiceData) {
 	for d := range q {
 		redeliver, err := f(&d, data)
 		if err != nil {
@@ -87,7 +71,7 @@ func listenQueue(q <-chan amqp.Delivery, f prFunc, data *ServiceData, fc *multiC
 		}
 	}
 	cmdapp.Log.Infof("Stopped listening queue")
-	fc.close()
+	data.fc.Close()
 }
 
 //decode starts the transcription process

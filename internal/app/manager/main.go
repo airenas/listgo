@@ -4,6 +4,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/spf13/cobra"
@@ -31,6 +32,7 @@ func Execute() {
 func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Info("Starting " + appName)
 	data := ServiceData{}
+	data.fc = utils.NewSignalChannel()
 
 	mongoSessionProvider, err := mongo.NewSessionProvider()
 	cmdapp.CheckOrPanic(err, "Can't init mongo provider")
@@ -72,10 +74,10 @@ func run(cmd *cobra.Command, args []string) {
 	data.ResultSaver, err = mongo.NewResultSaver(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "Can't init result saver")
 
-	fc, err := StartWorkerService(&data)
+	err = StartWorkerService(&data)
 	cmdapp.CheckOrPanic(err, "Can't start worker service")
 
-	<-fc
+	<-data.fc.C
 	cmdapp.Log.Infof("Exiting service")
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"os"
 	"testing"
 
 	"github.com/petergtz/pegomock"
@@ -16,6 +17,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 )
 
 var statusSaverMock *mocks.MockSaver
@@ -35,7 +37,7 @@ func TestInitManagerNoResultSaver(t *testing.T) {
 	initTest(t)
 	data := ServiceData{}
 	data.Publisher = publisherMock
-	_, err := StartWorkerService(&data)
+	err := StartWorkerService(&data)
 	assert.NotNil(t, err)
 }
 
@@ -47,7 +49,7 @@ func TestInitManagerOK(t *testing.T) {
 	data.MessageSender = msgSenderMock
 	data.InformMessageSender = msgSenderMock
 
-	_, err := StartWorkerService(&data)
+	err := StartWorkerService(&data)
 	assert.Nil(t, err)
 }
 
@@ -57,7 +59,7 @@ func TestInitManagerNoPublisher(t *testing.T) {
 	data.ResultSaver = resultSaverMock
 	data.MessageSender = msgSenderMock
 	data.InformMessageSender = msgSenderMock
-	_, err := StartWorkerService(&data)
+	err := StartWorkerService(&data)
 	assert.NotNil(t, err)
 }
 
@@ -67,7 +69,7 @@ func TestInitManagerNoSender(t *testing.T) {
 	data.ResultSaver = resultSaverMock
 	data.Publisher = publisherMock
 	data.InformMessageSender = msgSenderMock
-	_, err := StartWorkerService(&data)
+	err := StartWorkerService(&data)
 	assert.NotNil(t, err)
 }
 
@@ -77,7 +79,7 @@ func TestInitManagerNoInformSender(t *testing.T) {
 	data.ResultSaver = resultSaverMock
 	data.Publisher = publisherMock
 	data.MessageSender = msgSenderMock
-	_, err := StartWorkerService(&data)
+	err := StartWorkerService(&data)
 	assert.NotNil(t, err)
 }
 
@@ -89,7 +91,7 @@ type testdata struct {
 	rescCh chan amqp.Delivery
 	rc     chan amqp.Delivery
 	data   *ServiceData
-	fc     <-chan struct{}
+	fc     <-chan os.Signal
 }
 
 func initTestData(t *testing.T) *testdata {
@@ -113,7 +115,10 @@ func initTestData(t *testing.T) *testdata {
 	res.data.ResultMakeCh = res.rc
 	res.data.ResultSaver = resultSaverMock
 	res.data.Publisher = publisherMock
-	res.fc, _ = StartWorkerService(res.data)
+	res.data.fc = utils.NewMultiCloseChannel()
+	res.fc = res.data.fc.C
+	err := StartWorkerService(res.data)
+	assert.Nil(t, err)
 	return &res
 }
 
