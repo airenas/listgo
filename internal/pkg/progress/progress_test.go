@@ -21,5 +21,10 @@ func TestConvert(t *testing.T) {
 
 func TestConvert_Rescore(t *testing.T) {
 	pr := progress.Convert(status.Rescore.Name)
-	assert.Equal(t, int32(80), pr)
+	assert.Equal(t, int32(70), pr)
+}
+
+func TestConvert_ResultMake(t *testing.T) {
+	pr := progress.Convert(status.ResultMake.Name)
+	assert.Equal(t, int32(90), pr)
 }

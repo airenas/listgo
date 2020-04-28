@@ -11,8 +11,8 @@ func init() {
 	statusProgressMap[status.AudioConvert.Name] = 6
 	statusProgressMap[status.Diarization.Name] = 35
 	statusProgressMap[status.Transcription.Name] = 50
-	statusProgressMap[status.Rescore.Name] = 80
-	statusProgressMap[status.ResultMake.Name] = 95
+	statusProgressMap[status.Rescore.Name] = 70
+	statusProgressMap[status.ResultMake.Name] = 90
 	statusProgressMap[status.Completed.Name] = 100
 }
 
