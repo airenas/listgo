@@ -109,6 +109,8 @@ func TestProcess_FirstWord_Uppercase(t *testing.T) {
 	r, err := p.Process(strings.Split("aaaa a", " "))
 	assert.Nil(t, err)
 	assert.Equal(t, []string{"Aaaa", "a"}, r.Punctuated)
+	r, _ = p.Process([]string{"aaaa a", "a"})
+	assert.Equal(t, []string{"Aaaa a", "a"}, r.Punctuated)
 }
 
 func TestProcess_AddPunctuation(t *testing.T) {

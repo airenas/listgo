@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"strings"
+	"unicode"
 
 	"bitbucket.org/airenas/listgo/internal/app/punctuation/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
@@ -205,7 +206,7 @@ func (p *PunctuatorImpl) preparePunctuated(strs []string, res []int32) ([]string
 		if i < to {
 			w := strs[i]
 			if uc {
-				w = strings.Title(w)
+				w = toTitle(w)
 			}
 			ps, _ := p.puncVocab[v]
 			if ps == "-" {
@@ -227,4 +228,13 @@ func (p *PunctuatorImpl) fillText(strs []string) string {
 		sep = " "
 	}
 	return res
+}
+
+func toTitle(data string) string {
+	if len(data) == 0 {
+		return data
+	}
+	r := []rune(data)
+	r[0] = unicode.ToTitle(r[0])
+	return string(r)
 }
