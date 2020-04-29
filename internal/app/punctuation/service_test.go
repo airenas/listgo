@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -26,18 +27,13 @@ func initTest(t *testing.T) {
 
 func TestWrongPath(t *testing.T) {
 	initTest(t)
-	req := httptest.NewRequest("GET", "/invalid", nil)
-	resp := httptest.NewRecorder()
-	NewRouter(newData()).ServeHTTP(resp, req)
-	assert.Equal(t, 404, resp.Code)
+	testFail(t, httptest.NewRequest("GET", "/invalid", nil), 404)
 }
 
 func TestWrongMethod(t *testing.T) {
 	initTest(t)
-	req := httptest.NewRequest("GET", "/punctuation", nil)
-	resp := httptest.NewRecorder()
-	NewRouter(newData()).ServeHTTP(resp, req)
-	assert.Equal(t, 405, resp.Code)
+	testFail(t, httptest.NewRequest("GET", "/punctuation", nil), 405)
+	testFail(t, httptest.NewRequest("GET", "/punctuationArray", nil), 405)
 }
 
 func TestProcess(t *testing.T) {
@@ -50,23 +46,27 @@ func TestProcess(t *testing.T) {
 
 func TestNoData(t *testing.T) {
 	initTest(t)
-	req := httptest.NewRequest("POST", "/punctuation", nil)
-	resp := httptest.NewRecorder()
-	NewRouter(newData()).ServeHTTP(resp, req)
-	assert.Equal(t, 400, resp.Code)
+	testFail(t, httptest.NewRequest("POST", "/punctuation", nil), 400)
+	testFail(t, httptest.NewRequest("POST", "/punctuationArray", nil), 400)
 }
 
 func TestEmptyText(t *testing.T) {
 	initTest(t)
-	req := httptest.NewRequest("POST", "/punctuation", newInput(""))
-	resp := httptest.NewRecorder()
-	NewRouter(newData()).ServeHTTP(resp, req)
-	assert.Equal(t, 400, resp.Code)
+	testFail(t, httptest.NewRequest("POST", "/punctuation", newInput("")), 400)
 }
 
 func TestOutput(t *testing.T) {
 	initTest(t)
-	req := httptest.NewRequest("POST", "/punctuation", newInput("olia olia"))
+	testOutput(t, httptest.NewRequest("POST", "/punctuation", newInput("olia olia")))
+}
+
+func TestOutputArray(t *testing.T) {
+	initTest(t)
+	testOutput(t, httptest.NewRequest("POST", "/punctuationArray", newArrInput("olia olia")))
+}
+
+func testOutput(t *testing.T, req *http.Request) {
+	initTest(t)
 	resp := httptest.NewRecorder()
 	pegomock.When(punctuatorMock.Process(pegomock.AnyStringSlice())).ThenReturn(&api.PResult{PunctuatedText: "Olia, olia.",
 		Punctuated: []string{"Olia,", "olia."}}, nil)
@@ -80,7 +80,15 @@ func TestOutput(t *testing.T) {
 
 func TestOutput_NoDebugData(t *testing.T) {
 	initTest(t)
-	req := httptest.NewRequest("POST", "/punctuation", newInput("olia olia"))
+	testNoDebugData(t, httptest.NewRequest("POST", "/punctuation", newInput("olia olia")))
+}
+
+func TestArray_NoDebugData(t *testing.T) {
+	initTest(t)
+	testNoDebugData(t, httptest.NewRequest("POST", "/punctuationArray", newArrInput("olia olia")))
+}
+
+func testNoDebugData(t *testing.T, req *http.Request) {
 	resp := httptest.NewRecorder()
 	pegomock.When(punctuatorMock.Process(pegomock.AnyStringSlice())).ThenReturn(&api.PResult{PunctuatedText: "Olia, olia.",
 		WordIDs: []int32{1, 2}, PunctIDs: []int32{0, 1}}, nil)
@@ -95,7 +103,15 @@ func TestOutput_NoDebugData(t *testing.T) {
 
 func TestOutput_DebugData(t *testing.T) {
 	initTest(t)
-	req := httptest.NewRequest("POST", "/punctuation?debug=1", newInput("olia olia"))
+	testDebugData(t, httptest.NewRequest("POST", "/punctuation?debug=1", newInput("olia olia")))
+}
+
+func TestArray_DebugData(t *testing.T) {
+	initTest(t)
+	testDebugData(t, httptest.NewRequest("POST", "/punctuationArray?debug=1", newArrInput("olia olia")))
+}
+
+func testDebugData(t *testing.T, req *http.Request) {
 	resp := httptest.NewRecorder()
 	pegomock.When(punctuatorMock.Process(pegomock.AnyStringSlice())).ThenReturn(&api.PResult{PunctuatedText: "Olia, olia.",
 		WordIDs: []int32{1, 2}, PunctIDs: []int32{0, 1}}, nil)
@@ -110,29 +126,31 @@ func TestOutput_DebugData(t *testing.T) {
 
 func TestPunctuatorFails(t *testing.T) {
 	initTest(t)
-	req := httptest.NewRequest("POST", "/punctuation", newInput("olia olia"))
-	resp := httptest.NewRecorder()
 	pegomock.When(punctuatorMock.Process(pegomock.AnyStringSlice())).ThenReturn(nil, errors.New("error"))
-	NewRouter(newData()).ServeHTTP(resp, req)
-	assert.Equal(t, 500, resp.Code)
+	testFail(t, httptest.NewRequest("POST", "/punctuation", newInput("olia olia")), 500)
+}
+
+func TestPunctuatorWrongInput(t *testing.T) {
+	initTest(t)
+	testFail(t, httptest.NewRequest("POST", "/punctuation", newArrInput("olia olia")), 400)
 }
 
 func TestPunctuatorArrayWrongInput(t *testing.T) {
 	initTest(t)
-	req := httptest.NewRequest("POST", "/punctuationArray", newInput("olia olia"))
-	resp := httptest.NewRecorder()
-	pegomock.When(punctuatorMock.Process(pegomock.AnyStringSlice())).ThenReturn(nil, errors.New("error"))
-	NewRouter(newData()).ServeHTTP(resp, req)
-	assert.Equal(t, 400, resp.Code)
+	testFail(t, httptest.NewRequest("POST", "/punctuationArray", newInput("olia olia")), 400)
+	testFail(t, httptest.NewRequest("POST", "/punctuationArray", newArrInput("")), 400)
 }
 
 func TestPunctuatorArrayFails(t *testing.T) {
 	initTest(t)
-	req := httptest.NewRequest("POST", "/punctuationArray", newArrInput("olia olia"))
-	resp := httptest.NewRecorder()
 	pegomock.When(punctuatorMock.Process(pegomock.AnyStringSlice())).ThenReturn(nil, errors.New("error"))
+	testFail(t, httptest.NewRequest("POST", "/punctuationArray", newArrInput("olia olia")), 500)
+}
+
+func testFail(t *testing.T, req *http.Request, expectedCode int) {
+	resp := httptest.NewRecorder()
 	NewRouter(newData()).ServeHTTP(resp, req)
-	assert.Equal(t, 500, resp.Code)
+	assert.Equal(t, expectedCode, resp.Code)
 }
 
 func newData() *ServiceData {
@@ -157,7 +175,11 @@ func newInput(text string) *bytes.Buffer {
 
 func newArrInput(text string) *bytes.Buffer {
 	result := new(bytes.Buffer)
-	json.NewEncoder(result).Encode(InputArray{Words: strings.Split(text, " ")})
+	arr := []string{}
+	if len(text) > 0 {
+		arr = strings.Split(text, " ")
+	}
+	json.NewEncoder(result).Encode(InputArray{Words: arr})
 	return result
 }
 
