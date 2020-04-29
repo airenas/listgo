@@ -70,17 +70,21 @@ func NewPunctuatorImpl(d DataProvider, tfWrap TFWrap) (*PunctuatorImpl, error) {
 }
 
 //Process is main Punctuator method
-func (p *PunctuatorImpl) Process(text string) (*api.PResult, error) {
-	result := api.PResult{}
-	arr := p.convertToArray(text)
-	result.WordIDs = p.convertToNum(arr)
+func (p *PunctuatorImpl) Process(text []string) (*api.PResult, error) {
+	result := &api.PResult{}
+	result.Original = text
+	result.WordIDs = p.convertToNum(text)
 	var err error
 	result.PunctIDs, err = p.punctuate(result.WordIDs)
 	if err != nil {
 		return nil, errors.Wrap(err, "Cannot punctuate")
 	}
-	result.Punctuated = p.prepareText(arr, result.PunctIDs)
-	return &result, nil
+	result.Punctuated, err = p.preparePunctuated(result.Original, result.PunctIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "Cannot prepare result")
+	}
+	result.PunctuatedText = p.fillText(result.Punctuated)
+	return result, nil
 }
 
 func readVocab(d DataProvider) (map[string]int32, error) {
@@ -123,18 +127,6 @@ func initSentenceEnds(str []string, pvr map[int32]string) map[int32]bool {
 			result[i] = true
 		} else {
 			cmdapp.Log.Warnf("Unknown sentence end string: %s", s)
-		}
-	}
-	return result
-}
-
-func (p *PunctuatorImpl) convertToArray(strs string) []string {
-	arr := strings.Split(strs, " ")
-	result := make([]string, 0)
-	for _, s := range arr {
-		s = strings.TrimSpace(s)
-		if s != "" {
-			result = append(result, s)
 		}
 	}
 	return result
@@ -202,9 +194,12 @@ func (p *PunctuatorImpl) fillResult(result []int32, res []int32, pos int, to int
 	return lEnd
 }
 
-func (p *PunctuatorImpl) prepareText(strs []string, res []int32) string {
+func (p *PunctuatorImpl) preparePunctuated(strs []string, res []int32) ([]string, error) {
 	to := len(strs)
-	result := ""
+	if to != len(res) {
+		return nil, errors.Errorf("Result array is of wrong size. Expected %d, was %d", to, len(res))
+	}
+	result := make([]string, to)
 	uc := true
 	for i, v := range res {
 		if i < to {
@@ -212,17 +207,24 @@ func (p *PunctuatorImpl) prepareText(strs []string, res []int32) string {
 			if uc {
 				w = strings.Title(w)
 			}
-			result = result + w
 			ps, _ := p.puncVocab[v]
 			if ps == "-" {
-				result = result + " "
+				w = w + " "
 			}
-			result = result + ps
-			if ps != " " {
-				result = result + " "
-			}
+			w = w + ps
+			result[i] = strings.TrimSpace(w)
 			_, uc = p.sentenceEnds[v]
 		}
 	}
-	return strings.TrimSpace(result)
+	return result, nil
+}
+
+func (p *PunctuatorImpl) fillText(strs []string) string {
+	res := ""
+	sep := ""
+	for _, w := range strs {
+		res = res + sep + w
+		sep = " "
+	}
+	return res
 }

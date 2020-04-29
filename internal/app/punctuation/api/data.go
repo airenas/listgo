@@ -12,7 +12,9 @@ type Data struct {
 
 //PResult keeps punctuation result
 type PResult struct {
-	WordIDs    []int32
-	Punctuated string
-	PunctIDs   []int32
+	PunctuatedText string
+	Original       []string
+	Punctuated     []string
+	WordIDs        []int32
+	PunctIDs       []int32
 }
