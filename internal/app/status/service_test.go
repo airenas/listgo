@@ -16,7 +16,8 @@ import (
 func TestWrongPath(t *testing.T) {
 	req := httptest.NewRequest("GET", "/invalid", nil)
 	resp := httptest.NewRecorder()
-	NewRouter(&ServiceData{}).ServeHTTP(resp, req)
+	data := newTestData()
+	NewRouter(data).ServeHTTP(resp, req)
 	assert.Equal(t, resp.Code, 404)
 }
 
@@ -28,7 +29,8 @@ func TestNoID(t *testing.T) {
 func test400(t *testing.T, path string) {
 	req := httptest.NewRequest("GET", path, nil)
 	resp := httptest.NewRecorder()
-	NewRouter(&ServiceData{}).ServeHTTP(resp, req)
+	data := newTestData()
+	NewRouter(data).ServeHTTP(resp, req)
 	assert.Equal(t, resp.Code, 400)
 }
 
@@ -36,8 +38,9 @@ func Test_ReturnsResult(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/status/x", nil)
 	resp := httptest.NewRecorder()
-
-	NewRouter(&ServiceData{StatusProvider: testStatusProvider{}}).ServeHTTP(resp, req)
+	data := newTestData()
+	data.StatusProvider = testStatusProvider{}
+	NewRouter(data).ServeHTTP(resp, req)
 	assert.Equal(t, resp.Code, 200)
 	assert.True(t, strings.HasPrefix(resp.Body.String(), `{"id":"`))
 }
@@ -45,11 +48,12 @@ func Test_ReturnsResult(t *testing.T) {
 func Test_ProviderFails(t *testing.T) {
 	req := httptest.NewRequest("GET", "/status/x", nil)
 	resp := httptest.NewRecorder()
-
-	NewRouter(&ServiceData{StatusProvider: testStatusFunc(
+	data := newTestData()
+	data.StatusProvider = testStatusFunc(
 		func(ID string) (*api.TranscriptionResult, error) {
 			return nil, errors.New("Can not get")
-		})}).ServeHTTP(resp, req)
+		})
+	NewRouter(data).ServeHTTP(resp, req)
 	assert.Equal(t, resp.Code, 400)
 }
 
@@ -67,11 +71,11 @@ func (p testStatusProvider) Get(ID string) (*api.TranscriptionResult, error) {
 }
 
 func TestLive(t *testing.T) {
-	testCode(t, newData(), "/live", 200)
+	testCode(t, newTestData(), "/live", 200)
 }
 
 func TestLive503(t *testing.T) {
-	data := newData()
+	data := newTestData()
 	data.health.AddLivenessCheck("test", func() error { return errors.New("test") })
 	testCode(t, data, "/live", 503)
 }
@@ -84,12 +88,17 @@ func testCode(t *testing.T, data *ServiceData, path string, code int) {
 	assert.Equal(t, code, resp.Code)
 }
 
-func newData() *ServiceData {
-	data := ServiceData{}
+func newTestData() *ServiceData {
+	data := &ServiceData{}
+	initMetrics(data)
 	data.health = healthcheck.NewHandler()
-	return &data
+	return data
 }
 
 func TestReady(t *testing.T) {
-	testCode(t, newData(), "/ready", 200)
+	testCode(t, newTestData(), "/ready", 200)
+}
+
+func TestMetrics(t *testing.T) {
+	testCode(t, newTestData(), "/metrics", 200)
 }

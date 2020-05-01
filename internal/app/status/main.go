@@ -10,6 +10,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"github.com/streadway/amqp"
 )
@@ -42,6 +43,9 @@ func run(cmd *cobra.Command, args []string) {
 	defer mongoSessionProvider.Close()
 
 	data := &ServiceData{}
+	err = initMetrics(data)
+	cmdapp.CheckOrPanic(err, "Can't init metrics")
+
 	data.health = healthcheck.NewHandler()
 	data.StatusProvider, err = mongo.NewStatusProvider(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "")
@@ -103,4 +107,34 @@ func initEventChannel(provider *rabbit.ChannelProvider) (<-chan amqp.Delivery, e
 	}
 	cmdapp.Log.Info("Channel opened succesfully")
 	return msgs, nil
+}
+
+func initMetrics(data *ServiceData) error {
+	data.statusMetricDur = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name:       "status_service_request_durations_seconds",
+			Help:       "Request latency distributions.",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		}, nil)
+
+	err := registerMetric(data.statusMetricDur)
+	if err != nil {
+		return err
+	}
+	data.statusMetricSize = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name:       "status_service_response_size_bytes",
+			Help:       "Response size in bytes.",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		}, nil)
+	return registerMetric(data.statusMetricSize)
+}
+
+func registerMetric(m prometheus.Collector) error {
+	err := prometheus.Register(m)
+	if err != nil {
+		prometheus.Unregister(m)
+		err = prometheus.Register(m)
+	}
+	return err
 }

@@ -11,6 +11,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // ServiceData keeps data required for service work
@@ -19,6 +21,9 @@ type ServiceData struct {
 	Port             int
 	EventChannelFunc eventChannelFunc
 	health           healthcheck.Handler
+
+	statusMetricDur  *prometheus.SummaryVec
+	statusMetricSize *prometheus.SummaryVec
 }
 
 //StartWebServer starts the HTTP service and listens for the requests
@@ -44,9 +49,12 @@ func StartWebServer(data *ServiceData) error {
 //NewRouter creates the router for HTTP service
 func NewRouter(data *ServiceData) *mux.Router {
 	router := mux.NewRouter()
-	router.Methods("GET").Path("/status/{id}").Handler(statusHandler{data: data})
-	router.Methods("GET").Path("/status").Handler(statusHandler{data: data})
-	router.Methods("GET").Path("/status/").Handler(statusHandler{data: data})
+	sh := promhttp.InstrumentHandlerDuration(data.statusMetricDur,
+		promhttp.InstrumentHandlerResponseSize(data.statusMetricSize, statusHandler{data: data}))
+	router.Methods("GET").Path("/status/{id}").Handler(sh)
+	router.Methods("GET").Path("/status").Handler(sh)
+	router.Methods("GET").Path("/status/").Handler(sh)
+	router.Methods("GET").Path("/metrics").Handler(promhttp.Handler())
 	router.Handle("/subscribe", websocketHandler{data: data})
 	if data.health != nil {
 		router.Methods("GET").Path("/live").HandlerFunc(data.health.LiveEndpoint)
