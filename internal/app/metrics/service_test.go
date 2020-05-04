@@ -103,6 +103,36 @@ func TestMetricsGroupById(t *testing.T) {
 	assert.Equal(t, 1, testutil.CollectAndCount(d.tasksEnded))
 }
 
+func TestExpire(t *testing.T) {
+	d := newTestData()
+	n := time.Now()
+	d.dMap["t1"] = make(map[string]*startTime)
+	d.dMap["t1"]["id1"] = &startTime{added: n.Add(-10 * time.Minute)}
+	d.dMap["t1"]["id2"] = &startTime{added: n.Add(-5 * time.Minute)}
+	d.dMap["t2"] = make(map[string]*startTime)
+	d.dMap["t2"]["id2"] = &startTime{added: n.Add(-1 * time.Minute)}
+
+	checkForExpiredInt(d, n.Add(-15*time.Minute))
+	assert.Equal(t, 2, len(d.dMap["t1"]))
+	assert.Equal(t, 1, len(d.dMap["t2"]))
+	assert.Equal(t, 2, len(d.dMap))
+
+	checkForExpiredInt(d, n.Add(-8*time.Minute))
+	assert.Equal(t, 1, len(d.dMap["t1"]))
+	assert.Equal(t, 1, len(d.dMap["t2"]))
+	assert.Equal(t, 2, len(d.dMap))
+
+	checkForExpiredInt(d, n.Add(-2*time.Minute))
+	assert.Equal(t, 0, len(d.dMap["t1"]))
+	assert.Equal(t, 1, len(d.dMap["t2"]))
+	assert.Equal(t, 1, len(d.dMap))
+
+	checkForExpiredInt(d, n.Add(0*time.Minute))
+	assert.Equal(t, 0, len(d.dMap["t1"]))
+	assert.Equal(t, 0, len(d.dMap["t2"]))
+	assert.Equal(t, 0, len(d.dMap))
+}
+
 func testCode(t *testing.T, data *ServiceData, req *http.Request, code int) {
 	resp := httptest.NewRecorder()
 	NewRouter(data).ServeHTTP(resp, req)
