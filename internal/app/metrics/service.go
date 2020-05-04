@@ -95,7 +95,7 @@ func (h *metricsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var inData request
 	err := dec.Decode(&inData)
 	if err != nil {
-		cmdapp.Log.Errorf("Bad input. ", err)
+		cmdapp.Log.Error("Bad input. ", err)
 		http.Error(w, "Bad input", http.StatusBadRequest)
 		return
 	}
@@ -109,13 +109,13 @@ func (h *metricsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.data.lock.Lock()
 	defer h.data.lock.Unlock()
 
-	key := inData.Worker + "_t:" + inData.Task
+	key := getKey(&inData)
 	if inData.Type == "start" {
 		addCount(h.data.tasksStarted, &inData)
-		idMap, f := h.data.dMap[inData.Worker+"_t:"+inData.Task]
+		idMap, f := h.data.dMap[key]
 		if !f {
 			idMap = make(map[string]*startTime)
-			h.data.dMap[inData.Worker+"_t:"+inData.Task] = idMap
+			h.data.dMap[key] = idMap
 		}
 		idMap[inData.ID] = &startTime{timestap: inData.Timestap, added: time.Now()}
 	}
@@ -138,6 +138,10 @@ func (h *metricsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		addMetric(h.data, &inData, startData)
 		delete(idMap, inData.ID)
 	}
+}
+
+func getKey(inData *request) string {
+	return inData.Worker + ":" + inData.Task + ":" + inData.Model
 }
 
 func validate(inData *request) error {

@@ -1,104 +1,123 @@
 package metrics
 
 import (
-	"errors"
-	"log"
+	"bytes"
+	"encoding/json"
+	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
+	"time"
 
 	"github.com/heptiolabs/healthcheck"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
-
-	"bitbucket.org/airenas/listgo/internal/app/status/api"
 )
 
 func TestWrongPath(t *testing.T) {
-	req := httptest.NewRequest("GET", "/invalid", nil)
-	resp := httptest.NewRecorder()
-	data := newTestData()
-	NewRouter(data).ServeHTTP(resp, req)
-	assert.Equal(t, resp.Code, 404)
+	testCode(t, newTestData(), httptest.NewRequest("GET", "/invalid", nil), 404)
+	testCode(t, newTestData(), httptest.NewRequest("GET", "/olia", nil), 404)
 }
 
-func TestNoID(t *testing.T) {
-	test400(t, "/status")
-	test400(t, "/status/")
+func TestReturnsGet(t *testing.T) {
+	testCode(t, newTestData(), httptest.NewRequest("GET", "/metrics", nil), 200)
+	testCode(t, newTestData(), httptest.NewRequest("GET", "/live", nil), 200)
+	testCode(t, newTestData(), httptest.NewRequest("GET", "/ready", nil), 200)
 }
 
-func test400(t *testing.T, path string) {
-	req := httptest.NewRequest("GET", path, nil)
-	resp := httptest.NewRecorder()
-	data := newTestData()
-	NewRouter(data).ServeHTTP(resp, req)
-	assert.Equal(t, resp.Code, 400)
+func TestMetricsPost(t *testing.T) {
+	r := request{ID: "id", Model: "m", Task: "t", Worker: "w", Type: "start", Timestap: time.Now().UnixNano()}
+	testCode(t, newTestData(), httptest.NewRequest("POST", "/metrics", encode(&r)), 200)
 }
 
-func Test_ReturnsResult(t *testing.T) {
-
-	req := httptest.NewRequest("GET", "/status/x", nil)
-	resp := httptest.NewRecorder()
-	data := newTestData()
-	data.StatusProvider = testStatusProvider{}
-	NewRouter(data).ServeHTTP(resp, req)
-	assert.Equal(t, resp.Code, 200)
-	assert.True(t, strings.HasPrefix(resp.Body.String(), `{"id":"`))
+func TestMetricsPostFails(t *testing.T) {
+	r := request{ID: "", Model: "m", Task: "t", Worker: "w", Type: "start", Timestap: time.Now().UnixNano()}
+	testCode(t, newTestData(), httptest.NewRequest("POST", "/metrics", encode(&r)), 400)
+	r = request{ID: "id", Model: "m", Task: "", Worker: "w", Type: "start", Timestap: time.Now().UnixNano()}
+	testCode(t, newTestData(), httptest.NewRequest("POST", "/metrics", encode(&r)), 400)
+	r = request{ID: "id", Model: "m", Task: "t", Worker: "", Type: "start", Timestap: time.Now().UnixNano()}
+	testCode(t, newTestData(), httptest.NewRequest("POST", "/metrics", encode(&r)), 400)
+	r = request{ID: "id", Model: "m", Task: "t", Worker: "w", Type: "st", Timestap: time.Now().UnixNano()}
+	testCode(t, newTestData(), httptest.NewRequest("POST", "/metrics", encode(&r)), 400)
+	r = request{ID: "id", Model: "m", Task: "t", Worker: "w", Type: "start", Timestap: time.Now().Add(time.Hour).UnixNano()}
+	testCode(t, newTestData(), httptest.NewRequest("POST", "/metrics", encode(&r)), 400)
+	r = request{ID: "id", Model: "m", Task: "t", Worker: "w", Type: "start", Timestap: time.Now().Add(-5 * time.Hour).UnixNano()}
+	testCode(t, newTestData(), httptest.NewRequest("POST", "/metrics", encode(&r)), 400)
 }
 
-func Test_ProviderFails(t *testing.T) {
-	req := httptest.NewRequest("GET", "/status/x", nil)
-	resp := httptest.NewRecorder()
-	data := newTestData()
-	data.StatusProvider = testStatusFunc(
-		func(ID string) (*api.TranscriptionResult, error) {
-			return nil, errors.New("Can not get")
-		})
-	NewRouter(data).ServeHTTP(resp, req)
-	assert.Equal(t, resp.Code, 400)
+func TestMetricsAddsStart(t *testing.T) {
+	n := time.Now().UnixNano()
+	r := request{ID: "id", Model: "m", Task: "t", Worker: "w", Type: "start", Timestap: n}
+	d := newTestData()
+	testCode(t, d, httptest.NewRequest("POST", "/metrics", encode(&r)), 200)
+	assert.Equal(t, n, d.dMap["w:t:m"]["id"].timestap)
+	assert.Equal(t, 0, testutil.CollectAndCount(d.tasksMetrics))
+	assert.Equal(t, 1, testutil.CollectAndCount(d.tasksStarted))
+	assert.Equal(t, 0, testutil.CollectAndCount(d.tasksEnded))
 }
 
-type testStatusFunc func(ID string) (*api.TranscriptionResult, error)
-
-func (f testStatusFunc) Get(ID string) (*api.TranscriptionResult, error) {
-	return f(ID)
+func TestMetricsAddsEnd(t *testing.T) {
+	n := time.Now().UnixNano()
+	r := request{ID: "id", Model: "m", Task: "t", Worker: "w", Type: "start", Timestap: n}
+	d := newTestData()
+	testCode(t, d, httptest.NewRequest("POST", "/metrics", encode(&r)), 200)
+	ne := n + time.Minute.Nanoseconds()
+	r = request{ID: "id", Model: "m", Task: "t", Worker: "w", Type: "end", Timestap: ne}
+	testCode(t, d, httptest.NewRequest("POST", "/metrics", encode(&r)), 200)
+	assert.Nil(t, d.dMap["w:t:m"]["id"])
+	assert.Equal(t, 1, testutil.CollectAndCount(d.tasksMetrics))
+	assert.Equal(t, 1, testutil.CollectAndCount(d.tasksStarted))
+	assert.Equal(t, 1, testutil.CollectAndCount(d.tasksEnded))
 }
 
-type testStatusProvider struct{}
-
-func (p testStatusProvider) Get(ID string) (*api.TranscriptionResult, error) {
-	log.Printf("Get status %s \n", ID)
-	return &api.TranscriptionResult{}, nil
+func TestMetricsAddsSecond(t *testing.T) {
+	n := time.Now().UnixNano()
+	r := request{ID: "id", Model: "m", Task: "t", Worker: "w", Type: "start", Timestap: n}
+	d := newTestData()
+	testCode(t, d, httptest.NewRequest("POST", "/metrics", encode(&r)), 200)
+	ne := n + time.Minute.Nanoseconds()
+	r = request{ID: "id", Model: "m", Task: "t", Worker: "w", Type: "end", Timestap: ne}
+	testCode(t, d, httptest.NewRequest("POST", "/metrics", encode(&r)), 200)
+	r = request{ID: "id", Model: "m2", Task: "t", Worker: "w", Type: "start", Timestap: n}
+	testCode(t, d, httptest.NewRequest("POST", "/metrics", encode(&r)), 200)
+	r = request{ID: "id", Model: "m2", Task: "t", Worker: "w", Type: "end", Timestap: ne}
+	testCode(t, d, httptest.NewRequest("POST", "/metrics", encode(&r)), 200)
+	assert.Equal(t, 2, testutil.CollectAndCount(d.tasksMetrics))
+	assert.Equal(t, 2, testutil.CollectAndCount(d.tasksStarted))
+	assert.Equal(t, 2, testutil.CollectAndCount(d.tasksEnded))
 }
 
-func TestLive(t *testing.T) {
-	testCode(t, newTestData(), "/live", 200)
+func TestMetricsGroupById(t *testing.T) {
+	n := time.Now().UnixNano()
+	r := request{ID: "id", Model: "m", Task: "t", Worker: "w", Type: "start", Timestap: n}
+	d := newTestData()
+	testCode(t, d, httptest.NewRequest("POST", "/metrics", encode(&r)), 200)
+	ne := n + time.Minute.Nanoseconds()
+	r = request{ID: "id", Model: "m", Task: "t", Worker: "w", Type: "end", Timestap: ne}
+	testCode(t, d, httptest.NewRequest("POST", "/metrics", encode(&r)), 200)
+	r = request{ID: "id2", Model: "m", Task: "t", Worker: "w", Type: "start", Timestap: n}
+	testCode(t, d, httptest.NewRequest("POST", "/metrics", encode(&r)), 200)
+	r = request{ID: "id2", Model: "m", Task: "t", Worker: "w", Type: "end", Timestap: ne}
+	testCode(t, d, httptest.NewRequest("POST", "/metrics", encode(&r)), 200)
+	assert.Equal(t, 1, testutil.CollectAndCount(d.tasksMetrics))
+	assert.Equal(t, 1, testutil.CollectAndCount(d.tasksStarted))
+	assert.Equal(t, 1, testutil.CollectAndCount(d.tasksEnded))
 }
 
-func TestLive503(t *testing.T) {
-	data := newTestData()
-	data.health.AddLivenessCheck("test", func() error { return errors.New("test") })
-	testCode(t, data, "/live", 503)
-}
-
-func testCode(t *testing.T, data *ServiceData, path string, code int) {
-	initTest(t)
-	req := httptest.NewRequest("GET", path, nil)
+func testCode(t *testing.T, data *ServiceData, req *http.Request, code int) {
 	resp := httptest.NewRecorder()
 	NewRouter(data).ServeHTTP(resp, req)
 	assert.Equal(t, code, resp.Code)
 }
 
 func newTestData() *ServiceData {
-	data := &ServiceData{}
-	initMetrics(data)
+	data, _ := newServiceData()
 	data.health = healthcheck.NewHandler()
 	return data
 }
 
-func TestReady(t *testing.T) {
-	testCode(t, newTestData(), "/ready", 200)
-}
-
-func TestMetrics(t *testing.T) {
-	testCode(t, newTestData(), "/metrics", 200)
+func encode(d *request) *bytes.Buffer {
+	b := &bytes.Buffer{}
+	enc := json.NewEncoder(b)
+	enc.Encode(d)
+	return b
 }
