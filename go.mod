@@ -11,7 +11,7 @@ require (
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
 	github.com/gogap/env_json v0.0.0-20150503135429-86150085ddbe // indirect
 	github.com/gogap/env_strings v0.0.1 // indirect
-	github.com/golang/protobuf v1.4.0
+	github.com/golang/protobuf v1.3.2
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
@@ -24,12 +24,12 @@ require (
 	github.com/onsi/ginkgo v1.12.0 // indirect
 	github.com/petergtz/pegomock v2.7.0+incompatible
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.6.0
-	github.com/sirupsen/logrus v1.5.0
+	github.com/prometheus/client_golang v1.5.0
+	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cobra v0.0.6
 	github.com/spf13/viper v1.6.2
 	github.com/streadway/amqp v0.0.0-20190225234609-30f8ed68076e
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.5.1
 	github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8 // indirect
 	google.golang.org/grpc v1.23.0
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
