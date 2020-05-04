@@ -22,8 +22,11 @@ type ServiceData struct {
 
 	metricDur    *prometheus.HistogramVec
 	tasksMetrics *prometheus.HistogramVec
-	dMap         map[string]map[string]*startTime
-	lock         *sync.Mutex
+	tasksStarted *prometheus.CounterVec
+	tasksEnded   *prometheus.CounterVec
+
+	dMap map[string]map[string]*startTime
+	lock *sync.Mutex
 }
 
 func newServiceData() (*ServiceData, error) {
@@ -73,6 +76,7 @@ type request struct {
 	Type     string `json:"type"`
 	Worker   string `json:"worker"`
 	Task     string `json:"task"`
+	Model    string `json:"model"`
 }
 
 type startTime struct {
@@ -107,6 +111,7 @@ func (h *metricsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	key := inData.Worker + "_t:" + inData.Task
 	if inData.Type == "start" {
+		addCount(h.data.tasksStarted, &inData)
 		idMap, f := h.data.dMap[inData.Worker+"_t:"+inData.Task]
 		if !f {
 			idMap = make(map[string]*startTime)
@@ -115,6 +120,7 @@ func (h *metricsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		idMap[inData.ID] = &startTime{timestap: inData.Timestap, added: time.Now()}
 	}
 	if inData.Type == "end" {
+		addCount(h.data.tasksEnded, &inData)
 		idMap, f := h.data.dMap[key]
 		if !f {
 			cmdapp.Log.Warn("No started task found for " + key)
@@ -155,10 +161,15 @@ func validate(inData *request) error {
 }
 
 func addMetric(data *ServiceData, en *request, st *startTime) {
-	data.tasksMetrics.
-		With(prometheus.Labels{"worker": en.Worker, "task": en.Task}).
-		Observe(float64(en.Timestap-st.timestap) / float64(1e9))
-	time.Now().UnixNano()
+	data.tasksMetrics.With(makeLabels(en)).Observe(float64(en.Timestap-st.timestap) / float64(1e9))
+}
+
+func addCount(mtrs *prometheus.CounterVec, en *request) {
+	mtrs.With(makeLabels(en)).Inc()
+}
+
+func makeLabels(en *request) prometheus.Labels {
+	return prometheus.Labels{"worker": en.Worker, "task": en.Task, "model": en.Model}
 }
 
 func checkForExpired(data *ServiceData) {

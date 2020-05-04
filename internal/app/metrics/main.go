@@ -47,8 +47,28 @@ func initMetrics(data *ServiceData) error {
 			Name:      "task_duration_seconds",
 			Help:      "Tasks duration metrics",
 			Buckets:   prometheus.ExponentialBuckets(0.5, 2, 15),
-		}, []string{"worker", "task"})
+		}, []string{"worker", "task", "model"})
 	err := registerMetric(data.tasksMetrics)
+	if err != nil {
+		return err
+	}
+	data.tasksStarted = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "task_start",
+			Help:      "Tasks start counter",
+		}, []string{"worker", "task", "model"})
+	err = registerMetric(data.tasksStarted)
+	if err != nil {
+		return err
+	}
+	data.tasksEnded = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "task_end",
+			Help:      "Tasks end counter",
+		}, []string{"worker", "task", "model"})
+	err = registerMetric(data.tasksEnded)
 	if err != nil {
 		return err
 	}
