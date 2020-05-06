@@ -146,8 +146,6 @@ type uploadResponse struct {
 
 //Upload uploads audio to transcriber service
 func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
-	cmdapp.Log.Infof("Sending audio to: %s", sp.uploadURL)
-
 	dataDecoder := base64.NewDecoder(base64.StdEncoding, strings.NewReader(audio.AudioData))
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -163,7 +161,8 @@ func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 	if audio.NumberOfSpeakers != "" {
 		writer.WriteField(uparams.PrmNumberOfSpeakers, audio.NumberOfSpeakers)
 	}
-	writer.WriteField(uparams.PrmRecognizer, getRecognizer(audio))
+	rec := getRecognizer(audio)
+	writer.WriteField(uparams.PrmRecognizer, rec)
 	writer.Close()
 	req, err := http.NewRequest("POST", sp.uploadURL, body)
 	if err != nil {
@@ -171,6 +170,7 @@ func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
+	cmdapp.Log.Debugf("Sending audio to: %s for model %s", sp.uploadURL, rec)
 	resp, err := sp.httpclient.Do(req)
 	if err != nil {
 		return "", err
