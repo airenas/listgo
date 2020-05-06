@@ -21,6 +21,7 @@ type Status struct {
 
 //Result keeps structure for transcription result
 type Result struct {
-	ID       string
-	FileData string
+	ID          string
+	LatticeData string
+	WebVTTData  string
 }

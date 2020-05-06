@@ -110,9 +110,8 @@ func processMsg(data *ServiceData, msg *kafkaapi.Msg) error {
 		id, err := upload(data, &upReq)
 		if err != nil {
 			cmdapp.Log.Error(err)
-			return saveSendResults(data, &kafkaapi.DBResultEntry{ID: msg.ID, Status: kafkaapi.DBStatusFailed,
-				Err: kafkaapi.DBTranscriptionError{Code: errc.DefaultCode,
-					Error: errors.Wrap(err, "Can't start transcription").Error()}})
+			return saveSendResults(data, kafkaapi.AddDBResultError(&kafkaapi.DBResultEntry{ID: msg.ID}, errc.DefaultCode,
+				errors.Wrap(err, "Can't start transcription").Error()))
 		}
 
 		ids = &kafkaapi.KafkaTrMap{TrID: id, KafkaID: msg.ID}
@@ -130,36 +129,28 @@ func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) error {
 		time.Sleep(data.statusSleep)
 		status, err := getStatus(data, ids.TrID)
 		if err != nil {
-			return saveSendResults(data, &kafkaapi.DBResultEntry{ID: ids.KafkaID, Status: kafkaapi.DBStatusFailed,
-				Err: kafkaapi.DBTranscriptionError{Code: errc.DefaultCode,
-					Error: errors.Wrap(err, "Can't get status").Error()}})
+			return saveSendResults(data, kafkaapi.AddDBResultError(&kafkaapi.DBResultEntry{ID: ids.KafkaID},
+				errc.DefaultCode, errors.Wrap(err, "Can't get status").Error()))
 		}
 		cmdapp.Log.Infof("Got status ID: %s, completed: %t, errorCode: %s", ids.KafkaID, status.Completed, status.ErrorCode)
 		if status.Completed || status.ErrorCode != "" {
-			var result kafkaapi.DBResultEntry
-			result.ID = ids.KafkaID
-
+			result := &kafkaapi.DBResultEntry{ID: ids.KafkaID}
 			if status.Completed {
 				res, err := getResult(data, ids.TrID)
 				if err != nil {
 					// what do we do now? completed but no result!
 					err = errors.Wrap(err, "Can't get result\nMarking request as failed!")
 					cmdapp.Log.Error(err)
-					result.Status = kafkaapi.DBStatusFailed
-					result.Err.Code = errc.DefaultCode
-					result.Err.Error = err.Error()
+					result = kafkaapi.AddDBResultError(result, errc.DefaultCode, err.Error())
 				} else {
-					result.Status = kafkaapi.DBStatusDone
-					result.Transcription.Text = status.Text
-					result.Transcription.ResultFileData = res.FileData
+					result.Transcription = kafkaapi.DBTranscriptionResult{Text: status.Text,
+						LatticeData: res.LatticeData, WebVTT: res.WebVTTData}
 				}
 			} else {
-				result.Status = kafkaapi.DBStatusFailed
-				result.Err.Code = status.ErrorCode
-				result.Err.Error = status.Error
+				result = kafkaapi.AddDBResultError(result, status.ErrorCode, status.Error)
 			}
 
-			err = saveSendResults(data, &result)
+			err = saveSendResults(data, result)
 			if err != nil {
 				return errors.Wrap(err, "Can't send results. Give up")
 			}

@@ -10,18 +10,10 @@ type DBEntry struct {
 	RecordQuality    string
 }
 
-const (
-	//DBStatusFailed is failed status
-	DBStatusFailed = "failed"
-	//DBStatusDone is done status
-	DBStatusDone = "done"
-)
-
 //DBResultEntry keeps structure for TranscriptionPostRequest
 type DBResultEntry struct {
 	ID            string
-	Status        string
-	Err           DBTranscriptionError
+	Error         *DBTranscriptionError
 	Transcription DBTranscriptionResult
 }
 
@@ -33,6 +25,13 @@ type DBTranscriptionError struct {
 
 //DBTranscriptionResult keeps structure for Result
 type DBTranscriptionResult struct {
-	Text           string
-	ResultFileData string
+	Text        string
+	LatticeData string
+	WebVTT      string
+}
+
+//AddDBResultError adds error to object
+func AddDBResultError(data *DBResultEntry, code, err string) *DBResultEntry {
+	data.Error = &DBTranscriptionError{Code: code, Error: err}
+	return data
 }

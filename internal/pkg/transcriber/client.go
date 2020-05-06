@@ -102,7 +102,7 @@ func (sp *Client) GetResult(ID string) (*kafkaapi.Result, error) {
 	}
 	var res kafkaapi.Result
 	res.ID = ID
-	res.FileData = base64.StdEncoding.EncodeToString(body)
+	res.LatticeData = base64.StdEncoding.EncodeToString(body)
 	return &res, nil
 }
 

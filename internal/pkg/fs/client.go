@@ -33,10 +33,12 @@ func NewClient() (*Client, error) {
 }
 
 type getAudioResponse struct {
-	ID       int    `json:"id"`
-	Data     string `json:"data"`
-	FileName string `json:"file_name"`
-	JobType  string `json:"job_type"`
+	ID               int    `json:"id"`
+	Data             string `json:"data"`
+	FileName         string `json:"file_name"`
+	JobType          string `json:"job_type"`
+	NumberOfSpeakers int    `json:"number_of_speakers"`
+	RecordQuality    string `json:"record_qualityid"`
 }
 
 //GetAudio loads audio from fs
@@ -56,14 +58,23 @@ func (sp *Client) GetAudio(kafkaID string) (*kafkaapi.DBEntry, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't decode response")
 	}
-	var result kafkaapi.DBEntry
-	result.ID = strconv.Itoa(respData.ID)
-	result.Data = respData.Data
-	result.FileName = respData.FileName
-	result.JobType = respData.JobType
-
-	return &result, nil
+	result := &kafkaapi.DBEntry{ID: strconv.Itoa(respData.ID),
+		Data: respData.Data, FileName: respData.FileName, JobType: respData.JobType,
+		RecordQuality: respData.RecordQuality, NumberOfSpeakers: convert(respData.NumberOfSpeakers)}
+	return result, nil
 }
+
+func convert(i int) string {
+	if i == 0 {
+		return ""
+	}
+	return strconv.Itoa(i)
+}
+
+const (
+	statusFailed = "failed"
+	statusDone   = "done"
+)
 
 type transcriptionPostRequest struct {
 	ID            int            `json:"id"`
@@ -75,7 +86,8 @@ type transcriptionPostRequest struct {
 
 type transcription struct {
 	Text   string `json:"text"`
-	Latice string `json:"lattice"`
+	Latice string `json:"lattice,omitempty"`
+	WebVTT string `json:"web_vtt,omitempty"`
 }
 
 type trError struct {
@@ -94,15 +106,13 @@ func (sp *Client) SaveResult(dataIn *kafkaapi.DBResultEntry) error {
 		return errors.Wrap(err, "ID is not number")
 	}
 	data.Event = "TranscriptionFinished"
-	data.Status = dataIn.Status
-	if data.Status == kafkaapi.DBStatusFailed {
-		data.Error = &trError{}
-		data.Error.Code = dataIn.Err.Code
-		data.Error.DebugMessage = dataIn.Err.Error
+	if data.Error != nil {
+		data.Status = statusFailed
+		data.Error = &trError{Code: dataIn.Error.Code, DebugMessage: dataIn.Error.Error}
 	} else {
-		data.Transcription = &transcription{}
-		data.Transcription.Text = dataIn.Transcription.Text
-		data.Transcription.Latice = dataIn.Transcription.ResultFileData
+		data.Status = statusDone
+		data.Transcription = &transcription{Text: dataIn.Transcription.Text,
+			Latice: dataIn.Transcription.LatticeData, WebVTT: dataIn.Transcription.WebVTT}
 	}
 
 	bytesData, err := json.Marshal(data)
