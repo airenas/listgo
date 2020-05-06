@@ -11,11 +11,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func initServer(t *testing.T, urlStr, resp string, code int) (*Client, *httptest.Server) {
+type testResp struct {
+	code int
+	resp string
+}
+
+func newTestR(code int, resp string) testResp {
+	return testResp{code: code, resp: resp}
+}
+
+func initTestServer(t *testing.T, rData map[string]testResp) (*Client, *httptest.Server, *[]*http.Request) {
+	resRequest := make([]*http.Request, 0)
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		assert.Equal(t, req.URL.String(), urlStr)
-		rw.WriteHeader(code)
-		rw.Write([]byte(resp))
+		resRequest = append(resRequest, req)
+		resp, f := rData[req.URL.String()]
+		if f {
+			rw.WriteHeader(resp.code)
+			rw.Write([]byte(resp.resp))
+
+		}
 	}))
 	// Use Client & URL from our local test server
 	api := Client{}
@@ -24,7 +38,12 @@ func initServer(t *testing.T, urlStr, resp string, code int) (*Client, *httptest
 	api.resultURL = server.URL
 	api.uploadURL = server.URL
 	api.cleanURL = server.URL
-	return &api, server
+	return &api, server, &resRequest
+}
+
+func testCalled(t *testing.T, URL string, tReq []*http.Request) {
+	assert.Equal(t, 1, len(tReq))
+	assert.Equal(t, URL, (tReq)[0].URL.String())
 }
 
 func TestStatus(t *testing.T) {
@@ -33,7 +52,7 @@ func TestStatus(t *testing.T) {
 	resp.Status = "COMPLETED"
 	resp.RecognizedText = "text"
 	rb, _ := json.Marshal(resp)
-	api, server := initServer(t, "/k10", string(rb), 200)
+	api, server, tReq := initTestServer(t, map[string]testResp{"/k10": newTestR(200, string(rb))})
 	defer server.Close()
 
 	r, err := api.GetStatus("k10")
@@ -43,6 +62,7 @@ func TestStatus(t *testing.T) {
 	assert.Equal(t, r.Completed, true)
 	assert.Equal(t, r.Text, "text")
 	assert.Equal(t, r.ErrorCode, "")
+	testCalled(t, "/k10", *tReq)
 }
 
 func TestStatus_NotCompleted(t *testing.T) {
@@ -51,7 +71,7 @@ func TestStatus_NotCompleted(t *testing.T) {
 	resp.Status = "working"
 	resp.RecognizedText = "text"
 	rb, _ := json.Marshal(resp)
-	api, server := initServer(t, "/k10", string(rb), 200)
+	api, server, tReq := initTestServer(t, map[string]testResp{"/k10": newTestR(200, string(rb))})
 	defer server.Close()
 
 	r, err := api.GetStatus("k10")
@@ -59,6 +79,7 @@ func TestStatus_NotCompleted(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, r.ID, "k10")
 	assert.Equal(t, r.Completed, false)
+	testCalled(t, "/k10", *tReq)
 }
 
 func TestStatus_Failed(t *testing.T) {
@@ -69,7 +90,7 @@ func TestStatus_Failed(t *testing.T) {
 	resp.ErrorCode = "ec"
 	resp.Error = "e"
 	rb, _ := json.Marshal(resp)
-	api, server := initServer(t, "/k10", string(rb), 200)
+	api, server, tReq := initTestServer(t, map[string]testResp{"/k10": newTestR(200, string(rb))})
 	defer server.Close()
 
 	r, err := api.GetStatus("k10")
@@ -79,28 +100,31 @@ func TestStatus_Failed(t *testing.T) {
 	assert.Equal(t, r.Completed, false)
 	assert.Equal(t, r.ErrorCode, "ec")
 	assert.Equal(t, r.Error, "e")
+	testCalled(t, "/k10", *tReq)
 }
 
 func TestStatus_WrongCode_Fails(t *testing.T) {
-	api, server := initServer(t, "/k10", string(""), 300)
+	api, server, tReq := initTestServer(t, map[string]testResp{"/k10": newTestR(300, "")})
 	defer server.Close()
 
 	r, err := api.GetStatus("k10")
 	assert.NotNil(t, err)
 	assert.Nil(t, r)
+	testCalled(t, "/k10", *tReq)
 }
 
 func TestStatus_WrongJSON_Fails(t *testing.T) {
-	api, server := initServer(t, "/k10", string("olia"), 200)
+	api, server, tReq := initTestServer(t, map[string]testResp{"/k10": newTestR(200, "olia")})
 	defer server.Close()
 
 	r, err := api.GetStatus("k10")
 	assert.NotNil(t, err)
 	assert.Nil(t, r)
+	testCalled(t, "/k10", *tReq)
 }
 
 func TestResult(t *testing.T) {
-	api, server := initServer(t, "/result/k10/lat.restored.txt", "olia", 200)
+	api, server, tReq := initTestServer(t, map[string]testResp{"/result/k10/lat.restored.txt": newTestR(200, "olia")})
 	defer server.Close()
 
 	r, err := api.GetResult("k10")
@@ -108,72 +132,102 @@ func TestResult(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, r.ID, "k10")
 	assert.Equal(t, "b2xpYQ==", r.LatticeData)
+	testCalled(t, "/result/k10/lat.restored.txt", *tReq)
 }
 
 func TestResult_WrongCode_Fails(t *testing.T) {
-	api, server := initServer(t, "/result/k10/lat.restored.txt", "v", 300)
+	api, server, tReq := initTestServer(t, map[string]testResp{"/result/k10/lat.restored.txt": newTestR(300, "v")})
 	defer server.Close()
 
 	r, err := api.GetResult("k10")
 
 	assert.NotNil(t, err)
 	assert.Nil(t, r)
+	testCalled(t, "/result/k10/lat.restored.txt", *tReq)
 }
 
 func TestUpload(t *testing.T) {
-	api, server := initServer(t, "/", "{\"id\":\"1\"}", 200)
+	api, server, tReq := initTestServer(t, map[string]testResp{"/": newTestR(200, "{\"id\":\"1\"}")})
 	defer server.Close()
 
 	r, err := api.Upload(&kafkaapi.UploadData{})
 
 	assert.Nil(t, err)
 	assert.Equal(t, r, "1")
+	testCalled(t, "/", *tReq)
 }
 
 func TestUpload_NoID_Fails(t *testing.T) {
-	api, server := initServer(t, "/", "{\"id\":\"\"}", 200)
+	api, server, tReq := initTestServer(t, map[string]testResp{"/": newTestR(200, "{\"id\":\"\"}")})
 	defer server.Close()
 
 	r, err := api.Upload(&kafkaapi.UploadData{})
 
 	assert.NotNil(t, err)
 	assert.Equal(t, r, "")
+	testCalled(t, "/", *tReq)
 }
 
 func TestUpload_WrongCode_Fails(t *testing.T) {
-	api, server := initServer(t, "/", "{\"id\":\"1\"}", 300)
+	api, server, tReq := initTestServer(t, map[string]testResp{"/": newTestR(300, "{\"id\":\"1\"}")})
 	defer server.Close()
 
 	r, err := api.Upload(&kafkaapi.UploadData{})
 
 	assert.NotNil(t, err)
 	assert.Equal(t, "", r)
+	testCalled(t, "/", *tReq)
 }
 
 func TestUpload_WrongJSON_Fails(t *testing.T) {
-	api, server := initServer(t, "/", "olia", 300)
+	api, server, tReq := initTestServer(t, map[string]testResp{"/": newTestR(300, "olia")})
 	defer server.Close()
 
 	r, err := api.Upload(&kafkaapi.UploadData{})
 
 	assert.NotNil(t, err)
 	assert.Equal(t, r, "")
+	testCalled(t, "/", *tReq)
+}
+
+func TestUpload_PassNumberOfSpeakers(t *testing.T) {
+	api, server, tReq := initTestServer(t, map[string]testResp{"/": newTestR(300, "olia")})
+	defer server.Close()
+
+	r, err := api.Upload(&kafkaapi.UploadData{})
+
+	assert.NotNil(t, err)
+	assert.Equal(t, r, "")
+	testCalled(t, "/", *tReq)
+}
+
+func TestUpload_PassRecognizer(t *testing.T) {
+	api, server, tReq := initTestServer(t, map[string]testResp{"/": newTestR(300, "olia")})
+	defer server.Close()
+
+	r, err := api.Upload(&kafkaapi.UploadData{})
+
+	assert.NotNil(t, err)
+	assert.Equal(t, r, "")
+	testCalled(t, "/", *tReq)
 }
 
 func TestDelete(t *testing.T) {
-	api, server := initServer(t, "/10", "OK", 200)
+	api, server, tReq := initTestServer(t, map[string]testResp{"/10": newTestR(200, "OK")})
 	defer server.Close()
 
 	err := api.Delete("10")
 
 	assert.Nil(t, err)
+	testCalled(t, "/10", *tReq)
 }
 
 func TestDelete_Fails(t *testing.T) {
-	api, server := initServer(t, "/10", "Error", 500)
+	api, server, tReq := initTestServer(t, map[string]testResp{"/10": newTestR(500, "Error")})
 	defer server.Close()
 
 	err := api.Delete("10")
 
 	assert.NotNil(t, err)
+	testCalled(t, "/10", *tReq)
 }
