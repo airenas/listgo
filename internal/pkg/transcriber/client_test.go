@@ -52,8 +52,15 @@ func initTestServer(t *testing.T, rData map[string]testResp) (*Client, *httptest
 }
 
 func testCalled(t *testing.T, URL string, tReq []testReq) {
-	assert.Equal(t, 1, len(tReq))
-	assert.Equal(t, URL, (tReq)[0].URL)
+	assert.GreaterOrEqual(t, len(tReq), 1)
+	str := ""
+	for _, r := range tReq {
+		str = r.URL
+		if str == URL {
+			return
+		}
+	}
+	assert.Equal(t, URL, str)
 }
 
 func TestStatus(t *testing.T) {
@@ -134,7 +141,8 @@ func TestStatus_WrongJSON_Fails(t *testing.T) {
 }
 
 func TestResult(t *testing.T) {
-	api, server, tReq := initTestServer(t, map[string]testResp{"/result/k10/lat.restored.txt": newTestR(200, "olia")})
+	api, server, tReq := initTestServer(t, map[string]testResp{"/result/k10/lat.restored.txt": newTestR(200, "olia"),
+		"/result/k10/webvtt.txt": newTestR(200, "webvtt")})
 	defer server.Close()
 
 	r, err := api.GetResult("k10")
@@ -142,11 +150,14 @@ func TestResult(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, r.ID, "k10")
 	assert.Equal(t, "b2xpYQ==", r.LatticeData)
+	assert.Equal(t, "webvtt", r.WebVTTData)
 	testCalled(t, "/result/k10/lat.restored.txt", *tReq)
+	testCalled(t, "/result/k10/webvtt.txt", *tReq)
 }
 
 func TestResult_WrongCode_Fails(t *testing.T) {
-	api, server, tReq := initTestServer(t, map[string]testResp{"/result/k10/lat.restored.txt": newTestR(300, "v")})
+	api, server, tReq := initTestServer(t, map[string]testResp{"/result/k10/lat.restored.txt": newTestR(300, "v"),
+		"/result/k10/webvtt.txt": newTestR(300, "webvtt")})
 	defer server.Close()
 
 	r, err := api.GetResult("k10")
@@ -154,6 +165,31 @@ func TestResult_WrongCode_Fails(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, r)
 	testCalled(t, "/result/k10/lat.restored.txt", *tReq)
+	testCalled(t, "/result/k10/webvtt.txt", *tReq)
+}
+
+func TestResult_WrongCode_Lat_Fails(t *testing.T) {
+	api, server, tReq := initTestServer(t, map[string]testResp{"/result/k10/lat.restored.txt": newTestR(300, "olia"),
+		"/result/k10/webvtt.txt": newTestR(200, "webvtt")})
+	defer server.Close()
+	r, err := api.GetResult("k10")
+
+	assert.NotNil(t, err)
+	assert.Nil(t, r)
+	testCalled(t, "/result/k10/lat.restored.txt", *tReq)
+	testCalled(t, "/result/k10/webvtt.txt", *tReq)
+}
+
+func TestResult_WrongCode_WebVTT_Fails(t *testing.T) {
+	api, server, tReq := initTestServer(t, map[string]testResp{"/result/k10/lat.restored.txt": newTestR(200, "olia"),
+		"/result/k10/webvtt.txt": newTestR(300, "webvtt")})
+	defer server.Close()
+	r, err := api.GetResult("k10")
+
+	assert.NotNil(t, err)
+	assert.Nil(t, r)
+	testCalled(t, "/result/k10/lat.restored.txt", *tReq)
+	testCalled(t, "/result/k10/webvtt.txt", *tReq)
 }
 
 func TestUpload(t *testing.T) {

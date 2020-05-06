@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strings"
+	"sync"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
 
@@ -86,8 +87,44 @@ func (sp *Client) GetStatus(ID string) (*kafkaapi.Status, error) {
 
 //GetResult gets result file from transcrinber
 func (sp *Client) GetResult(ID string) (*kafkaapi.Result, error) {
-	urlStr := utils.URLJoin(sp.resultURL, "result", ID, "lat.restored.txt")
-	resp, err := sp.httpclient.Get(urlStr)
+	var err error
+	var lock sync.Mutex
+	var wg sync.WaitGroup
+	wg.Add(2)
+	var res kafkaapi.Result
+	res.ID = ID
+	go func() {
+		defer wg.Done()
+		url := utils.URLJoin(sp.resultURL, "result", ID, "lat.restored.txt")
+		b, errF := getStringResult(sp.httpclient, url)
+		if errF != nil {
+			lock.Lock()
+			defer lock.Unlock()
+			err = errF
+		}
+		res.LatticeData = base64.StdEncoding.EncodeToString(b)
+	}()
+	go func() {
+		defer wg.Done()
+		url := utils.URLJoin(sp.resultURL, "result", ID, "webvtt.txt")
+		b, errF := getStringResult(sp.httpclient, url)
+		if errF != nil {
+			lock.Lock()
+			defer lock.Unlock()
+			err = errF
+		}
+		res.WebVTTData = string(b)
+	}()
+	wg.Wait()
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func getStringResult(httpclient *http.Client, urlStr string) ([]byte, error) {
+	cmdapp.Log.Debugf("Calling %s", urlStr)
+	resp, err := httpclient.Get(urlStr)
 	if err != nil {
 		return nil, err
 	}
@@ -100,10 +137,7 @@ func (sp *Client) GetResult(ID string) (*kafkaapi.Result, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't read response")
 	}
-	var res kafkaapi.Result
-	res.ID = ID
-	res.LatticeData = base64.StdEncoding.EncodeToString(body)
-	return &res, nil
+	return body, nil
 }
 
 type uploadResponse struct {
