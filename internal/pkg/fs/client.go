@@ -106,7 +106,7 @@ func (sp *Client) SaveResult(dataIn *kafkaapi.DBResultEntry) error {
 		return errors.Wrap(err, "ID is not number")
 	}
 	data.Event = "TranscriptionFinished"
-	if data.Error != nil {
+	if dataIn.Error != nil {
 		data.Status = statusFailed
 		data.Error = &trError{Code: dataIn.Error.Code, DebugMessage: dataIn.Error.Error}
 	} else {

@@ -30,6 +30,8 @@ func TestGetAudio(t *testing.T) {
 	resp.FileName = "f.name"
 	resp.Data = "data"
 	resp.JobType = "job"
+	resp.NumberOfSpeakers = 2
+	resp.RecordQuality = "good"
 	rb, _ := json.Marshal(resp)
 	api, server := initServer(t, "/audio/10", string(rb), 200)
 	defer server.Close()
@@ -41,6 +43,21 @@ func TestGetAudio(t *testing.T) {
 	assert.Equal(t, r.Data, "data")
 	assert.Equal(t, r.FileName, "f.name")
 	assert.Equal(t, r.JobType, "job")
+	assert.Equal(t, "good", r.RecordQuality)
+	assert.Equal(t, "2", r.NumberOfSpeakers)
+}
+
+func TestGetAudio_EmptyNumberOfSpeakers(t *testing.T) {
+	var resp getAudioResponse
+	resp.NumberOfSpeakers = 0
+	rb, _ := json.Marshal(resp)
+	api, server := initServer(t, "/audio/10", string(rb), 200)
+	defer server.Close()
+
+	r, err := api.GetAudio("10")
+
+	assert.Nil(t, err)
+	assert.Equal(t, "", r.NumberOfSpeakers)
 }
 
 func TestGetAudio_WrongCode_Fails(t *testing.T) {
@@ -81,24 +98,24 @@ func invokeResultPost(t *testing.T, urlStr string, code int, dataIn *kafkaapi.DB
 func TestSaveResults(t *testing.T) {
 	var dIn kafkaapi.DBResultEntry
 	dIn.ID = "10"
-	dIn.Status = kafkaapi.DBStatusDone
 	dIn.Transcription.Text = "tt"
-	dIn.Transcription.ResultFileData = "trfd"
+	dIn.Transcription.LatticeData = "trfd"
+	dIn.Transcription.WebVTT = "trvtt"
 	r, err := invokeResultPost(t, "/audio/10/transcription", 200, &dIn)
 
 	assert.Nil(t, err)
 	assert.Equal(t, r.ID, 10)
-	assert.Equal(t, r.Status, kafkaapi.DBStatusDone)
-	assert.Equal(t, r.Transcription.Text, "tt")
-	assert.Equal(t, r.Transcription.Latice, "trfd")
+	assert.Equal(t, statusDone, r.Status)
+	assert.Equal(t, "tt", r.Transcription.Text)
+	assert.Equal(t, "trfd", r.Transcription.Latice)
+	assert.Equal(t, "trvtt", r.Transcription.WebVTT)
 }
 
 func TestSaveResults_ReturnError_Fails(t *testing.T) {
 	var dIn kafkaapi.DBResultEntry
 	dIn.ID = "10"
-	dIn.Status = kafkaapi.DBStatusDone
 	dIn.Transcription.Text = "tt"
-	dIn.Transcription.ResultFileData = "trfd"
+	dIn.Transcription.LatticeData = "trfd"
 	_, err := invokeResultPost(t, "/audio/10/transcription", 400, &dIn)
 
 	assert.NotNil(t, err)
@@ -107,16 +124,14 @@ func TestSaveResults_ReturnError_Fails(t *testing.T) {
 func TestSaveResults_PassError_OK(t *testing.T) {
 	var dIn kafkaapi.DBResultEntry
 	dIn.ID = "10"
-	dIn.Status = "failed"
-	dIn.Err.Code = "ec"
-	dIn.Err.Error = "ee"
+	dIn.Error = &kafkaapi.DBTranscriptionError{Code: "ec", Error: "ee"}
 	r, err := invokeResultPost(t, "/audio/10/transcription", 200, &dIn)
 
 	assert.NotNil(t, r)
 	assert.Nil(t, err)
 	assert.Equal(t, r.ID, 10)
-	assert.Equal(t, r.Status, "failed")
+	assert.Equal(t, statusFailed, r.Status)
 	assert.Nil(t, r.Transcription)
-	assert.Equal(t, r.Error.Code, "ec")
-	assert.Equal(t, r.Error.DebugMessage, "ee")
+	assert.Equal(t, "ec", r.Error.Code)
+	assert.Equal(t, "ee", r.Error.DebugMessage)
 }
