@@ -86,7 +86,7 @@ func (sp *Client) GetStatus(ID string) (*kafkaapi.Status, error) {
 
 //GetResult gets result file from transcrinber
 func (sp *Client) GetResult(ID string) (*kafkaapi.Result, error) {
-	urlStr := utils.URLJoin(sp.resultURL, "result", ID, "result.txt")
+	urlStr := utils.URLJoin(sp.resultURL, "result", ID, "lat.restored.txt")
 	resp, err := sp.httpclient.Get(urlStr)
 	if err != nil {
 		return nil, err

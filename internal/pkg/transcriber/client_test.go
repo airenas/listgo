@@ -100,18 +100,18 @@ func TestStatus_WrongJSON_Fails(t *testing.T) {
 }
 
 func TestResult(t *testing.T) {
-	api, server := initServer(t, "/result/k10/result.txt", "olia", 200)
+	api, server := initServer(t, "/result/k10/lat.restored.txt", "olia", 200)
 	defer server.Close()
 
 	r, err := api.GetResult("k10")
 
 	assert.Nil(t, err)
 	assert.Equal(t, r.ID, "k10")
-	assert.Equal(t, r.FileData, "b2xpYQ==")
+	assert.Equal(t, "b2xpYQ==", r.LatticeData)
 }
 
 func TestResult_WrongCode_Fails(t *testing.T) {
-	api, server := initServer(t, "/result/k10/result.txt", "v", 300)
+	api, server := initServer(t, "/result/k10/lat.restored.txt", "v", 300)
 	defer server.Close()
 
 	r, err := api.GetResult("k10")
