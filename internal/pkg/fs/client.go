@@ -38,7 +38,7 @@ type getAudioResponse struct {
 	FileName         string `json:"file_name"`
 	JobType          string `json:"job_type"`
 	NumberOfSpeakers int    `json:"number_of_speakers"`
-	RecordQuality    string `json:"record_qualityid"`
+	RecordQuality    string `json:"record_quality"`
 }
 
 //GetAudio loads audio from fs
