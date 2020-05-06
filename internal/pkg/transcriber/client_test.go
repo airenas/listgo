@@ -2,6 +2,7 @@ package transcriberapi
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,19 +17,28 @@ type testResp struct {
 	resp string
 }
 
+type testReq struct {
+	resp string
+	URL  string
+}
+
 func newTestR(code int, resp string) testResp {
 	return testResp{code: code, resp: resp}
 }
 
-func initTestServer(t *testing.T, rData map[string]testResp) (*Client, *httptest.Server, *[]*http.Request) {
-	resRequest := make([]*http.Request, 0)
+func newTestReq(req *http.Request) testReq {
+	b, _ := ioutil.ReadAll(req.Body)
+	return testReq{URL: req.URL.String(), resp: string(b)}
+}
+
+func initTestServer(t *testing.T, rData map[string]testResp) (*Client, *httptest.Server, *[]testReq) {
+	resRequest := make([]testReq, 0)
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		resRequest = append(resRequest, req)
+		resRequest = append(resRequest, newTestReq(req))
 		resp, f := rData[req.URL.String()]
 		if f {
 			rw.WriteHeader(resp.code)
 			rw.Write([]byte(resp.resp))
-
 		}
 	}))
 	// Use Client & URL from our local test server
@@ -41,9 +51,9 @@ func initTestServer(t *testing.T, rData map[string]testResp) (*Client, *httptest
 	return &api, server, &resRequest
 }
 
-func testCalled(t *testing.T, URL string, tReq []*http.Request) {
+func testCalled(t *testing.T, URL string, tReq []testReq) {
 	assert.Equal(t, 1, len(tReq))
-	assert.Equal(t, URL, (tReq)[0].URL.String())
+	assert.Equal(t, URL, (tReq)[0].URL)
 }
 
 func TestStatus(t *testing.T) {
@@ -194,22 +204,28 @@ func TestUpload_PassNumberOfSpeakers(t *testing.T) {
 	api, server, tReq := initTestServer(t, map[string]testResp{"/": newTestR(300, "olia")})
 	defer server.Close()
 
-	r, err := api.Upload(&kafkaapi.UploadData{})
+	r, err := api.Upload(&kafkaapi.UploadData{NumberOfSpeakers: "__numberOfSpeakers__"})
 
 	assert.NotNil(t, err)
-	assert.Equal(t, r, "")
+	assert.Equal(t, "", r)
 	testCalled(t, "/", *tReq)
+	bs := (*tReq)[0].resp
+	assert.Contains(t, bs, "numberOfSpeakers")
+	assert.Contains(t, bs, "__numberOfSpeakers__")
 }
 
 func TestUpload_PassRecognizer(t *testing.T) {
 	api, server, tReq := initTestServer(t, map[string]testResp{"/": newTestR(300, "olia")})
 	defer server.Close()
 
-	r, err := api.Upload(&kafkaapi.UploadData{})
+	r, err := api.Upload(&kafkaapi.UploadData{JobType: "law", RecordQuality: "standard"})
 
 	assert.NotNil(t, err)
 	assert.Equal(t, r, "")
 	testCalled(t, "/", *tReq)
+	bs := (*tReq)[0].resp
+	assert.Contains(t, bs, "recognizer")
+	assert.Contains(t, bs, "law_standard")
 }
 
 func TestDelete(t *testing.T) {
