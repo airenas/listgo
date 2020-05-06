@@ -1,6 +1,7 @@
 package transcriberapi
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -149,7 +150,7 @@ func TestResult(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, r.ID, "k10")
-	assert.Equal(t, "b2xpYQ==", r.LatticeData)
+	assert.Equal(t, base64.StdEncoding.EncodeToString([]byte("olia")), r.LatticeData)
 	assert.Equal(t, "webvtt", r.WebVTTData)
 	testCalled(t, "/result/k10/lat.restored.txt", *tReq)
 	testCalled(t, "/result/k10/webvtt.txt", *tReq)
