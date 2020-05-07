@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/metrics"
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 )
 
@@ -38,6 +40,8 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Info("Starting " + appName)
 
 	data := &ServiceData{}
+	err := initMetrics(data)
+	cmdapp.CheckOrPanic(err, "Can't init metrics")
 
 	data.Port = cmdapp.Config.GetInt("port")
 	mongoSessionProvider, err := mongo.NewSessionProvider()
@@ -83,4 +87,16 @@ func run(cmd *cobra.Command, args []string) {
 	// indicate to stop and wait for job complete
 	close(tdata.qChan)
 	<-tdata.workWaitChan
+}
+
+func initMetrics(data *ServiceData) error {
+	namespace := "clean_service"
+	data.metrics.responseDur = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Name:      "request_durations_seconds",
+			Help:      "Request latency distributions.",
+		}, nil)
+
+	return metrics.Register(data.metrics.responseDur)
 }

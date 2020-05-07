@@ -8,6 +8,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 //Cleaner deletes information by ID
@@ -15,11 +17,16 @@ type Cleaner interface {
 	Clean(ID string) error
 }
 
+type serviceMetric struct {
+	responseDur prometheus.ObserverVec
+}
+
 // ServiceData keeps data required for service work
 type ServiceData struct {
 	Port    int
 	health  healthcheck.Handler
 	cleaner Cleaner
+	metrics serviceMetric
 }
 
 //StartWebServer starts the HTTP service and listens for the requests
@@ -39,8 +46,9 @@ func StartWebServer(data *ServiceData) error {
 //NewRouter creates the router for HTTP service
 func NewRouter(data *ServiceData) *mux.Router {
 	router := mux.NewRouter()
-	ph := cleanHandler{data: data}
-	router.Methods("DELETE").Path("/{id}").Handler(&ph)
+	ch := promhttp.InstrumentHandlerDuration(data.metrics.responseDur, &cleanHandler{data: data})
+	router.Methods("DELETE").Path("/{id}").Handler(ch)
+	router.Methods("GET").Path("/metrics").Handler(promhttp.Handler())
 	if data.health != nil {
 		router.Methods("GET").Path("/live").HandlerFunc(data.health.LiveEndpoint)
 		router.Methods("GET").Path("/ready").HandlerFunc(data.health.ReadyEndpoint)
