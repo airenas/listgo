@@ -48,8 +48,10 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't init mongo")
 	defer mongoSessionProvider.Close()
 
+	cm, err := newCleanMetric()
+	cmdapp.CheckOrPanic(err, "Can't init clean metrics")
 	cln, err := newCleanerImpl(mongoSessionProvider, cmdapp.Config.GetString("fileStorage.path"),
-		cmdapp.Config.GetString("fileStorage.patterns"))
+		cmdapp.Config.GetString("fileStorage.patterns"), cm)
 	cmdapp.CheckOrPanic(err, "Can't init cleaner")
 	data.cleaner = cln
 
@@ -89,8 +91,10 @@ func run(cmd *cobra.Command, args []string) {
 	<-tdata.workWaitChan
 }
 
+const namespace = "clean_service"
+
 func initMetrics(data *ServiceData) error {
-	namespace := "clean_service"
+
 	data.metrics.responseDur = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: namespace,
@@ -99,4 +103,19 @@ func initMetrics(data *ServiceData) error {
 		}, nil)
 
 	return metrics.Register(data.metrics.responseDur)
+}
+
+func newCleanMetric() (prometheus.Counter, error) {
+	res := prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "clean_counter",
+			Help:      "Count of clean invoked.",
+		})
+
+	err := metrics.Register(res)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }

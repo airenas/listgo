@@ -7,14 +7,17 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type cleanerImpl struct {
 	jobs        []Cleaner
 	fileStorage string
+
+	counter prometheus.Counter
 }
 
-func newCleanerImpl(mng *mongo.SessionProvider, fileStorage string, patterns string) (*cleanerImpl, error) {
+func newCleanerImpl(mng *mongo.SessionProvider, fileStorage string, patterns string, counter prometheus.Counter) (*cleanerImpl, error) {
 	c := cleanerImpl{}
 	c.jobs = make([]Cleaner, 0)
 	c.fileStorage = fileStorage
@@ -34,10 +37,15 @@ func newCleanerImpl(mng *mongo.SessionProvider, fileStorage string, patterns str
 	for _, mc := range mcs {
 		c.jobs = append(c.jobs, mc)
 	}
+	if counter == nil {
+		return nil, errors.New("No metrics counter")
+	}
+	c.counter = counter
 	return &c, nil
 }
 
 func (c *cleanerImpl) Clean(ID string) error {
+	c.counter.Inc()
 	failed := 0
 	for _, job := range c.jobs {
 		err := job.Clean(ID)
