@@ -26,21 +26,21 @@ func startCleanTimer(data *timerServiceData) error {
 }
 
 func serviceLoop(data *timerServiceData) {
+	defer close(data.workWaitChan)
+
 	ticker := time.NewTicker(data.runEvery)
 	// run on startup
 	doClean(data)
-mainloop:
 	for {
 		select {
 		case <-ticker.C:
 			doClean(data)
 		case <-data.qChan:
 			ticker.Stop()
-			break mainloop
+			cmdapp.Log.Infof("Stopped timer service")
+			return
 		}
 	}
-	cmdapp.Log.Infof("Stopped timer service")
-	close(data.workWaitChan)
 }
 
 func doClean(data *timerServiceData) {
