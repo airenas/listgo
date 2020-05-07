@@ -107,7 +107,7 @@ func initMetrics(data *ServiceData) error {
 	data.metrics.uploadRequestSize = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Namespace: namespace,
-			Name:      "upload_request_request_size_bytes",
+			Name:      "upload_request_size_bytes",
 			Help:      "Upload request size in bytes."}, nil)
 	err = metrics.Register(data.metrics.uploadRequestSize)
 	if err != nil {

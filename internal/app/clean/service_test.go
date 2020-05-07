@@ -102,5 +102,4 @@ func TestAddMetric(t *testing.T) {
 	data := newTestData()
 	NewRouter(data).ServeHTTP(resp, req)
 	assert.Equal(t, 1, testutil.CollectAndCount(data.metrics.responseDur))
-
 }
