@@ -14,6 +14,7 @@ import (
 	"github.com/heptiolabs/healthcheck"
 	"github.com/petergtz/pegomock"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,7 +41,7 @@ func TestProcess(t *testing.T) {
 	initTest(t)
 	req := httptest.NewRequest("POST", "/punctuation", newInput("olia"))
 	resp := httptest.NewRecorder()
-	NewRouter(newData()).ServeHTTP(resp, req)
+	NewRouter(newTestData()).ServeHTTP(resp, req)
 	assert.Equal(t, 200, resp.Code)
 }
 
@@ -70,7 +71,7 @@ func testOutput(t *testing.T, req *http.Request) {
 	resp := httptest.NewRecorder()
 	pegomock.When(punctuatorMock.Process(pegomock.AnyStringSlice())).ThenReturn(&api.PResult{PunctuatedText: "Olia, olia.",
 		Punctuated: []string{"Olia,", "olia."}}, nil)
-	NewRouter(newData()).ServeHTTP(resp, req)
+	NewRouter(newTestData()).ServeHTTP(resp, req)
 	assert.Equal(t, 200, resp.Code)
 	output := getOutput(resp.Body)
 	assert.Equal(t, []string{"olia", "olia"}, output.Original)
@@ -92,7 +93,7 @@ func testNoDebugData(t *testing.T, req *http.Request) {
 	resp := httptest.NewRecorder()
 	pegomock.When(punctuatorMock.Process(pegomock.AnyStringSlice())).ThenReturn(&api.PResult{PunctuatedText: "Olia, olia.",
 		WordIDs: []int32{1, 2}, PunctIDs: []int32{0, 1}}, nil)
-	NewRouter(newData()).ServeHTTP(resp, req)
+	NewRouter(newTestData()).ServeHTTP(resp, req)
 	assert.Equal(t, 200, resp.Code)
 	output := getOutput(resp.Body)
 	assert.Equal(t, []string{"olia", "olia"}, output.Original)
@@ -115,7 +116,7 @@ func testDebugData(t *testing.T, req *http.Request) {
 	resp := httptest.NewRecorder()
 	pegomock.When(punctuatorMock.Process(pegomock.AnyStringSlice())).ThenReturn(&api.PResult{PunctuatedText: "Olia, olia.",
 		WordIDs: []int32{1, 2}, PunctIDs: []int32{0, 1}}, nil)
-	NewRouter(newData()).ServeHTTP(resp, req)
+	NewRouter(newTestData()).ServeHTTP(resp, req)
 	assert.Equal(t, 200, resp.Code)
 	output := getOutput(resp.Body)
 	assert.Equal(t, []string{"olia", "olia"}, output.Original)
@@ -149,15 +150,16 @@ func TestPunctuatorArrayFails(t *testing.T) {
 
 func testFail(t *testing.T, req *http.Request, expectedCode int) {
 	resp := httptest.NewRecorder()
-	NewRouter(newData()).ServeHTTP(resp, req)
+	NewRouter(newTestData()).ServeHTTP(resp, req)
 	assert.Equal(t, expectedCode, resp.Code)
 }
 
-func newData() *ServiceData {
-	data := ServiceData{}
+func newTestData() *ServiceData {
+	data := &ServiceData{}
 	data.health = healthcheck.NewHandler()
 	data.punctuator = punctuatorMock
-	return &data
+	initMetrics(data)
+	return data
 }
 
 func getOutput(r io.Reader) *Output {
@@ -184,11 +186,11 @@ func newArrInput(text string) *bytes.Buffer {
 }
 
 func TestLive(t *testing.T) {
-	testCode(t, newData(), "/live", 200)
+	testCode(t, newTestData(), "/live", 200)
 }
 
 func TestLive503(t *testing.T) {
-	data := newData()
+	data := newTestData()
 	data.health.AddLivenessCheck("test", func() error { return errors.New("test") })
 	testCode(t, data, "/live", 503)
 }
@@ -202,5 +204,29 @@ func testCode(t *testing.T, data *ServiceData, path string, code int) {
 }
 
 func TestReady(t *testing.T) {
-	testCode(t, newData(), "/ready", 200)
+	testCode(t, newTestData(), "/ready", 200)
+}
+
+func TestMetrics(t *testing.T) {
+	testCode(t, newTestData(), "/metrics", 200)
+}
+
+func TestPunctuate_MetricsAdded(t *testing.T) {
+	initTest(t)
+	req := httptest.NewRequest("POST", "/punctuation", newInput("olia"))
+	resp := httptest.NewRecorder()
+	data := newTestData()
+	NewRouter(data).ServeHTTP(resp, req)
+	assert.Equal(t, 1, testutil.CollectAndCount(data.metrics.responseDur))
+	assert.Equal(t, 0, testutil.CollectAndCount(data.metrics.arrayResponseDur))
+}
+
+func TestPunctuateArray_MetricsAdded(t *testing.T) {
+	initTest(t)
+	req := httptest.NewRequest("POST", "/punctuationArray", newArrInput("olia"))
+	resp := httptest.NewRecorder()
+	data := newTestData()
+	NewRouter(data).ServeHTTP(resp, req)
+	assert.Equal(t, 1, testutil.CollectAndCount(data.metrics.arrayResponseDur))
+	assert.Equal(t, 0, testutil.CollectAndCount(data.metrics.responseDur))
 }

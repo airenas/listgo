@@ -5,7 +5,9 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/app/punctuation/tf"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/metrics"
 	"github.com/heptiolabs/healthcheck"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 )
 
@@ -34,6 +36,8 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Info("Starting " + appName)
 
 	data := &ServiceData{}
+	err := initMetrics(data)
+	cmdapp.CheckOrPanic(err, "Can't init metrics")
 
 	provider, err := NewSettingsDataProviderImpl(cmdapp.Config.GetString("modelDir"))
 	cmdapp.CheckOrPanic(err, "Cannot init data provider")
@@ -52,4 +56,27 @@ func run(cmd *cobra.Command, args []string) {
 
 	err = StartWebServer(data)
 	cmdapp.CheckOrPanic(err, "")
+}
+
+func initMetrics(data *ServiceData) error {
+	namespace := "punctuation_service"
+	data.metrics.responseDur = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Name:      "request_durations_seconds",
+			Help:      "Request latency distributions.",
+		}, nil)
+
+	err := metrics.Register(data.metrics.responseDur)
+	if err != nil {
+		return err
+	}
+	data.metrics.arrayResponseDur = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Name:      "array_request_durations_seconds",
+			Help:      "Array request latency distributions.",
+		}, nil)
+
+	return metrics.Register(data.metrics.arrayResponseDur)
 }

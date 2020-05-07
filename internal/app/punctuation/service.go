@@ -11,6 +11,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 //Punctuator invokes TF to retrieve punctuation
@@ -18,11 +20,17 @@ type Punctuator interface {
 	Process(data []string) (*api.PResult, error)
 }
 
+type serviceMetric struct {
+	responseDur      prometheus.ObserverVec
+	arrayResponseDur prometheus.ObserverVec
+}
+
 // ServiceData keeps data required for service work
 type ServiceData struct {
 	Port       int
 	health     healthcheck.Handler
 	punctuator Punctuator
+	metrics    serviceMetric
 }
 
 //StartWebServer starts the HTTP service and listens for the requests
@@ -43,12 +51,13 @@ func StartWebServer(data *ServiceData) error {
 //NewRouter creates the router for HTTP service
 func NewRouter(data *ServiceData) *mux.Router {
 	router := mux.NewRouter()
-	ph := punctuationHandler{data: data}
-	pAh := punctuationArrayHandler{data: data}
-	router.Methods("POST").Path("/punctuation").Handler(&ph)
-	router.Methods("POST").Path("/punctuation/").Handler(&ph)
-	router.Methods("POST").Path("/punctuationArray").Handler(&pAh)
-	router.Methods("POST").Path("/punctuationArray/").Handler(&pAh)
+	ph := promhttp.InstrumentHandlerDuration(data.metrics.responseDur, &punctuationHandler{data: data})
+	pAh := promhttp.InstrumentHandlerDuration(data.metrics.arrayResponseDur, &punctuationArrayHandler{data: data})
+	router.Methods("POST").Path("/punctuation").Handler(ph)
+	router.Methods("POST").Path("/punctuation/").Handler(ph)
+	router.Methods("POST").Path("/punctuationArray").Handler(pAh)
+	router.Methods("POST").Path("/punctuationArray/").Handler(pAh)
+	router.Methods("GET").Path("/metrics").Handler(promhttp.Handler())
 	if data.health != nil {
 		router.Methods("GET").Path("/live").HandlerFunc(data.health.LiveEndpoint)
 		router.Methods("GET").Path("/ready").HandlerFunc(data.health.ReadyEndpoint)
