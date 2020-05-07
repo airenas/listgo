@@ -9,7 +9,16 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+type serviceMetric struct {
+	resultResponseDur  prometheus.ObserverVec
+	resultResponseSize prometheus.ObserverVec
+	audioResponseDur   prometheus.ObserverVec
+	audioResponseSize  prometheus.ObserverVec
+}
 
 // ServiceData keeps data required for service work
 type ServiceData struct {
@@ -18,6 +27,8 @@ type ServiceData struct {
 	fileNameProvider FileNameProvider
 	port             int
 	health           healthcheck.Handler
+
+	metrics serviceMetric
 }
 
 // FileResult - post method response in JSON
@@ -42,8 +53,13 @@ func StartWebServer(data *ServiceData) error {
 //NewRouter creates the router for HTTP service
 func NewRouter(data *ServiceData) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
-	router.Methods("GET").Path("/audio/{id}").Handler(audioHandler{data: data})
-	router.Methods("GET").Path("/result/{id}/{file}").Handler(resultHandler{data: data})
+	rh := promhttp.InstrumentHandlerDuration(data.metrics.resultResponseDur,
+		promhttp.InstrumentHandlerResponseSize(data.metrics.resultResponseSize, resultHandler{data: data}))
+	ah := promhttp.InstrumentHandlerDuration(data.metrics.audioResponseDur,
+		promhttp.InstrumentHandlerResponseSize(data.metrics.audioResponseSize, audioHandler{data: data}))
+	router.Methods("GET").Path("/audio/{id}").Handler(ah)
+	router.Methods("GET").Path("/result/{id}/{file}").Handler(rh)
+	router.Methods("GET").Path("/metrics").Handler(promhttp.Handler())
 	if data.health != nil {
 		router.Methods("GET").Path("/live").HandlerFunc(data.health.LiveEndpoint)
 		router.Methods("GET").Path("/ready").HandlerFunc(data.health.ReadyEndpoint)

@@ -4,10 +4,12 @@ import (
 	"time"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/loader"
+	"bitbucket.org/airenas/listgo/internal/pkg/metrics"
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/heptiolabs/healthcheck"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 )
 
@@ -33,12 +35,14 @@ func Execute() {
 
 func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Info("Starting resultService")
-	data := ServiceData{}
+	data := &ServiceData{}
+	err := initMetrics(data)
+	cmdapp.CheckOrPanic(err, "Can't init metrics")
+
 	data.health = healthcheck.NewHandler()
 	mongoSessionProvider, err := mongo.NewSessionProvider()
-	if err != nil {
-		panic(err)
-	}
+	cmdapp.CheckOrPanic(err, "Can't init mongo session")
+
 	defer mongoSessionProvider.Close()
 	data.health.AddLivenessCheck("mongo", healthcheck.Async(mongoSessionProvider.Healthy, 10*time.Second))
 
@@ -52,6 +56,47 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't init resultFileLoader provider")
 	data.port = cmdapp.Config.GetInt("port")
 
-	err = StartWebServer(&data)
+	err = StartWebServer(data)
 	cmdapp.CheckOrPanic(err, "Can't start web server")
+}
+
+func initMetrics(data *ServiceData) error {
+	namespace := "result_service"
+	data.metrics.audioResponseDur = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Name:      "audio_request_durations_seconds",
+			Help:      "Audio request latency distributions.",
+		}, nil)
+
+	err := metrics.Register(data.metrics.audioResponseDur)
+	if err != nil {
+		return err
+	}
+	data.metrics.audioResponseSize = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Namespace: namespace,
+			Name:      "audio_response_size_bytes",
+			Help:      "Audio response size in bytes."}, nil)
+	err = metrics.Register(data.metrics.audioResponseSize)
+	if err != nil {
+		return err
+	}
+	data.metrics.resultResponseDur = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Name:      "result_request_durations_seconds",
+			Help:      "Result request latency distributions.",
+		}, nil)
+
+	err = metrics.Register(data.metrics.resultResponseDur)
+	if err != nil {
+		return err
+	}
+	data.metrics.resultResponseSize = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Namespace: namespace,
+			Name:      "result_response_size_bytes",
+			Help:      "Result response size in bytes."}, nil)
+	return metrics.Register(data.metrics.resultResponseSize)
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/heptiolabs/healthcheck"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
@@ -31,14 +32,14 @@ func initTest() {
 func TestWrongPath(t *testing.T) {
 	req := httptest.NewRequest("GET", "/invalid", nil)
 	resp := httptest.NewRecorder()
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 	assert.Equal(t, resp.Code, 404)
 }
 
 func TestNoID(t *testing.T) {
 	req := httptest.NewRequest("GET", "/audio/", nil)
 	resp := httptest.NewRecorder()
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 	assert.Equal(t, resp.Code, 404)
 }
 
@@ -46,6 +47,13 @@ func TestGET(t *testing.T) {
 	initTest()
 	req := httptest.NewRequest("GET", "/audio/id", nil)
 	resp := httptest.NewRecorder()
+	initAudioMock()
+	newTestRouter().ServeHTTP(resp, req)
+	assert.Equal(t, resp.Code, 200)
+	assert.NotEmpty(t, resp.Body.String())
+}
+
+func initAudioMock() {
 	pegomock.When(fileNameProviderMock.Get(pegomock.AnyString())).ThenReturn("olia", nil)
 	pegomock.When(audioFileLoaderMock.Load(pegomock.AnyString())).ThenReturn(fileMock, nil)
 	pegomock.When(fileMock.Stat()).ThenReturn(mockedFileInfo{}, nil)
@@ -54,22 +62,20 @@ func TestGET(t *testing.T) {
 		func(params []pegomock.Param) pegomock.ReturnValues {
 			return []pegomock.ReturnValue{2, nil}
 		})
-	newRouter().ServeHTTP(resp, req)
-	assert.Equal(t, resp.Code, 200)
-	assert.NotEmpty(t, resp.Body.String())
 }
 
-func newData() *ServiceData {
-	data := ServiceData{}
+func newTestData() *ServiceData {
+	data := &ServiceData{}
 	data.audioFileLoader = audioFileLoaderMock
 	data.resultFileLoader = resultFileLoaderMock
 	data.fileNameProvider = fileNameProviderMock
 	data.health = healthcheck.NewHandler()
-	return &data
+	initMetrics(data)
+	return data
 }
 
-func newRouter() *mux.Router {
-	return NewRouter(newData())
+func newTestRouter() *mux.Router {
+	return NewRouter(newTestData())
 }
 
 func Test_FileNameProviderFails(t *testing.T) {
@@ -78,7 +84,7 @@ func Test_FileNameProviderFails(t *testing.T) {
 	resp := httptest.NewRecorder()
 	pegomock.When(fileNameProviderMock.Get(pegomock.AnyString())).ThenReturn("", errors.New("Can not get"))
 
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 	assert.Equal(t, resp.Code, 404)
 }
 
@@ -89,7 +95,7 @@ func Test_FileLoaderFails(t *testing.T) {
 	pegomock.When(fileNameProviderMock.Get(pegomock.AnyString())).ThenReturn("olia", nil)
 	pegomock.When(audioFileLoaderMock.Load(pegomock.AnyString())).ThenReturn(nil, errors.New("Can not get"))
 
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 	assert.Equal(t, resp.Code, 404)
 }
 
@@ -101,7 +107,7 @@ func Test_FileStatFails(t *testing.T) {
 	pegomock.When(audioFileLoaderMock.Load(pegomock.AnyString())).ThenReturn(fileMock, nil)
 	pegomock.When(fileMock.Stat()).ThenReturn(mockedFileInfo{}, errors.New("Can not get"))
 
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 	assert.Equal(t, resp.Code, 404)
 }
 
@@ -109,14 +115,14 @@ func TestResultNoID(t *testing.T) {
 	req := httptest.NewRequest("GET", "/result/", nil)
 	resp := httptest.NewRecorder()
 
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 	assert.Equal(t, resp.Code, 404)
 }
 
 func TestResultNoFile(t *testing.T) {
 	req := httptest.NewRequest("GET", "/result/id/", nil)
 	resp := httptest.NewRecorder()
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 
 	assert.Equal(t, resp.Code, 404)
 }
@@ -124,7 +130,7 @@ func TestResultNoFile(t *testing.T) {
 func TestResultWrongFile(t *testing.T) {
 	req := httptest.NewRequest("GET", "/result/id/..file", nil)
 	resp := httptest.NewRecorder()
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 	assert.Equal(t, resp.Code, 400)
 }
 
@@ -132,6 +138,13 @@ func TestResultGET(t *testing.T) {
 	initTest()
 	req := httptest.NewRequest("GET", "/result/id/file", nil)
 	resp := httptest.NewRecorder()
+	initResultMock()
+	newTestRouter().ServeHTTP(resp, req)
+	assert.Equal(t, resp.Code, 200)
+	assert.NotEmpty(t, resp.Body.String())
+}
+
+func initResultMock() {
 	pegomock.When(resultFileLoaderMock.Load(pegomock.AnyString())).ThenReturn(fileMock, nil)
 	pegomock.When(fileMock.Stat()).ThenReturn(mockedFileInfo{}, nil)
 	pegomock.When(fileMock.Seek(pegomock.AnyInt64(), pegomock.AnyInt())).ThenReturn(int64(2), nil)
@@ -139,9 +152,6 @@ func TestResultGET(t *testing.T) {
 		func(params []pegomock.Param) pegomock.ReturnValues {
 			return []pegomock.ReturnValue{2, nil}
 		})
-	newRouter().ServeHTTP(resp, req)
-	assert.Equal(t, resp.Code, 200)
-	assert.NotEmpty(t, resp.Body.String())
 }
 
 func TestResult_FileLoaderFails(t *testing.T) {
@@ -150,7 +160,7 @@ func TestResult_FileLoaderFails(t *testing.T) {
 	resp := httptest.NewRecorder()
 	pegomock.When(resultFileLoaderMock.Load(pegomock.AnyString())).ThenReturn(nil, errors.New("Can not get"))
 
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 	assert.Equal(t, resp.Code, 404)
 }
 
@@ -161,16 +171,16 @@ func TestResult_FileStatFails(t *testing.T) {
 	pegomock.When(resultFileLoaderMock.Load(pegomock.AnyString())).ThenReturn(fileMock, nil)
 	pegomock.When(fileMock.Stat()).ThenReturn(mockedFileInfo{}, errors.New("Can not get"))
 
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 	assert.Equal(t, resp.Code, 404)
 }
 
 func TestLive(t *testing.T) {
-	testCode(t, newData(), "/live", 200)
+	testCode(t, newTestData(), "/live", 200)
 }
 
 func TestLive503(t *testing.T) {
-	data := newData()
+	data := newTestData()
 	data.health.AddLivenessCheck("test", func() error { return errors.New("test") })
 	testCode(t, data, "/live", 503)
 }
@@ -184,7 +194,33 @@ func testCode(t *testing.T, data *ServiceData, path string, code int) {
 }
 
 func TestReady(t *testing.T) {
-	testCode(t, newData(), "/ready", 200)
+	testCode(t, newTestData(), "/ready", 200)
+}
+
+func TestMetrics(t *testing.T) {
+	testCode(t, newTestData(), "/metrics", 200)
+}
+
+func TestResult_AddMetrics(t *testing.T) {
+	initTest()
+	req := httptest.NewRequest("GET", "/result/id/file", nil)
+	resp := httptest.NewRecorder()
+	initResultMock()
+	data := newTestData()
+	NewRouter(data).ServeHTTP(resp, req)
+	assert.Equal(t, 1, testutil.CollectAndCount(data.metrics.resultResponseDur))
+	assert.Equal(t, 1, testutil.CollectAndCount(data.metrics.resultResponseSize))
+}
+
+func TestAudio_AddMetrics(t *testing.T) {
+	initTest()
+	req := httptest.NewRequest("GET", "/audio/id", nil)
+	resp := httptest.NewRecorder()
+	initAudioMock()
+	data := newTestData()
+	NewRouter(data).ServeHTTP(resp, req)
+	assert.Equal(t, 1, testutil.CollectAndCount(data.metrics.audioResponseDur))
+	assert.Equal(t, 1, testutil.CollectAndCount(data.metrics.audioResponseSize))
 }
 
 type mockedFileInfo struct {
