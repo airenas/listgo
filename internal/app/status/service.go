@@ -15,6 +15,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+type serviceMetric struct {
+	responseDur  prometheus.ObserverVec
+	responseSize prometheus.ObserverVec
+}
+
 // ServiceData keeps data required for service work
 type ServiceData struct {
 	StatusProvider   Provider
@@ -22,8 +27,7 @@ type ServiceData struct {
 	EventChannelFunc eventChannelFunc
 	health           healthcheck.Handler
 
-	statusMetricDur  *prometheus.SummaryVec
-	statusMetricSize *prometheus.SummaryVec
+	metrics serviceMetric
 }
 
 //StartWebServer starts the HTTP service and listens for the requests
@@ -49,8 +53,8 @@ func StartWebServer(data *ServiceData) error {
 //NewRouter creates the router for HTTP service
 func NewRouter(data *ServiceData) *mux.Router {
 	router := mux.NewRouter()
-	sh := promhttp.InstrumentHandlerDuration(data.statusMetricDur,
-		promhttp.InstrumentHandlerResponseSize(data.statusMetricSize, statusHandler{data: data}))
+	sh := promhttp.InstrumentHandlerDuration(data.metrics.responseDur,
+		promhttp.InstrumentHandlerResponseSize(data.metrics.responseSize, statusHandler{data: data}))
 	router.Methods("GET").Path("/status/{id}").Handler(sh)
 	router.Methods("GET").Path("/status").Handler(sh)
 	router.Methods("GET").Path("/status/").Handler(sh)

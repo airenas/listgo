@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"bitbucket.org/airenas/listgo/internal/pkg/metrics"
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
 
@@ -110,31 +111,22 @@ func initEventChannel(provider *rabbit.ChannelProvider) (<-chan amqp.Delivery, e
 }
 
 func initMetrics(data *ServiceData) error {
-	data.statusMetricDur = prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name:       "status_service_request_durations_seconds",
-			Help:       "Request latency distributions.",
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+	namespace := "status_service"
+	data.metrics.responseDur = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Name:      "request_durations_seconds",
+			Help:      "Request latency distributions.",
 		}, nil)
 
-	err := registerMetric(data.statusMetricDur)
+	err := metrics.Register(data.metrics.responseDur)
 	if err != nil {
 		return err
 	}
-	data.statusMetricSize = prometheus.NewSummaryVec(
+	data.metrics.responseSize = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
-			Name:       "status_service_response_size_bytes",
-			Help:       "Response size in bytes.",
-			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
-		}, nil)
-	return registerMetric(data.statusMetricSize)
-}
-
-func registerMetric(m prometheus.Collector) error {
-	err := prometheus.Register(m)
-	if err != nil {
-		prometheus.Unregister(m)
-		err = prometheus.Register(m)
-	}
-	return err
+			Namespace: namespace,
+			Name:      "request_response_size_bytes",
+			Help:      "Response size in bytes."}, nil)
+	return metrics.Register(data.metrics.responseDur)
 }

@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 )
@@ -48,7 +49,7 @@ func initMetrics(data *ServiceData) error {
 			Help:      "Tasks duration metrics",
 			Buckets:   prometheus.ExponentialBuckets(0.5, 2, 15),
 		}, []string{"worker", "task", "model"})
-	err := registerMetric(data.tasksMetrics)
+	err := metrics.Register(data.tasksMetrics)
 	if err != nil {
 		return err
 	}
@@ -58,7 +59,7 @@ func initMetrics(data *ServiceData) error {
 			Name:      "task_start",
 			Help:      "Tasks start counter",
 		}, []string{"worker", "task", "model"})
-	err = registerMetric(data.tasksStarted)
+	err = metrics.Register(data.tasksStarted)
 	if err != nil {
 		return err
 	}
@@ -68,7 +69,7 @@ func initMetrics(data *ServiceData) error {
 			Name:      "task_end",
 			Help:      "Tasks end counter",
 		}, []string{"worker", "task", "model"})
-	err = registerMetric(data.tasksEnded)
+	err = metrics.Register(data.tasksEnded)
 	if err != nil {
 		return err
 	}
@@ -80,14 +81,5 @@ func initMetrics(data *ServiceData) error {
 			Help:      "Request latency distributions.",
 		}, nil)
 
-	return registerMetric(data.metricDur)
-}
-
-func registerMetric(m prometheus.Collector) error {
-	err := prometheus.Register(m)
-	if err != nil {
-		prometheus.Unregister(m)
-		err = prometheus.Register(m)
-	}
-	return err
+	return metrics.Register(data.metricDur)
 }
