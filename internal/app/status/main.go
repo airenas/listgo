@@ -128,5 +128,5 @@ func initMetrics(data *ServiceData) error {
 			Namespace: namespace,
 			Name:      "request_response_size_bytes",
 			Help:      "Response size in bytes."}, nil)
-	return metrics.Register(data.metrics.responseDur)
+	return metrics.Register(data.metrics.responseSize)
 }
