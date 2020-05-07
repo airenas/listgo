@@ -18,9 +18,18 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/heptiolabs/healthcheck"
 )
+
+type serviceMetric struct {
+	uploadResponseDur prometheus.ObserverVec
+	uploadRequestSize prometheus.ObserverVec
+
+	recResponseDur prometheus.ObserverVec
+}
 
 // ServiceData keeps data required for service work
 type ServiceData struct {
@@ -31,8 +40,9 @@ type ServiceData struct {
 	RecognizerMap      RecognizerMap
 	RecognizerProvider RecognizerProvider
 
-	Port   int
-	health healthcheck.Handler
+	Port    int
+	health  healthcheck.Handler
+	metrics serviceMetric
 }
 
 // FileResult - post method response in JSON
@@ -57,8 +67,12 @@ func StartWebServer(data *ServiceData) error {
 //NewRouter creates the router for HTTP service
 func NewRouter(data *ServiceData) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
-	router.Methods("POST").Path("/upload").Handler(uploadHandler{data: data})
-	router.Methods("GET").Path("/recognizers").Handler(recognizersHandler{data: data})
+	uh := promhttp.InstrumentHandlerDuration(data.metrics.uploadResponseDur,
+		promhttp.InstrumentHandlerRequestSize(data.metrics.uploadRequestSize, uploadHandler{data: data}))
+	rh := promhttp.InstrumentHandlerDuration(data.metrics.recResponseDur, recognizersHandler{data: data})
+	router.Methods("POST").Path("/upload").Handler(uh)
+	router.Methods("GET").Path("/recognizers").Handler(rh)
+	router.Methods("GET").Path("/metrics").Handler(promhttp.Handler())
 	router.Methods("GET").Path("/live").HandlerFunc(data.health.LiveEndpoint)
 	router.Methods("GET").Path("/ready").HandlerFunc(data.health.ReadyEndpoint)
 	return router

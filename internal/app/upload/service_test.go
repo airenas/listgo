@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/heptiolabs/healthcheck"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 
 	"bitbucket.org/airenas/listgo/internal/app/upload/api"
@@ -66,7 +67,7 @@ func TestLive503(t *testing.T) {
 	initTest(t)
 	resp := httptest.NewRecorder()
 
-	data := newData()
+	data := newTestData()
 	data.health.AddLivenessCheck("test", func() error { return errors.New("test") })
 	NewRouter(data).ServeHTTP(resp, req)
 
@@ -83,7 +84,7 @@ func TestPOST(t *testing.T) {
 	req := newReq("filename.wav", "a@a.a", "")
 	resp := httptest.NewRecorder()
 
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 
 	assert.Equal(t, resp.Code, 200)
 	assert.True(t, strings.HasPrefix(resp.Body.String(), `{"id":"`))
@@ -120,12 +121,12 @@ func newReq(file string, email string, externalID string) *http.Request {
 	return newReq4(file, email, externalID, "recKey")
 }
 
-func newRouter() *mux.Router {
-	return NewRouter(newData())
+func newTestRouter() *mux.Router {
+	return NewRouter(newTestData())
 }
 
-func newData() *ServiceData {
-	return &ServiceData{StatusSaver: statusSaverMock,
+func newTestData() *ServiceData {
+	res := &ServiceData{StatusSaver: statusSaverMock,
 		MessageSender:      msgSenderMock,
 		RequestSaver:       requestSaverMock,
 		FileSaver:          testSaver{},
@@ -133,6 +134,8 @@ func newData() *ServiceData {
 		RecognizerProvider: recognizerProviderMock,
 		health:             healthcheck.NewHandler(),
 	}
+	initMetrics(res)
+	return res
 }
 
 func test400(t *testing.T, req *http.Request) {
@@ -143,7 +146,7 @@ func testCode(t *testing.T, req *http.Request, code int) {
 	initTest(t)
 	resp := httptest.NewRecorder()
 
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 
 	assert.Equal(t, code, resp.Code)
 }
@@ -162,7 +165,7 @@ func TestPOST_Sender(t *testing.T) {
 	req := newReq("filename.wav", "a@a.a", "")
 	resp := httptest.NewRecorder()
 
-	NewRouter(newData()).ServeHTTP(resp, req)
+	NewRouter(newTestData()).ServeHTTP(resp, req)
 
 	assert.Equal(t, resp.Code, 200)
 }
@@ -197,7 +200,7 @@ func TestPOST_SenderFails(t *testing.T) {
 	pegomock.When(msgSenderMock.Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
 		pegomock.AnyString())).ThenReturn(errors.New("Can not send"))
 
-	NewRouter(newData()).ServeHTTP(resp, req)
+	NewRouter(newTestData()).ServeHTTP(resp, req)
 
 	assert.Equal(t, 500, resp.Code)
 }
@@ -208,7 +211,7 @@ func TestPOST_RecognizerMethodFails(t *testing.T) {
 	resp := httptest.NewRecorder()
 	pegomock.When(recognizerMapMock.Get(pegomock.AnyString())).ThenReturn("", errors.New("Rec map failed"))
 
-	NewRouter(newData()).ServeHTTP(resp, req)
+	NewRouter(newTestData()).ServeHTTP(resp, req)
 
 	assert.Equal(t, 500, resp.Code)
 }
@@ -219,7 +222,7 @@ func TestPOST_UnknownRecognizerFails(t *testing.T) {
 	resp := httptest.NewRecorder()
 	pegomock.When(recognizerMapMock.Get(pegomock.AnyString())).ThenReturn("", api.ErrRecognizerNotFound)
 
-	NewRouter(newData()).ServeHTTP(resp, req)
+	NewRouter(newTestData()).ServeHTTP(resp, req)
 
 	assert.Equal(t, 400, resp.Code)
 }
@@ -230,7 +233,7 @@ func TestPOST_NoRecognizerFails(t *testing.T) {
 	resp := httptest.NewRecorder()
 	pegomock.When(recognizerMapMock.Get(pegomock.AnyString())).ThenReturn("", api.ErrRecognizerNotFound)
 
-	NewRouter(newData()).ServeHTTP(resp, req)
+	NewRouter(newTestData()).ServeHTTP(resp, req)
 
 	assert.Equal(t, 400, resp.Code)
 }
@@ -240,7 +243,7 @@ func TestPOST_SaverFails(t *testing.T) {
 	req := newReq("filename.wav", "a@a.a", "")
 	resp := httptest.NewRecorder()
 
-	data := newData()
+	data := newTestData()
 	data.FileSaver = testSaverFunc(
 		func(id string, reader io.Reader) error {
 			return errors.New("Can not send")
@@ -257,7 +260,7 @@ func TestPOST_StatusSaverFails(t *testing.T) {
 	pegomock.When(statusSaverMock.Save(pegomock.AnyString(),
 		matchers.AnyStatusStatus())).ThenReturn(errors.New("error"))
 
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 
 	assert.Equal(t, resp.Code, 500)
 }
@@ -268,7 +271,7 @@ func TestPOST_RequestSaverFails(t *testing.T) {
 	resp := httptest.NewRecorder()
 	pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(errors.New("error"))
 
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 
 	assert.Equal(t, resp.Code, 500)
 }
@@ -279,7 +282,7 @@ func TestPOST_RequestSaverCalled(t *testing.T) {
 	resp := httptest.NewRecorder()
 	pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(nil)
 
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 
 	rd := requestSaverMock.VerifyWasCalled(pegomock.Once()).Save(matchers.AnyApiRequestData()).GetCapturedArguments()
 	assert.Equal(t, rd.Email, "a@a.a")
@@ -295,7 +298,7 @@ func TestPOST_NumberOfSpeakersPassed(t *testing.T) {
 	req := newReqMap("file.wav", map[string]string{"email": "a@a.lt",
 		"recognizer": "rec", "numberOfSpeakers": "2"})
 	resp := httptest.NewRecorder()
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 
 	msg, q, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
 		pegomock.AnyString()).GetCapturedArguments()
@@ -314,7 +317,7 @@ func TestPOST_TimestampAdded(t *testing.T) {
 	req := newReqMap("file.wav", map[string]string{"email": "a@a.lt",
 		"recognizer": "rec"})
 	resp := httptest.NewRecorder()
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 
 	msg, q, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
 		pegomock.AnyString()).GetCapturedArguments()
@@ -337,7 +340,7 @@ func TestPOST_NumberOfSpeakersNotPassed(t *testing.T) {
 	req := newReqMap("file.wav", map[string]string{"email": "a@a.lt",
 		"recognizer": "rec"})
 	resp := httptest.NewRecorder()
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 
 	msg, q, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
 		pegomock.AnyString()).GetCapturedArguments()
@@ -396,7 +399,7 @@ func TestGET_Recognizers(t *testing.T) {
 	ri = append(ri, &api.Recognizer{ID: "ID", Name: "name", Description: "descr", DateCreated: ttime})
 	pegomock.When(recognizerProviderMock.GetAll()).ThenReturn(ri, nil)
 
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 	assert.Equal(t, 200, resp.Code)
 
 	var r []*api.Recognizer
@@ -415,6 +418,35 @@ func TestGET_Recognizers_Fails(t *testing.T) {
 	resp := httptest.NewRecorder()
 	pegomock.When(recognizerProviderMock.GetAll()).ThenReturn(nil, errors.New("err"))
 
-	newRouter().ServeHTTP(resp, req)
+	newTestRouter().ServeHTTP(resp, req)
 	assert.Equal(t, 500, resp.Code)
+}
+
+func TestRecognizers_MetricCollected(t *testing.T) {
+	initTest(t)
+	req, _ := http.NewRequest("GET", "/recognizers", nil)
+	var ri []*api.Recognizer
+	ri = append(ri, &api.Recognizer{ID: "ID", Name: "name", Description: "descr", DateCreated: time.Now()})
+	pegomock.When(recognizerProviderMock.GetAll()).ThenReturn(ri, nil)
+	resp := httptest.NewRecorder()
+	data := newTestData()
+	NewRouter(data).ServeHTTP(resp, req)
+	assert.Equal(t, 1, testutil.CollectAndCount(data.metrics.recResponseDur))
+}
+
+func TestPOST_MetricsCollected(t *testing.T) {
+	initTest(t)
+	req := newReq("filename.wav", "a@a.a", "")
+	resp := httptest.NewRecorder()
+
+	data := newTestData()
+	NewRouter(data).ServeHTTP(resp, req)
+	assert.Equal(t, 1, testutil.CollectAndCount(data.metrics.uploadResponseDur))
+	assert.Equal(t, 1, testutil.CollectAndCount(data.metrics.uploadRequestSize))
+	assert.Equal(t, 0, testutil.CollectAndCount(data.metrics.recResponseDur))
+}
+
+func TestMetrics(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/metrics", nil)
+	testCode(t, req, 200)
 }

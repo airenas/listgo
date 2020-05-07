@@ -3,10 +3,12 @@ package upload
 import (
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/streadway/amqp"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/config"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"bitbucket.org/airenas/listgo/internal/pkg/metrics"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
@@ -40,8 +42,10 @@ func Execute() {
 
 func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Info("Starting uploadService")
-	var data ServiceData
-	var err error
+	data := &ServiceData{}
+	err := initMetrics(data)
+	cmdapp.CheckOrPanic(err, "Can't init metrics")
+
 	data.health = healthcheck.NewHandler()
 	fs, err := saver.NewLocalFileSaver(cmdapp.Config.GetString("fileStorage.path"))
 	cmdapp.CheckOrPanic(err, "Can't init file storage")
@@ -75,7 +79,7 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't init request saver")
 	data.Port = cmdapp.Config.GetInt("port")
 
-	err = StartWebServer(&data)
+	err = StartWebServer(data)
 	cmdapp.CheckOrPanic(err, "Can't start web server")
 }
 
@@ -85,4 +89,37 @@ func initQueues(prv *rabbit.ChannelProvider) error {
 		_, err := rabbit.DeclareQueue(ch, prv.QueueName(messages.Decode))
 		return err
 	})
+}
+
+func initMetrics(data *ServiceData) error {
+	namespace := "upload_service"
+	data.metrics.uploadResponseDur = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Name:      "upload_request_durations_seconds",
+			Help:      "Upload request latency distributions.",
+		}, nil)
+
+	err := metrics.Register(data.metrics.uploadResponseDur)
+	if err != nil {
+		return err
+	}
+	data.metrics.uploadRequestSize = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Namespace: namespace,
+			Name:      "upload_request_request_size_bytes",
+			Help:      "Upload request size in bytes."}, nil)
+	err = metrics.Register(data.metrics.uploadRequestSize)
+	if err != nil {
+		return err
+	}
+
+	data.metrics.recResponseDur = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Name:      "recognizers_request_durations_seconds",
+			Help:      "recognizers request latency distributions.",
+		}, nil)
+
+	return metrics.Register(data.metrics.recResponseDur)
 }
