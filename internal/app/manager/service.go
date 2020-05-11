@@ -199,12 +199,12 @@ func resultMakeFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		}
 		return true, err
 	}
-	publishStatusChange(&message.QueueMessage, data)
-
 	return true, data.InformMessageSender.Send(newInformMessage(&message.QueueMessage, messages.InformType_Finished),
 		messages.Inform, "")
 }
 
+//processStatus analyzes message response and saves status
+// returns false if no futher processing is needed
 func processStatus(message *messages.QueueMessage, data *ServiceData, from string, to status.Status) (bool, error) {
 	cmdapp.Log.Infof("Got %s msg :%s (%s)", from, message.ID, message.Recognizer)
 	if message.Error != "" {
@@ -214,15 +214,23 @@ func processStatus(message *messages.QueueMessage, data *ServiceData, from strin
 			return false, err
 		}
 		publishStatusChange(message, data)
+		sendInformFailure(message, data)
 		return false, nil
 	}
 	err := data.StatusSaver.Save(message.ID, to)
 	if err != nil {
 		cmdapp.Log.Error(err)
+		sendInformFailure(message, data)
 		return false, err
 	}
 	publishStatusChange(message, data)
 	return true, nil
+}
+
+func sendInformFailure(message *messages.QueueMessage, data *ServiceData) {
+	cmdapp.Log.Infof("Trying send inform msg about failure %s", message.ID)
+	err := data.InformMessageSender.Send(newInformMessage(message, messages.InformType_Failed), messages.Inform, "")
+	cmdapp.LogIf(err)
 }
 
 func publishStatusChange(message *messages.QueueMessage, data *ServiceData) {

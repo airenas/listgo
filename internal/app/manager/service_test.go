@@ -24,6 +24,7 @@ var statusSaverMock *mocks.MockSaver
 var resultSaverMock *mocks.MockResultSaver
 var publisherMock *mocks.MockPublisher
 var msgSenderMock *mocks.MockSender
+var msgInformSenderMock *mocks.MockSender
 
 func initTest(t *testing.T) {
 	mocks.AttachMockToTest(t)
@@ -31,6 +32,7 @@ func initTest(t *testing.T) {
 	resultSaverMock = mocks.NewMockResultSaver()
 	publisherMock = mocks.NewMockPublisher()
 	msgSenderMock = mocks.NewMockSender()
+	msgInformSenderMock = mocks.NewMockSender()
 }
 
 func TestInitManagerNoResultSaver(t *testing.T) {
@@ -47,7 +49,7 @@ func TestInitManagerOK(t *testing.T) {
 	data.ResultSaver = resultSaverMock
 	data.Publisher = publisherMock
 	data.MessageSender = msgSenderMock
-	data.InformMessageSender = msgSenderMock
+	data.InformMessageSender = msgInformSenderMock
 
 	err := StartWorkerService(&data)
 	assert.Nil(t, err)
@@ -106,7 +108,7 @@ func initTestData(t *testing.T) *testdata {
 	res.data = &ServiceData{}
 	res.data.StatusSaver = statusSaverMock
 	res.data.MessageSender = msgSenderMock
-	res.data.InformMessageSender = msgSenderMock
+	res.data.InformMessageSender = msgInformSenderMock
 	res.data.DecodeCh = res.dc
 	res.data.AudioConvertCh = res.ac
 	res.data.DiarizationCh = res.diac
@@ -134,12 +136,12 @@ func TestHandlesMessagesWrongMsg(t *testing.T) {
 func TestHandlesMessagesDecodeMsg(t *testing.T) {
 	td := initTestData(t)
 
-	msgdata, _ := json.Marshal(newMessage())
+	msgdata, _ := json.Marshal(newTestMsg())
 	td.dc <- amqp.Delivery{Body: msgdata}
 	close(td.dc)
 	<-td.fc
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.AudioConvert))
-	verifySendInformOnce(t)
+	verifySendInformOnce(t, messages.InformType_Started)
 	verifySendMessageOnce(t, messages.AudioConvert)
 }
 
@@ -150,11 +152,12 @@ func verifySendMessageOnce(t *testing.T, mType string) {
 	assert.Equal(t, "rec", m1.Recognizer)
 }
 
-func verifySendInformOnce(t *testing.T) {
-	dm, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.EqString(messages.Inform), pegomock.AnyString()).
+func verifySendInformOnce(t *testing.T, tp string) {
+	dm, _, _ := msgInformSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.EqString(messages.Inform), pegomock.AnyString()).
 		GetCapturedArguments()
 	m1 := dm.(*messages.InformMessage)
 	assert.Equal(t, "rec", m1.Recognizer)
+	assert.Equal(t, tp, m1.Type)
 }
 
 func TestHandlesMessagesWrongAudioConvertMsg(t *testing.T) {
@@ -170,7 +173,7 @@ func TestHandlesMessagesWrongAudioConvertMsg(t *testing.T) {
 func TestHandlesMessagesAudioConvertMsg(t *testing.T) {
 	td := initTestData(t)
 
-	msgdata, _ := json.Marshal(newMessage())
+	msgdata, _ := json.Marshal(newTestMsg())
 	td.ac <- amqp.Delivery{Body: msgdata}
 	close(td.ac)
 	<-td.fc
@@ -181,7 +184,7 @@ func TestHandlesMessagesAudioConvertMsg(t *testing.T) {
 func TestHandlesMessagesAudioConvertWithError(t *testing.T) {
 	td := initTestData(t)
 
-	msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
+	msgdata, _ := json.Marshal(newTestMsgError())
 	td.ac <- amqp.Delivery{Body: msgdata}
 	close(td.ac)
 	<-td.fc
@@ -189,6 +192,7 @@ func TestHandlesMessagesAudioConvertWithError(t *testing.T) {
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
 		pegomock.EqString("error"))
 	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+	verifySendInformOnce(t, messages.InformType_Failed)
 }
 
 func TestHandlesMessagesWrongDiariazationMsg(t *testing.T) {
@@ -205,7 +209,7 @@ func TestHandlesMessagesWrongDiariazationMsg(t *testing.T) {
 func TestHandlesMessagesDiarizationMsg(t *testing.T) {
 	td := initTestData(t)
 
-	msgdata, _ := json.Marshal(newMessage())
+	msgdata, _ := json.Marshal(newTestMsg())
 	td.diac <- amqp.Delivery{Body: msgdata}
 	close(td.diac)
 	<-td.fc
@@ -216,7 +220,7 @@ func TestHandlesMessagesDiarizationMsg(t *testing.T) {
 func TestHandlesMessagesDiarizationWithError(t *testing.T) {
 	td := initTestData(t)
 
-	msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
+	msgdata, _ := json.Marshal(newTestMsgError())
 	td.diac <- amqp.Delivery{Body: msgdata}
 	close(td.diac)
 	<-td.fc
@@ -224,12 +228,13 @@ func TestHandlesMessagesDiarizationWithError(t *testing.T) {
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
 		pegomock.EqString("error"))
 	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+	verifySendInformOnce(t, messages.InformType_Failed)
 }
 
 func TestHandlesMessagesTranscriptionMsg(t *testing.T) {
 	td := initTestData(t)
 
-	msgdata, _ := json.Marshal(newMessage())
+	msgdata, _ := json.Marshal(newTestMsg())
 	td.tc <- amqp.Delivery{Body: msgdata}
 	close(td.tc)
 	<-td.fc
@@ -240,7 +245,7 @@ func TestHandlesMessagesTranscriptionMsg(t *testing.T) {
 func TestHandlesMessagesTranscriptionWithError(t *testing.T) {
 	td := initTestData(t)
 
-	msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
+	msgdata, _ := json.Marshal(newTestMsgError())
 	td.tc <- amqp.Delivery{Body: msgdata}
 	close(td.tc)
 	<-td.fc
@@ -248,12 +253,13 @@ func TestHandlesMessagesTranscriptionWithError(t *testing.T) {
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
 		pegomock.EqString("error"))
 	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+	verifySendInformOnce(t, messages.InformType_Failed)
 }
 
 func TestHandlesMessagesRescoreMsg(t *testing.T) {
 	td := initTestData(t)
 
-	msgdata, _ := json.Marshal(newMessage())
+	msgdata, _ := json.Marshal(newTestMsg())
 	td.rescCh <- amqp.Delivery{Body: msgdata}
 	close(td.rescCh)
 	<-td.fc
@@ -264,7 +270,7 @@ func TestHandlesMessagesRescoreMsg(t *testing.T) {
 func TestHandlesMessagesRescoreWithError(t *testing.T) {
 	td := initTestData(t)
 
-	msgdata, _ := json.Marshal(messages.NewQueueMsgWithError("1", "error"))
+	msgdata, _ := json.Marshal(newTestMsgError())
 	td.rescCh <- amqp.Delivery{Body: msgdata}
 	close(td.rescCh)
 	<-td.fc
@@ -272,6 +278,7 @@ func TestHandlesMessagesRescoreWithError(t *testing.T) {
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
 		pegomock.EqString("error"))
 	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
+	verifySendInformOnce(t, messages.InformType_Failed)
 }
 
 func TestHandlesMessagesResultMakeMsgSaveFails(t *testing.T) {
@@ -290,20 +297,20 @@ func TestHandlesMessagesResultMakeMsgSaveFails(t *testing.T) {
 func TestHandlesMessagesResultMakeMsg(t *testing.T) {
 	td := initTestData(t)
 
-	msg := messages.ResultMessage{QueueMessage: *newMessage(), Result: "result"}
+	msg := messages.ResultMessage{QueueMessage: *newTestMsg(), Result: "result"}
 	msgdata, _ := json.Marshal(msg)
 	td.rc <- amqp.Delivery{Body: msgdata}
 	close(td.rc)
 	<-td.fc
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.Completed))
-	verifySendInformOnce(t)
+	verifySendInformOnce(t, messages.InformType_Finished)
 	resultSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), pegomock.AnyString())
 }
 
 func TestHandlesMessagesResultMakeWithError(t *testing.T) {
 	td := initTestData(t)
 
-	msg := messages.NewQueueMsgWithError("1", "error")
+	msg := newTestMsgError()
 	msgdata, _ := json.Marshal(msg)
 	td.rc <- amqp.Delivery{Body: msgdata}
 	close(td.rc)
@@ -313,10 +320,17 @@ func TestHandlesMessagesResultMakeWithError(t *testing.T) {
 		pegomock.EqString("error"))
 	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
 	resultSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), pegomock.AnyString())
+	verifySendInformOnce(t, messages.InformType_Failed)
 }
 
-func newMessage() *messages.QueueMessage {
+func newTestMsg() *messages.QueueMessage {
 	return &messages.QueueMessage{ID: "1", Recognizer: "rec"}
+}
+
+func newTestMsgError() *messages.QueueMessage {
+	res := messages.NewQueueMsgWithError("1", "error")
+	res.Recognizer = "rec"
+	return res
 }
 
 type testSaverFunc func(name string, reader io.Reader) error

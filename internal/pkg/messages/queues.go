@@ -20,8 +20,10 @@ const (
 const (
 	// InformType_Started type when process started
 	InformType_Started string = "Started"
-	// InformType_Finished type when process started
+	// InformType_Finished type when process finished
 	InformType_Finished string = "Finished"
+	// InformType_Failed type when process failed
+	InformType_Failed string = "Failed"
 )
 
 const (
