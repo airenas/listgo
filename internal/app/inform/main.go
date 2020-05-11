@@ -6,6 +6,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -35,6 +36,7 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "")
 
 	data := ServiceData{}
+	data.fc = utils.NewSignalChannel()
 
 	msgChannelProvider, err := rabbit.NewChannelProvider()
 	cmdapp.CheckOrPanic(err, "Can't init rabbit channel")
@@ -73,10 +75,10 @@ func run(cmd *cobra.Command, args []string) {
 	data.emailRetriever, err = mongo.NewEmailRetriever(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "Can't init mongo email retriever")
 
-	fc, err := StartWorkerService(&data)
+	err = StartWorkerService(&data)
 	cmdapp.CheckOrPanic(err, "Can't start service")
 
-	<-fc
+	<-data.fc.C
 	cmdapp.Log.Infof("Exiting service")
 }
 

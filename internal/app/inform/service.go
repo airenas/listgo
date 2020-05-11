@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/inform"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
 	"github.com/jordan-wright/email"
 
@@ -45,6 +46,8 @@ type ServiceData struct {
 	emailRetriever EmailRetriever
 	locker         Locker
 	location       *time.Location
+
+	fc *utils.MultiCloseChannel
 }
 
 //StartWorkerService starts the event queue listener service to listen for configured events
@@ -54,31 +57,32 @@ type ServiceData struct {
 // fc, err := StartWorkerService(data)
 // handle err
 // <-fc // waits for finish
-func StartWorkerService(data *ServiceData) (<-chan bool, error) {
+func StartWorkerService(data *ServiceData) error {
 	cmdapp.Log.Infof("Starting listen for messages")
 	if data.taskName == "" {
-		return nil, errors.New("No Task Name")
+		return errors.New("No Task Name")
 	}
 	if data.emailMaker == nil {
-		return nil, errors.New("No email maker")
+		return errors.New("No email maker")
 	}
 	if data.emailRetriever == nil {
-		return nil, errors.New("No email retriever")
+		return errors.New("No email retriever")
 	}
 	if data.emailSender == nil {
-		return nil, errors.New("No sender")
+		return errors.New("No sender")
 	}
 	if data.locker == nil {
-		return nil, errors.New("No locker")
+		return errors.New("No locker")
 	}
 	if data.workCh == nil {
-		return nil, errors.New("No work channel")
+		return errors.New("No work channel")
+	}
+	if data.fc == nil {
+		return errors.New("No close channel")
 	}
 
-	fc := make(chan bool)
-
-	go listenQueue(data, fc)
-	return fc, nil
+	go listenQueue(data)
+	return nil
 }
 
 //work is main method to send the message
@@ -120,18 +124,18 @@ func work(data *ServiceData, message *messages.InformMessage) error {
 	return nil
 }
 
-func listenQueue(data *ServiceData, fc chan<- bool) {
+func listenQueue(data *ServiceData) {
 	for d := range data.workCh {
 		redeliver, err := processMsg(&d, data)
 		if err != nil {
-			cmdapp.Log.Error("Message error", err)
+			cmdapp.Log.Error("Message error. ", err)
 			d.Nack(false, redeliver && !d.Redelivered) // try redeliver for the first time
 			continue
 		}
 		d.Ack(false)
 	}
 	cmdapp.Log.Infof("Stopped listening queue")
-	fc <- true
+	data.fc.Close()
 }
 
 func toLocalTime(data *ServiceData, t time.Time) time.Time {

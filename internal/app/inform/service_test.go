@@ -13,6 +13,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks1"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
 	"github.com/petergtz/pegomock"
 	"github.com/streadway/amqp"
@@ -50,27 +51,28 @@ func initData(t *testing.T, wc chan amqp.Delivery) *ServiceData {
 	data.emailMaker = emailMakerMock
 	data.emailRetriever = emailRetrieverMock
 	data.locker = lockerMock
+	data.fc = utils.NewMultiCloseChannel()
 	return &data
 }
 
 func TestHandlesMessagesWhenWrongMsg(t *testing.T) {
 	initTest(t)
-	fc, _ := StartWorkerService(data)
+	StartWorkerService(data)
 
 	message.Body = make([]byte, 0)
 	wc <- message
 	close(wc)
-	<-fc // wait for complete
+	<-data.fc.C // wait for complete
 	ackMock.VerifyWasCalledOnce().Nack(pegomock.AnyUint64(), pegomock.AnyBool(), pegomock.AnyBool())
 }
 
 func TestHandlesMessagesWhenGoodMsg(t *testing.T) {
 	initTest(t)
-	fc, _ := StartWorkerService(data)
+	StartWorkerService(data)
 
 	wc <- message
 	close(wc)
-	<-fc // wait for complete
+	<-data.fc.C // wait for complete
 	senderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyPtrToEmailEmail())
 	ackMock.VerifyWasCalledOnce().Ack(pegomock.AnyUint64(), pegomock.AnyBool())
 	lockerMock.VerifyWasCalledOnce().Lock(pegomock.EqString("id"), pegomock.EqString("it"))
@@ -81,34 +83,34 @@ func TestHandlesMessagesWhenGoodMsg(t *testing.T) {
 
 func TestHandlesMessagesWhenMakerFails(t *testing.T) {
 	initTest(t)
-	fc, _ := StartWorkerService(data)
+	StartWorkerService(data)
 	pegomock.When(emailMakerMock.Make(matchers.AnyPtrToInformData())).ThenReturn(nil, errors.New("error"))
 
 	wc <- message
 	close(wc)
-	<-fc // wait for complete
+	<-data.fc.C // wait for complete
 	ackMock.VerifyWasCalledOnce().Nack(pegomock.AnyUint64(), pegomock.AnyBool(), pegomock.AnyBool())
 }
 
 func TestHandlesMessagesWhenEmailRetrieverFails(t *testing.T) {
 	initTest(t)
-	fc, _ := StartWorkerService(data)
+	StartWorkerService(data)
 	pegomock.When(emailRetrieverMock.Get(pegomock.AnyString())).ThenReturn("", errors.New("error"))
 
 	wc <- message
 	close(wc)
-	<-fc // wait for complete
+	<-data.fc.C // wait for complete
 	ackMock.VerifyWasCalledOnce().Nack(pegomock.AnyUint64(), pegomock.AnyBool(), pegomock.AnyBool())
 }
 
 func TestHandlesMessagesWhenSenderFails(t *testing.T) {
 	initTest(t)
-	fc, _ := StartWorkerService(data)
+	StartWorkerService(data)
 	pegomock.When(senderMock.Send(matchers.AnyPtrToEmailEmail())).ThenReturn(errors.New("error"))
 
 	wc <- message
 	close(wc)
-	<-fc // wait for complete
+	<-data.fc.C // wait for complete
 	ackMock.VerifyWasCalledOnce().Nack(pegomock.AnyUint64(), pegomock.AnyBool(), pegomock.AnyBool())
 	lockerMock.VerifyWasCalledOnce().Lock(pegomock.EqString("id"), pegomock.EqString("it"))
 	_, _, ut := lockerMock.VerifyWasCalledOnce().UnLock(pegomock.EqString("id"),
@@ -118,52 +120,59 @@ func TestHandlesMessagesWhenSenderFails(t *testing.T) {
 
 func TestHandlesMessagesWhenLockerFails(t *testing.T) {
 	initTest(t)
-	fc, _ := StartWorkerService(data)
+	StartWorkerService(data)
 	pegomock.When(lockerMock.Lock(pegomock.AnyString(), pegomock.AnyString())).ThenReturn(errors.New("error"))
 
 	wc <- message
 	close(wc)
-	<-fc // wait for complete
+	<-data.fc.C // wait for complete
 	ackMock.VerifyWasCalledOnce().Nack(pegomock.AnyUint64(), pegomock.AnyBool(), pegomock.AnyBool())
 }
 
 func TestCheckInputParameters(t *testing.T) {
 	initTest(t)
-	_, error := StartWorkerService(data)
+	error := StartWorkerService(data)
 	assert.Nil(t, error)
 }
 
 func TestCheckInputParametersNoChannel(t *testing.T) {
 	initTest(t)
 	data.workCh = nil
-	_, error := StartWorkerService(data)
+	error := StartWorkerService(data)
 	assert.NotNil(t, error)
 }
 
 func TestCheckInputParametersNoEmailMaker(t *testing.T) {
 	initTest(t)
 	data.emailMaker = nil
-	_, error := StartWorkerService(data)
+	error := StartWorkerService(data)
 	assert.NotNil(t, error)
 }
 
 func TestCheckInputParametersNoEmailRetriever(t *testing.T) {
 	initTest(t)
 	data.emailRetriever = nil
-	_, error := StartWorkerService(data)
+	error := StartWorkerService(data)
 	assert.NotNil(t, error)
 }
 
 func TestCheckInputParametersNoLocker(t *testing.T) {
 	initTest(t)
 	data.locker = nil
-	_, error := StartWorkerService(data)
+	error := StartWorkerService(data)
 	assert.NotNil(t, error)
 }
 
 func TestCheckInputParametersNoTaskName(t *testing.T) {
 	initTest(t)
 	data.taskName = ""
-	_, error := StartWorkerService(data)
+	error := StartWorkerService(data)
+	assert.NotNil(t, error)
+}
+
+func TestCheckInputParametersNoCloseChannel(t *testing.T) {
+	initTest(t)
+	data.fc = nil
+	error := StartWorkerService(data)
 	assert.NotNil(t, error)
 }
