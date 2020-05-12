@@ -75,7 +75,7 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "Can't listen channel")
 	//end work queue
 	data.modelLoadDuration = cmdapp.Config.GetDuration("strategy.modelLoadDuration")
-	data.rtFactor = float32(cmdapp.Config.GetFloat64("strategy.realTimeFactor"))
+	data.rtFactor = cmdapp.Config.GetFloat64("strategy.realTimeFactor")
 	cmdapp.Log.Infof("Dispatch params: modelLoadTime=%v, rt=%f", data.modelLoadDuration, data.rtFactor)
 	strg, err := strategy.NewCost()
 	cmdapp.CheckOrPanic(err, "Can't init strategy")

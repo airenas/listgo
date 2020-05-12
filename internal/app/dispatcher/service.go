@@ -40,7 +40,7 @@ type ServiceData struct {
 
 	selectionStrategy SelectionStrategy
 	modelLoadDuration time.Duration
-	rtFactor          float32
+	rtFactor          float64
 
 	startTimeGetter StartTimeGetter
 	modelTypeGetter ModelTypeGetter

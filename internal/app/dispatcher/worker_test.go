@@ -121,6 +121,19 @@ func TestWorkerStartTask(t *testing.T) {
 	assert.Equal(t, now.Add(time.Minute+time.Second*2), wrk.endAt)
 }
 
+func TestWorkerStartTask_Duration(t *testing.T) {
+	wrk := newWorker()
+	tsk := newTask()
+	tsk.expDuration = time.Second
+	tsk.expModelLoadDuration = time.Minute
+	tsk.rtFactor = 2.5
+	tsk.requiredModelType = ""
+	now := time.Now()
+	wrk.startTaskAt(tsk, now)
+
+	assert.Equal(t, now.Add(time.Minute+time.Millisecond*2500), wrk.endAt)
+}
+
 func TestWorkerStartTask_NoModelLoad(t *testing.T) {
 	wrk := newWorker()
 	tsk := newTask()
@@ -143,6 +156,17 @@ func TestWorkerStartTask_Fails(t *testing.T) {
 	wrk.working = true
 	err := wrk.startTaskAt(tsk, time.Now())
 	assert.NotNil(t, err)
+}
+
+func TestDurTimes(t *testing.T) {
+	assert.Equal(t, 500*time.Millisecond, durTimes(time.Second, 0.5))
+	assert.Equal(t, 30*time.Minute, durTimes(time.Hour, 0.5))
+	assert.Equal(t, 900*time.Millisecond, durTimes(time.Second, 0.9))
+	assert.Equal(t, 1100*time.Millisecond, durTimes(time.Second, 1.1))
+}
+
+func TestDurTimesBigger(t *testing.T) {
+	assert.Equal(t, 20*time.Hour, durTimes(100*time.Hour, 0.2))
 }
 
 func newMsg(name string, tp string, t time.Time) *messages.RegistrationMessage {

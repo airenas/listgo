@@ -1,6 +1,7 @@
 package dispatcher
 
 import (
+	"math"
 	"sync"
 	"time"
 
@@ -13,6 +14,10 @@ const (
 	timeFormat          = "15:04:05"
 	noneWorkerModelType = "<none>"
 )
+
+func durTimes(d time.Duration, times float64) time.Duration {
+	return time.Duration(math.Round(float64(d.Nanoseconds()) * times))
+}
 
 type worker struct {
 	queue    string
@@ -173,7 +178,7 @@ func (w *worker) startTaskAt(t *task, now time.Time) error {
 	w.working = true
 	w.task = t
 	w.started = now
-	w.endAt = w.started.Add(t.expDuration * time.Duration(t.rtFactor))
+	w.endAt = w.started.Add(durTimes(t.expDuration, t.rtFactor))
 	if w.mType != t.requiredModelType {
 		if t.requiredModelType != "" {
 			w.mType = t.requiredModelType
@@ -181,7 +186,9 @@ func (w *worker) startTaskAt(t *task, now time.Time) error {
 			w.mType = noneWorkerModelType
 		}
 		w.endAt = w.endAt.Add(t.expModelLoadDuration)
+		cmdapp.Log.Debugf("Add ml dur: %v", t.expModelLoadDuration)
 	}
+	cmdapp.Log.Debugf("Task dur: %v, RT: %f", t.expDuration, t.rtFactor)
 	cmdapp.Log.Infof("Estimated complete time at %s", w.endAt.Format(timeFormat))
 	return nil
 }

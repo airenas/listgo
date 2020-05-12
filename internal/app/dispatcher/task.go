@@ -21,7 +21,7 @@ type task struct {
 	expDuration          time.Duration
 	expModelLoadDuration time.Duration
 	addedAt              time.Time
-	rtFactor             float32
+	rtFactor             float64
 
 	worker    *worker
 	started   bool
