@@ -14,18 +14,18 @@ import (
 //Cost based strategy
 type Cost struct {
 	modelLoadTime   time.Duration
-	rtFactor        float32
-	delayCostPerSec float32
+	rtFactor        float64
+	delayCostPerSec float64
 }
 
 //NewCost init new Cost task selection strategy
 func NewCost() (*Cost, error) {
 	return newCost(cmdapp.Config.GetDuration("strategy.modelLoadDuration"),
-		float32(cmdapp.Config.GetFloat64("strategy.realTimeFactor")),
-		float32(cmdapp.Config.GetFloat64("strategy.delayCostPerSecond")))
+		cmdapp.Config.GetFloat64("strategy.realTimeFactor"),
+		cmdapp.Config.GetFloat64("strategy.delayCostPerSecond"))
 }
 
-func newCost(modelLoadTime time.Duration, rtFactor float32, delayCostPerSec float32) (*Cost, error) {
+func newCost(modelLoadTime time.Duration, rtFactor float64, delayCostPerSec float64) (*Cost, error) {
 	res := &Cost{}
 	if modelLoadTime <= 0 {
 		return nil, errors.Errorf("Wrong or no strategy.modelLoadDuration, %v <= 0", modelLoadTime)
@@ -62,9 +62,9 @@ type taskGroups struct {
 type context struct {
 	now             time.Time
 	modelLoadTime   time.Duration
-	max             float32
-	rtFactor        float32
-	delayCostPerSec float32
+	max             float64
+	rtFactor        float64
+	delayCostPerSec float64
 }
 
 func newContext(t time.Time) *context {
@@ -87,17 +87,17 @@ func findTask(ws []*api.Worker, tg *taskGroups, wi int, ctx *context) (*api.Task
 	return getTaskByV2(ws, tg, wi, ctx), nil
 }
 
-func calcCost(w *api.Worker, t []*api.Task, ctx *context) float32 {
-	res := float32(0.0)
+func calcCost(w *api.Worker, t []*api.Task, ctx *context) float64 {
+	res := 0.0
 	if len(t) == 0 {
 		return ctx.max
 	}
 	if w.TaskType != t[0].TaskType {
-		res += float32(ctx.modelLoadTime.Seconds())
+		res += float64(ctx.modelLoadTime.Seconds())
 	}
 	d := ctx.now.Sub(t[0].ArrivedAt)
 	if d > 0 {
-		res -= float32(d.Seconds()) * ctx.delayCostPerSec
+		res -= float64(d.Seconds()) * ctx.delayCostPerSec
 	}
 	return res
 }
@@ -124,10 +124,10 @@ func groupTasks(ts []*api.Task) *taskGroups {
 	return &res
 }
 
-func calcMatrix(ws []*api.Worker, tg *taskGroups, ctx *context) [][]float32 {
-	res := make([][]float32, len(ws))
+func calcMatrix(ws []*api.Worker, tg *taskGroups, ctx *context) [][]float64 {
+	res := make([][]float64, len(ws))
 	for i, w := range ws {
-		res[i] = make([]float32, len(tg.keys))
+		res[i] = make([]float64, len(tg.keys))
 		for j, tk := range tg.keys {
 			res[i][j] = calcCost(w, tg.data[tk], ctx)
 			j++
@@ -140,14 +140,14 @@ func getTaskByV2(ws []*api.Worker, tg *taskGroups, wi int, ctx *context) *api.Ta
 	var res *api.Task
 	b := ctx.max
 	for _, tk := range tg.keys {
-		arr := make([]float32, len(ws))
+		arr := make([]float64, len(ws))
 		for i, w := range ws {
-			arr[i] = float32(w.EndAt.Sub(ctx.now).Seconds())
+			arr[i] = float64(w.EndAt.Sub(ctx.now).Seconds())
 			if arr[i] < 0 {
 				arr[i] = 0
 			}
 			if tk != w.TaskType {
-				arr[i] += float32(ctx.modelLoadTime.Seconds())
+				arr[i] += float64(ctx.modelLoadTime.Seconds())
 			}
 		}
 		for _, t := range tg.data[tk] {
@@ -202,7 +202,7 @@ func printT(tg *taskGroups, ctx *context) {
 	}
 }
 
-func sortedIndexes(r []float32) []int {
+func sortedIndexes(r []float64) []int {
 	l := len(r)
 	res := make([]int, len(r))
 	for i := 1; i < l; i++ {
@@ -217,7 +217,7 @@ func toSec(t time.Time, ctx *context) int {
 	return int(d.Seconds())
 }
 
-func addToLowest(arr *[]float32, t *api.Task, ctx *context) {
+func addToLowest(arr *[]float64, t *api.Task, ctx *context) {
 	lv := ctx.max
 	bi := 0
 	for i, v := range *arr {
@@ -227,13 +227,13 @@ func addToLowest(arr *[]float32, t *api.Task, ctx *context) {
 		}
 	}
 	d := ctx.now.Sub(t.ArrivedAt)
-	(*arr)[bi] += float32(t.Duration.Seconds()) * ctx.rtFactor
+	(*arr)[bi] += float64(t.Duration.Seconds()) * ctx.rtFactor
 	if d > 0 {
-		(*arr)[bi] -= float32(d.Seconds()) * ctx.delayCostPerSec
+		(*arr)[bi] -= float64(d.Seconds()) * ctx.delayCostPerSec
 	}
 }
 
-func getBest(mtrx [][]float32, tg *taskGroups, wi int, ctx *context) string {
+func getBest(mtrx [][]float64, tg *taskGroups, wi int, ctx *context) string {
 	sri := sortedIndexes(mtrx[wi])
 	for _, ri := range sri {
 		if mtrx[wi][ri] >= ctx.max {
@@ -246,7 +246,7 @@ func getBest(mtrx [][]float32, tg *taskGroups, wi int, ctx *context) string {
 	return ""
 }
 
-func isBestColumnValue(mtrx [][]float32, wi int, ri int) bool {
+func isBestColumnValue(mtrx [][]float64, wi int, ri int) bool {
 	bv := mtrx[wi][ri]
 	lw := len(mtrx)
 	for i := 0; i < lw; i++ {
@@ -257,7 +257,7 @@ func isBestColumnValue(mtrx [][]float32, wi int, ri int) bool {
 	return true
 }
 
-func isLowest(arr []float32, wi int) bool {
+func isLowest(arr []float64, wi int) bool {
 	for _, a := range arr {
 		if a < arr[wi] {
 			return false
