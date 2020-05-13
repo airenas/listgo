@@ -65,17 +65,17 @@ func processMsg(d *amqp.Delivery, data *ServiceData) error {
 			cmdapp.LogIf(err)
 		}
 	} else {
-		cmdapp.Log.Infof("not found " + id)
+		cmdapp.Log.Infof("No connections found for " + id)
 	}
 	return nil
 }
 
 func sendMsg(c WsConn, result *api.TranscriptionResult) error {
-	cmdapp.Log.Infof("sending result for %s", result.ID)
+	cmdapp.Log.Debugf("Sending result for %s to websockket", result.ID)
 	err := c.WriteJSON(result)
 	if err != nil {
 		return errors.Wrap(err, "Cannot write to websockket")
 	}
-	cmdapp.Log.Infof("sent")
+	cmdapp.Log.Debug("Sent msg to websockket")
 	return nil
 }
