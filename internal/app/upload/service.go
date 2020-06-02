@@ -94,6 +94,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	externalID := r.FormValue(api.PrmExternalID)
 	numberOfSpeakers := r.FormValue(api.PrmNumberOfSpeakers)
+	skipNumJoin := r.FormValue(api.PrmSkipNumJoin)
 	email := r.FormValue(api.PrmEmail)
 	if email != "" {
 		err := checkmail.ValidateFormat(email)
@@ -160,6 +161,9 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	tags := []messages.Tag{messages.NewTag(messages.TagNumberOfSpeakers, numberOfSpeakers),
 		messages.NewTag(messages.TagTimestamp, strconv.FormatInt(time.Now().Unix(), 10))}
+	if (skipNumJoin != "") {
+		tags = append(tags, messages.NewTag(messages.TagSkipNumJoin, skipNumJoin))
+	}	
 
 	err = h.data.MessageSender.Send(messages.NewQueueMessage(id, recID, tags), messages.Decode, "")
 	if err != nil {
@@ -216,18 +220,27 @@ func (h recognizersHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func validateFormParams(r *http.Request) error {
 	form := r.Form
 	allowed := map[string]bool{api.PrmEmail: true, api.PrmRecognizer: true, api.PrmExternalID: true,
-		api.PrmNumberOfSpeakers: true}
+		api.PrmNumberOfSpeakers: true, api.PrmSkipNumJoin: true}
 	for k := range form {
 		_, f := allowed[k]
 		if !f {
 			return errors.Errorf("Unknown parameter '%s'", k)
 		}
 	}
-	nOfSp := r.FormValue(api.PrmNumberOfSpeakers)
-	lNOfSp := strings.ToLower(nOfSp)
-	for _, k := range []string{"$", "(", ")", "eval", "shell"} {
-		if strings.Contains(lNOfSp, k) {
-			return errors.Errorf("Wrong parameter '%s' value '%s'", api.PrmNumberOfSpeakers, nOfSp)
+	for _, p := range []string{api.PrmNumberOfSpeakers, api.PrmSkipNumJoin} {
+		if err := validateInjection(r, p); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateInjection(r *http.Request, paramName string) error {
+	p := r.FormValue(paramName)
+	lp := strings.ToLower(p)
+	for _, k := range []string{"$", "(", ")", "eval", "shell", "{", "}"} {
+		if strings.Contains(lp, k) {
+			return errors.Errorf("Wrong parameter '%s' value '%s'", paramName, p)
 		}
 	}
 	return nil

@@ -312,6 +312,25 @@ func TestPOST_NumberOfSpeakersPassed(t *testing.T) {
 	assert.Equal(t, "2", getTag(qmsg.Tags, messages.TagNumberOfSpeakers))
 }
 
+func TestPOST_SkipNumJoinPassed(t *testing.T) {
+	initTest(t)
+	req := newReqMap("file.wav", map[string]string{"email": "a@a.lt",
+		"recognizer": "rec", api.PrmSkipNumJoin: "1"})
+	resp := httptest.NewRecorder()
+	newTestRouter().ServeHTTP(resp, req)
+
+	msg, q, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
+		pegomock.AnyString()).GetCapturedArguments()
+
+	assert.Equal(t, messages.Decode, q)
+	qmsg, ok := msg.(*messages.QueueMessage)
+	assert.True(t, ok)
+	assert.Equal(t, messages.Decode, q)
+	assert.NotNil(t, qmsg)
+	assert.NotNil(t, qmsg.Tags)
+	assert.Equal(t, "1", getTag(qmsg.Tags, messages.TagSkipNumJoin))
+}
+
 func TestPOST_TimestampAdded(t *testing.T) {
 	initTest(t)
 	req := newReqMap("file.wav", map[string]string{"email": "a@a.lt",
@@ -353,6 +372,24 @@ func TestPOST_NumberOfSpeakersNotPassed(t *testing.T) {
 	assert.Equal(t, "", getTag(qmsg.Tags, messages.TagNumberOfSpeakers))
 }
 
+func TestPOST_SkipNumJoinNotPassed(t *testing.T) {
+	initTest(t)
+	req := newReqMap("file.wav", map[string]string{"email": "a@a.lt",
+		"recognizer": "rec"})
+	resp := httptest.NewRecorder()
+	newTestRouter().ServeHTTP(resp, req)
+
+	msg, q, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
+		pegomock.AnyString()).GetCapturedArguments()
+
+	assert.Equal(t, messages.Decode, q)
+	qmsg, ok := msg.(*messages.QueueMessage)
+	assert.True(t, ok)
+	assert.NotNil(t, qmsg)
+	assert.NotNil(t, qmsg.Tags)
+	assert.Equal(t, "", getTag(qmsg.Tags, messages.TagSkipNumJoin))
+}
+
 func TestPOST_FailOnUnknownFormData(t *testing.T) {
 	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", "recognizer": "rec"}), 200)
 	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", "rec": "rec"}), 400)
@@ -366,6 +403,17 @@ func TestPOST_FailOnWrongNumberOfSpeakers(t *testing.T) {
 	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "eval olia"}), 400)
 	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "(olia"}), 400)
 	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "olia)"}), 400)
+}
+
+func TestPOST_FailOnWrongSkipNumJoin(t *testing.T) {
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "1"}), 200)
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "$ olia"}), 400)
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "shell olia"}), 400)
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "eval olia"}), 400)
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "(olia"}), 400)
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "olia)"}), 400)
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "{olia"}), 400)
+	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "olia}"}), 400)
 }
 
 func getTag(tags []messages.Tag, key string) string {

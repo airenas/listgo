@@ -15,6 +15,8 @@ const (
 	TagTimestamp = "timestamp"
 	//TagNumberOfSpeakers number of speakers arameter
 	TagNumberOfSpeakers = "number_of_speakers"
+	//TagSkipNumJoin skips joining of numbers in final transcription
+	TagSkipNumJoin = "skip_num_join"
 )
 
 //QueueMessage message going throuht broker
