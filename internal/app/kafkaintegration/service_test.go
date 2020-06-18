@@ -129,6 +129,36 @@ func Test_TranscriptionOK_NoFailOnDelete(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func Test_TranscriptionFail_Deletes(t *testing.T) {
+	td := initTestData(t)
+	mockReadMsg(td, &kafkaapi.Msg{ID: "1", RealMsg: &kafka.Message{}}, 1)
+	pegomock.When(td.data.tr.Upload(matchers.AnyPtrToKafkaapiUploadData())).ThenReturn("u1", nil)
+	pegomock.When(td.data.db.GetAudio(pegomock.AnyString())).ThenReturn(&kafkaapi.DBEntry{ID: "1", Data: "data"}, nil)
+	pegomock.When(td.data.tr.GetStatus(pegomock.AnyString())).ThenReturn(&kafkaapi.Status{ID: "1", Completed: false,
+		ErrorCode: "Service", Error: "err"}, nil)
+	StartServer(td.data)
+
+	waitToFinish(t, td)
+
+	err := td.trMock.VerifyWasCalled(pegomock.Once()).Delete(pegomock.AnyString()).GetCapturedArguments()
+	assert.NotNil(t, err)
+}
+
+func Test_TranscriptionFail_LeavesFiles(t *testing.T) {
+	td := initTestData(t)
+	td.data.leaveFilesOnError = true
+	mockReadMsg(td, &kafkaapi.Msg{ID: "1", RealMsg: &kafka.Message{}}, 1)
+	pegomock.When(td.data.tr.Upload(matchers.AnyPtrToKafkaapiUploadData())).ThenReturn("u1", nil)
+	pegomock.When(td.data.db.GetAudio(pegomock.AnyString())).ThenReturn(&kafkaapi.DBEntry{ID: "1", Data: "data"}, nil)
+	pegomock.When(td.data.tr.GetStatus(pegomock.AnyString())).ThenReturn(&kafkaapi.Status{ID: "1", Completed: false,
+		ErrorCode: "Service", Error: "err"}, nil)
+	StartServer(td.data)
+
+	waitToFinish(t, td)
+
+	td.trMock.VerifyWasCalled(pegomock.Never()).Delete(pegomock.AnyString())
+}
+
 func Test_Upload_Fails(t *testing.T) {
 	td := initTestData(t)
 	mockReadMsg(td, &kafkaapi.Msg{ID: "1", RealMsg: &kafka.Message{}}, 1)

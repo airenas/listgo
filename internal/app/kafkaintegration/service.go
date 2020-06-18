@@ -22,6 +22,8 @@ type ServiceData struct {
 	tr          Transcriber
 	bp          backoffProvider
 	statusSleep time.Duration
+
+	leaveFilesOnError bool
 }
 
 //StartServer init the service to listen to kafka messages and pass it to transcrption
@@ -160,9 +162,13 @@ func listenTranscription(data *ServiceData, ids *kafkaapi.KafkaTrMap) error {
 				return errors.Wrap(err, "Can't mark as finished. Give up")
 			}
 
-			err = data.tr.Delete(ids.TrID)
-			if err != nil {
-				cmdapp.Log.Warning(errors.Wrap(err, "Can't invoke data cleaner"))
+			if result.Error != nil && data.leaveFilesOnError {
+				cmdapp.Log.Warning(errors.Wrap(err, "Files are not deleted because of error"))
+			} else {
+				err = data.tr.Delete(ids.TrID)
+				if err != nil {
+					cmdapp.Log.Warning(errors.Wrap(err, "Can't invoke data cleaner"))
+				}
 			}
 			return nil
 		}

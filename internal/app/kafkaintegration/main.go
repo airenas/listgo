@@ -57,6 +57,9 @@ func run(cmd *cobra.Command, args []string) {
 	data.filer, err = file.NewFiler()
 	cmdapp.CheckOrPanic(err, "")
 
+	data.leaveFilesOnError = cmdapp.Config.GetBool("leaveFilesOnError")
+	cmdapp.Log.Infof("LeaveFilesOnError=%v", data.leaveFilesOnError)
+
 	err = StartServer(&data)
 	cmdapp.CheckOrPanic(err, "")
 	cmdapp.Log.Infof("Started")
