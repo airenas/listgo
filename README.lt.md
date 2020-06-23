@@ -7,6 +7,10 @@ Transkribatoriaus IT sprendimo servisų kodas
 
 Servisai valdantys transkribavimo procesą. Sistema naudoja Mongo DB (saugo būsenas) ir RabbitMQ (įvykių eilė).
 
+## Prieš
+
+Instaliuokite *go* (v >= 14.0), *protoc*, [protoc-gen-go](https://grpc.io/docs/languages/go/quickstart/)
+
 ---
 
 ## Kompiliavimas
