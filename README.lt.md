@@ -1,26 +1,23 @@
+
 # LiSTgo
 
-[Lietuviškai](README.lt.md)
+Transkribatoriaus IT sprendimo servisų kodas
 
-Lithuanian Speech Transcription services
+## Apie
 
-## About
-
-Services for running the transcription process. It uses Mongo DB (for saving statuses) and RabbitMQ (for event bus).
+Servisai valdantys transkribavimo procesą. Sistema naudoja Mongo DB (saugo būsenas) ir RabbitMQ (įvykių eilė).
 
 ---
 
-## Build notes
+## Kompiliavimas
 
-1. Go to the base *listgo* dir
-
-1. Get required packages:
+1. *Go* bibliotekų parsiuntimas:
 
     `go get ./...`
 
     `go get github.com/petergtz/pegomock/...`
 
-1. Install [librdkafka](https://github.com/confluentinc/confluent-kafka-go)
+1. Instaliuokite [librdkafka](https://github.com/confluentinc/confluent-kafka-go)
 
     `git clone --branch v1.1.0 https://github.com/edenhill/librdkafka.git`
 
@@ -32,29 +29,29 @@ Services for running the transcription process. It uses Mongo DB (for saving sta
 
     `sudo make install`
 
-1. Prepare tensorflow proto files for go
+1. Paruoškite tensorflow proto filus:
 
     `cd build && ./prepareTFProto.sh`
 
-1. Generate mocks:
+1. Sugeneruokite mock'us testavimui:
 
     `go generate ./...`
 
 ---
 
-## Testing source code
+## Testavimas
 
-Run `go test ./...`
-
----
-
-## Deploy note
-
-For deploy options see [bitbucket.org/airenas/list](https://bitbucket.org/airenas/list)
+Vykdykite `go test ./...`
 
 ---
 
-## Author
+## Diegimo instrukcijos
+
+Žr.: [bitbucket.org/airenas/list](https://bitbucket.org/airenas/list)
+
+---
+
+## Autorius
 
 Airenas Vaičiūnas
 
@@ -63,9 +60,10 @@ Airenas Vaičiūnas
 
 ---
 
-## License
+## Licencija
 
 Copyright © 2020, [Airenas Vaičiūnas](https://bitbucket.org/airenas).
+
 Released under the [The 3-Clause BSD License](LICENSE).
 
 ---
