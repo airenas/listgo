@@ -186,6 +186,11 @@ func Test_Mp4(t *testing.T) {
 	testCode(t, newReq("file.MP4", "a@a.a", ""), 200)
 }
 
+func Test_M4a(t *testing.T) {
+	testCode(t, newReq("file.m4a", "a@a.a", ""), 200)
+	testCode(t, newReq("file.M4a", "a@a.a", ""), 200)
+}
+
 func Test_ExtensionFails(t *testing.T) {
 	testCode(t, newReq("file.txt", "a@a.a", ""), 400)
 	testCode(t, newReq("file.mp", "a@a.a", ""), 400)

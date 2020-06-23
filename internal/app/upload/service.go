@@ -161,9 +161,9 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	tags := []messages.Tag{messages.NewTag(messages.TagNumberOfSpeakers, numberOfSpeakers),
 		messages.NewTag(messages.TagTimestamp, strconv.FormatInt(time.Now().Unix(), 10))}
-	if (skipNumJoin != "") {
+	if skipNumJoin != "" {
 		tags = append(tags, messages.NewTag(messages.TagSkipNumJoin, skipNumJoin))
-	}	
+	}
 
 	err = h.data.MessageSender.Send(messages.NewQueueMessage(id, recID, tags), messages.Decode, "")
 	if err != nil {
@@ -184,7 +184,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func checkFileExtension(ext string) bool {
-	return ext == ".wav" || ext == ".mp3" || ext == ".mp4"
+	return ext == ".wav" || ext == ".mp3" || ext == ".mp4" || ext == ".m4a"
 }
 
 func getRecErrMsg(rec string) string {
