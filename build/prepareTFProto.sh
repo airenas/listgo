@@ -19,6 +19,6 @@ find gen -name '*.go' | xargs sed -i "s/\"tensorflow/\"$IMP/g"
 mv gen/tensorflow ../internal/pkg
 mv gen/tensorflow_serving ../internal/pkg
 
-rm - r gen
-rm - r tensorflow
-rm - r serving
+rm -r gen
+rm -r tensorflow
+rm -r serving
