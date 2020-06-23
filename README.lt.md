@@ -9,7 +9,7 @@ Servisai valdantys transkribavimo procesą. Sistema naudoja Mongo DB (saugo būs
 
 ## Prieš
 
-Instaliuokite *go* (v >= 14.0), *protoc*, [protoc-gen-go](https://grpc.io/docs/languages/go/quickstart/)
+Instaliuokite [go* (v >= 14.0)](https://golang.org/), [protoc](https://grpc.io/docs/protoc-installation/), [protoc-gen-go](https://grpc.io/docs/languages/go/quickstart/)
 
 ---
 
