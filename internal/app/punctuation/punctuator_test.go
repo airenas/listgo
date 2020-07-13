@@ -89,6 +89,21 @@ func TestReadSentenceEnd(t *testing.T) {
 	assert.True(t, f)
 }
 
+func TestIsNum(t *testing.T) {
+	assert.True(t, isNum("10"))
+	assert.True(t, isNum("10.10"))
+	assert.True(t, isNum("10.10,20"))
+	assert.True(t, isNum("/10.10,20:-10"))
+}
+
+func TestIsNotNum(t *testing.T) {
+	assert.False(t, isNum("a10"))
+	assert.False(t, isNum("XI10.10"))
+	assert.False(t, isNum("olia"))
+	assert.False(t, isNum("<NUM>"))
+	assert.False(t, isNum("ltšą"))
+}
+
 func TestProcess_OK(t *testing.T) {
 	p := initPunctTest(t)
 	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 0, 0, 0, 0}, nil)
@@ -191,6 +206,16 @@ func TestProcess_ReturnPunctIDs(t *testing.T) {
 	assert.Equal(t, []int32{0, 1, 2}, r.PunctIDs)
 }
 
+func TestProcess_Nums(t *testing.T) {
+	p := initPunctTest(t)
+	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn([]int32{0, 0, 0, 0}, nil)
+	r, err := p.Process(strings.Split("a 10.125 10 xxx", " "))
+	assert.Nil(t, err)
+	assert.Equal(t, []int32{0, 4, 4, 2}, r.WordIDs)
+	ca := tfWrapMock.VerifyWasCalled(pegomock.Times(1)).Invoke(pegomock.AnyInt32Slice()).GetCapturedArguments()
+	assert.Equal(t, []int32{0, 4, 4, 2, 3}, ca)
+}
+
 func newTestVocab(v string) io.Reader {
 	return strings.NewReader(v)
 }
@@ -207,7 +232,11 @@ func defaultData() *api.Data {
 }
 
 func defaultTestVocab() io.Reader {
-	return newTestVocab("a\nb\n<UNK>\n</S>\n<NUM>")
+	return newTestVocab(`a
+b
+<UNK>
+</S>
+<NUM>`)
 }
 
 func defaultIntResult() []int32 {
