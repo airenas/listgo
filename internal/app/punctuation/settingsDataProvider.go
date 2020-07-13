@@ -35,7 +35,7 @@ func (p *SettingsDataProviderImpl) GetData() (*api.Data, error) {
 	return p.data, nil
 }
 
-//GetVocab return reader to wird vocabulary
+//GetVocab return reader to word vocabulary
 func (p *SettingsDataProviderImpl) GetVocab() (io.Reader, error) {
 	b, err := ioutil.ReadFile(path.Join(p.dir, "vocabulary")) // just pass the file name
 	if err != nil {

@@ -42,8 +42,7 @@ func run(cmd *cobra.Command, args []string) {
 	provider, err := NewSettingsDataProviderImpl(cmdapp.Config.GetString("modelDir"))
 	cmdapp.CheckOrPanic(err, "Cannot init data provider")
 
-	tfWrapper, err := tf.NewWrapper(cmdapp.Config.GetString("tf.url"), cmdapp.Config.GetString("tf.name"),
-		cmdapp.Config.GetInt("tf.version"))
+	tfWrapper, err := tf.NewWrapper(cmdapp.Config.GetString("tf.url"), provider.data.Model, provider.data.Version)
 	cmdapp.CheckOrPanic(err, "Cannot init tensorflow wrapper")
 
 	data.health = healthcheck.NewHandler()

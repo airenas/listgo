@@ -19,7 +19,7 @@ func initPTest(t *testing.T) {
 	dpMock = mocks.NewMockDataProvider()
 	tfWrapMock = mocks.NewMockTFWrap()
 	pegomock.When(dpMock.GetData()).ThenReturn(defaultData(), nil)
-	pegomock.When(dpMock.GetVocab()).ThenReturn(defaultVocab(), nil)
+	pegomock.When(dpMock.GetVocab()).ThenReturn(defaultTestVocab(), nil)
 	pegomock.When(tfWrapMock.Invoke(pegomock.AnyInt32Slice())).ThenReturn(defaultIntResult(), nil)
 }
 
@@ -55,6 +55,16 @@ func TestInit_NoSE_Fails(t *testing.T) {
 	initPTest(t)
 	d := defaultData()
 	d.SequenceEndWord = "<UUU>"
+	pegomock.When(dpMock.GetData()).ThenReturn(d, nil)
+	p, err := NewPunctuatorImpl(dpMock, tfWrapMock)
+	assert.Nil(t, p)
+	assert.NotNil(t, err)
+}
+
+func TestInit_NoNUM_Fails(t *testing.T) {
+	initPTest(t)
+	d := defaultData()
+	d.NumdWord = "NNN"
 	pegomock.When(dpMock.GetData()).ThenReturn(d, nil)
 	p, err := NewPunctuatorImpl(dpMock, tfWrapMock)
 	assert.Nil(t, p)
@@ -189,14 +199,15 @@ func defaultData() *api.Data {
 	r := api.Data{}
 	r.UnknownWord = "<UNK>"
 	r.SequenceEndWord = "</S>"
-	r.PunctuationVovabulary = []string{" ", ",", ".", "-"}
+	r.NumdWord = "<NUM>"
+	r.PunctuationVocabulary = []string{" ", ",", ".", "-"}
 	r.SentenceEnd = []string{"."}
 	r.Timesteps = 5
 	return &r
 }
 
-func defaultVocab() io.Reader {
-	return newTestVocab("a\nb\n<UNK>\n</S>")
+func defaultTestVocab() io.Reader {
+	return newTestVocab("a\nb\n<UNK>\n</S>\n<NUM>")
 }
 
 func defaultIntResult() []int32 {

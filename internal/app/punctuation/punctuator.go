@@ -31,6 +31,7 @@ type PunctuatorImpl struct {
 	tfWrap       TFWrap
 	unkID        int32
 	seID         int32
+	numID        int32
 }
 
 //NewPunctuatorImpl creates instance
@@ -51,7 +52,7 @@ func NewPunctuatorImpl(d DataProvider, tfWrap TFWrap) (*PunctuatorImpl, error) {
 	if p.timesteps < 3 {
 		return nil, errors.Errorf("Wrong timesteps, Timesteps = %d", p.timesteps)
 	}
-	p.puncVocab = initPunctuations(data.PunctuationVovabulary)
+	p.puncVocab = initPunctuations(data.PunctuationVocabulary)
 	cmdapp.Log.Infof("Punctuation vocab size: %d", len(p.puncVocab))
 	p.sentenceEnds = initSentenceEnds(data.SentenceEnd, p.puncVocab)
 	p.tfWrap = tfWrap
@@ -66,6 +67,10 @@ func NewPunctuatorImpl(d DataProvider, tfWrap TFWrap) (*PunctuatorImpl, error) {
 	p.seID, f = p.vocab[data.SequenceEndWord]
 	if !f {
 		return nil, errors.Errorf("Cannot find sequence end word in vocabulary, SE = %s", data.SequenceEndWord)
+	}
+	p.numID, f = p.vocab[data.NumdWord]
+	if !f {
+		return nil, errors.Errorf("Cannot find num word in vocabulary, NUM = %s", data.NumdWord)
 	}
 	return &p, nil
 }
@@ -138,7 +143,11 @@ func (p *PunctuatorImpl) convertToNum(strs []string) []int32 {
 	for _, s := range strs {
 		k, f := p.vocab[s]
 		if !f {
-			k = p.unkID
+			if isNum(s) {
+				k = p.numID
+			} else {
+				k = p.unkID
+			}
 		}
 		result = append(result, k)
 	}
@@ -237,4 +246,19 @@ func toTitle(data string) string {
 	r := []rune(data)
 	r[0] = unicode.ToTitle(r[0])
 	return string(r)
+}
+
+func isNum(word string) bool {
+	res := false
+	for _, c := range []rune(word) {
+		if unicode.IsDigit(c) {
+			res = true
+			continue
+		}
+		if c == '.' || c == ',' || c == '/' || c == ':' || c == '-' {
+			continue
+		}
+		return false
+	}
+	return res
 }
