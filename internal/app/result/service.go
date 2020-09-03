@@ -59,6 +59,8 @@ func NewRouter(data *ServiceData) *mux.Router {
 		promhttp.InstrumentHandlerResponseSize(data.metrics.audioResponseSize, audioHandler{data: data}))
 	router.Methods("GET").Path("/audio/{id}").Handler(ah)
 	router.Methods("GET").Path("/result/{id}/{file}").Handler(rh)
+	router.Methods("HEAD").Path("/audio/{id}").Handler(ah)
+	router.Methods("HEAD").Path("/result/{id}/{file}").Handler(rh)
 	router.Methods("GET").Path("/metrics").Handler(promhttp.Handler())
 	if data.health != nil {
 		router.Methods("GET").Path("/live").HandlerFunc(data.health.LiveEndpoint)

@@ -53,6 +53,16 @@ func TestGET(t *testing.T) {
 	assert.NotEmpty(t, resp.Body.String())
 }
 
+func TestHEAD(t *testing.T) {
+	initTest()
+	req := httptest.NewRequest("HEAD", "/audio/id", nil)
+	resp := httptest.NewRecorder()
+	initAudioMock()
+	newTestRouter().ServeHTTP(resp, req)
+	assert.Equal(t, 200, resp.Code)
+	assert.Empty(t, resp.Body.String())
+}
+
 func initAudioMock() {
 	pegomock.When(fileNameProviderMock.Get(pegomock.AnyString())).ThenReturn("olia", nil)
 	pegomock.When(audioFileLoaderMock.Load(pegomock.AnyString())).ThenReturn(fileMock, nil)
@@ -140,8 +150,18 @@ func TestResultGET(t *testing.T) {
 	resp := httptest.NewRecorder()
 	initResultMock()
 	newTestRouter().ServeHTTP(resp, req)
-	assert.Equal(t, resp.Code, 200)
+	assert.Equal(t, 200, resp.Code)
 	assert.NotEmpty(t, resp.Body.String())
+}
+
+func TestResultHEAD(t *testing.T) {
+	initTest()
+	req := httptest.NewRequest("HEAD", "/result/id/file", nil)
+	resp := httptest.NewRecorder()
+	initResultMock()
+	newTestRouter().ServeHTTP(resp, req)
+	assert.Equal(t, 200, resp.Code)
+	assert.Empty(t, resp.Body.String())
 }
 
 func initResultMock() {
