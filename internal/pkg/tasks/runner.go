@@ -44,6 +44,7 @@ func (r *Runner) Close() error {
 	if r.cmd != nil && r.running && r.cmd.Process != nil {
 		cmdapp.Log.Infof("Closing pid: %d", r.cmd.Process.Pid)
 		syscall.Kill(-r.cmd.Process.Pid, syscall.SIGTERM) // send terminate to group with -pid
+		cmdapp.Log.Infof("Sent term signal to pid: %d", r.cmd.Process.Pid)
 		return r.waitForFinish()
 	}
 	return nil
@@ -60,6 +61,7 @@ func (r *Runner) waitForFinish() error {
 
 	select {
 	case <-c:
+		cmdapp.Log.Info("Process exited")
 		return nil
 	case <-time.After(10 * time.Second):
 		return errors.Errorf("Timeout waiting to finish")
