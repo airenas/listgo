@@ -20,7 +20,7 @@ type NonEmptyFileTester struct {
 
 //NewNonEmptyFileTester creates NonEmptyFileTester instance
 func NewNonEmptyFileTester(path string) (*NonEmptyFileTester, error) {
-	cmdapp.Log.Infof("Init Local File Storage at: %s", path)
+	cmdapp.Log.Infof("Init FileTester with pattern: %s", path)
 	if path == "" {
 		return nil, errors.New("No path provided")
 	}

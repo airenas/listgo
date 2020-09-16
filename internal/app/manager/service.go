@@ -140,10 +140,10 @@ func diarizationFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	nextTask := messages.Transcription
 	nextStatus := status.Transcription
 	if noSpeech(message.ID, data) {
+		cmdapp.Log.Info("No speech detected. Skip Transcription and Rescore steps")
 		message.Tags = append(message.Tags, messages.NewTag("NO_SPEECH", "true"))
 		nextTask = messages.ResultMake
 		nextStatus = status.ResultMake
-		cmdapp.Log.Info("No speech detected. Skip Transcription and Rescore steps")
 	}
 	c, err := processStatus(&message, data, messages.Diarization, nextStatus)
 	if !c {
