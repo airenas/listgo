@@ -25,6 +25,7 @@ var resultSaverMock *mocks.MockResultSaver
 var publisherMock *mocks.MockPublisher
 var msgSenderMock *mocks.MockSender
 var msgInformSenderMock *mocks.MockSender
+var speechIndicatorMock *mocks.MockSpeechIndicator
 
 func initTest(t *testing.T) {
 	mocks.AttachMockToTest(t)
@@ -33,55 +34,47 @@ func initTest(t *testing.T) {
 	publisherMock = mocks.NewMockPublisher()
 	msgSenderMock = mocks.NewMockSender()
 	msgInformSenderMock = mocks.NewMockSender()
+	speechIndicatorMock = mocks.NewMockSpeechIndicator()
 }
 
 func TestInitManagerNoResultSaver(t *testing.T) {
-	initTest(t)
-	data := ServiceData{}
-	data.Publisher = publisherMock
-	err := StartWorkerService(&data)
+	data := newTestServiceData(t)
+	data.ResultSaver = nil
+	err := StartWorkerService(data)
 	assert.NotNil(t, err)
 }
 
 func TestInitManagerOK(t *testing.T) {
-	initTest(t)
-	data := ServiceData{}
-	data.ResultSaver = resultSaverMock
-	data.Publisher = publisherMock
-	data.MessageSender = msgSenderMock
-	data.InformMessageSender = msgInformSenderMock
-
-	err := StartWorkerService(&data)
+	data := newTestServiceData(t)
+	err := StartWorkerService(data)
 	assert.Nil(t, err)
 }
 
 func TestInitManagerNoPublisher(t *testing.T) {
-	initTest(t)
-	data := ServiceData{}
-	data.ResultSaver = resultSaverMock
-	data.MessageSender = msgSenderMock
-	data.InformMessageSender = msgSenderMock
-	err := StartWorkerService(&data)
+	data := newTestServiceData(t)
+	data.Publisher = nil
+	err := StartWorkerService(data)
 	assert.NotNil(t, err)
 }
 
 func TestInitManagerNoSender(t *testing.T) {
-	initTest(t)
-	data := ServiceData{}
-	data.ResultSaver = resultSaverMock
-	data.Publisher = publisherMock
-	data.InformMessageSender = msgSenderMock
-	err := StartWorkerService(&data)
+	data := newTestServiceData(t)
+	data.MessageSender = nil
+	err := StartWorkerService(data)
 	assert.NotNil(t, err)
 }
 
 func TestInitManagerNoInformSender(t *testing.T) {
-	initTest(t)
-	data := ServiceData{}
-	data.ResultSaver = resultSaverMock
-	data.Publisher = publisherMock
-	data.MessageSender = msgSenderMock
-	err := StartWorkerService(&data)
+	data := newTestServiceData(t)
+	data.InformMessageSender = nil
+	err := StartWorkerService(data)
+	assert.NotNil(t, err)
+}
+
+func TestInitManagerNoSpeechIndicator(t *testing.T) {
+	data := newTestServiceData(t)
+	data.speechIndicator = nil
+	err := StartWorkerService(data)
 	assert.NotNil(t, err)
 }
 
@@ -96,31 +89,43 @@ type testdata struct {
 	fc     <-chan os.Signal
 }
 
-func initTestData(t *testing.T) *testdata {
+func newTestServiceData(t *testing.T) *ServiceData {
 	initTest(t)
+	res := &ServiceData{}
+	res.StatusSaver = statusSaverMock
+	res.MessageSender = msgSenderMock
+	res.InformMessageSender = msgInformSenderMock
+	res.ResultSaver = resultSaverMock
+	res.Publisher = publisherMock
+	res.speechIndicator = speechIndicatorMock
+	return res
+}
+
+func initTestData(t *testing.T) *testdata {
 	res := testdata{}
+	res.data = newTestServiceData(t)
+
 	res.dc = make(chan amqp.Delivery)
 	res.ac = make(chan amqp.Delivery)
 	res.diac = make(chan amqp.Delivery)
 	res.tc = make(chan amqp.Delivery)
 	res.rescCh = make(chan amqp.Delivery)
 	res.rc = make(chan amqp.Delivery)
-	res.data = &ServiceData{}
-	res.data.StatusSaver = statusSaverMock
-	res.data.MessageSender = msgSenderMock
-	res.data.InformMessageSender = msgInformSenderMock
+
 	res.data.DecodeCh = res.dc
 	res.data.AudioConvertCh = res.ac
 	res.data.DiarizationCh = res.diac
 	res.data.TranscriptionCh = res.tc
 	res.data.RescoreCh = res.rescCh
 	res.data.ResultMakeCh = res.rc
-	res.data.ResultSaver = resultSaverMock
-	res.data.Publisher = publisherMock
 	res.data.fc = utils.NewMultiCloseChannel()
+
 	res.fc = res.data.fc.C
 	err := StartWorkerService(res.data)
 	assert.Nil(t, err)
+	if err != nil {
+		return nil
+	}
 	return &res
 }
 
@@ -209,12 +214,27 @@ func TestHandlesMessagesWrongDiariazationMsg(t *testing.T) {
 func TestHandlesMessagesDiarizationMsg(t *testing.T) {
 	td := initTestData(t)
 
+	pegomock.When(speechIndicatorMock.Test(pegomock.AnyString())).ThenReturn(true)
 	msgdata, _ := json.Marshal(newTestMsg())
 	td.diac <- amqp.Delivery{Body: msgdata}
 	close(td.diac)
 	<-td.fc
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.Transcription))
+	speechIndicatorMock.VerifyWasCalled(pegomock.Times(1)).Test(pegomock.AnyString())
 	verifySendMessageOnce(t, messages.Transcription)
+}
+
+func TestHandlesMessagesDiarizationMsgNoSpeech(t *testing.T) {
+	td := initTestData(t)
+
+	pegomock.When(speechIndicatorMock.Test(pegomock.AnyString())).ThenReturn(false)
+	msgdata, _ := json.Marshal(newTestMsg())
+	td.diac <- amqp.Delivery{Body: msgdata}
+	close(td.diac)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.ResultMake))
+	speechIndicatorMock.VerifyWasCalled(pegomock.Times(1)).Test(pegomock.AnyString())
+	verifySendMessageOnce(t, messages.ResultMake)
 }
 
 func TestHandlesMessagesDiarizationWithError(t *testing.T) {

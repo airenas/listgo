@@ -12,6 +12,8 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=resultSaver.go -m bitbucket.org/airenas/listgo/internal/app/manager ResultSaver
 
+//go:generate pegomock generate --package=mocks --output=speechIndicator.go -m bitbucket.org/airenas/listgo/internal/app/manager SpeechIndicator
+
 //go:generate pegomock generate --package=mocks --output=publisher.go -m bitbucket.org/airenas/listgo/internal/pkg/messages Publisher
 
 //go:generate pegomock generate --package=mocks --output=messageSender.go -m bitbucket.org/airenas/listgo/internal/pkg/messages Sender

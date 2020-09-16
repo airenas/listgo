@@ -27,6 +27,12 @@ type ServiceData struct {
 	RescoreCh           <-chan amqp.Delivery
 	ResultMakeCh        <-chan amqp.Delivery
 	fc                  *utils.MultiCloseChannel
+	speechIndicator     SpeechIndicator
+}
+
+//SpeechIndicator looks if request audio has speech
+type SpeechIndicator interface {
+	Test(string) bool
 }
 
 //return true if it can be redelivered
@@ -45,6 +51,9 @@ func StartWorkerService(data *ServiceData) error {
 	}
 	if data.InformMessageSender == nil {
 		return errors.New("InformMessageSender not provided")
+	}
+	if data.speechIndicator == nil {
+		return errors.New("speechIndicator not provided")
 	}
 
 	cmdapp.Log.Infof("Starting listen for messages")
@@ -128,15 +137,22 @@ func diarizationFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	if err := json.Unmarshal(d.Body, &message); err != nil {
 		return false, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
 	}
-	c, err := processStatus(&message, data, messages.Diarization, status.Transcription)
+	nextTask := messages.Transcription
+	nextStatus := status.Transcription
+	if noSpeech(message.ID, data) {
+		message.Tags = append(message.Tags, messages.NewTag("NO_SPEECH", "true"))
+		nextTask = messages.ResultMake
+		nextStatus = status.ResultMake
+		cmdapp.Log.Info("No speech detected. Skip Transcription and Rescore steps")
+	}
+	c, err := processStatus(&message, data, messages.Diarization, nextStatus)
 	if !c {
 		if err != nil {
 			cmdapp.Log.Error(err)
 		}
 		return true, err
 	}
-	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message),
-		messages.Transcription, messages.ResultQueueFor(messages.Transcription))
+	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message), nextTask, messages.ResultQueueFor(nextTask))
 }
 
 //transcriptionFinish processes transcription result messages
@@ -225,6 +241,10 @@ func processStatus(message *messages.QueueMessage, data *ServiceData, from strin
 	}
 	publishStatusChange(message, data)
 	return true, nil
+}
+
+func noSpeech(ID string, data *ServiceData) bool {
+	return !data.speechIndicator.Test(ID)
 }
 
 func sendInformFailure(message *messages.QueueMessage, data *ServiceData) {
