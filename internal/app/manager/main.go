@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"bitbucket.org/airenas/listgo/internal/pkg/loader"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
@@ -72,6 +73,8 @@ func run(cmd *cobra.Command, args []string) {
 	data.StatusSaver, err = mongo.NewStatusSaver(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "Can't init status saver")
 	data.ResultSaver, err = mongo.NewResultSaver(mongoSessionProvider)
+	cmdapp.CheckOrPanic(err, "Can't init result saver")
+	data.speechIndicator, err = loader.NewNonEmptyFileTester(cmdapp.Config.GetString("speechIndicator.pathPattern"))
 	cmdapp.CheckOrPanic(err, "Can't init result saver")
 
 	err = StartWorkerService(&data)

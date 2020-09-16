@@ -32,7 +32,7 @@ type ServiceData struct {
 
 //SpeechIndicator looks if request audio has speech
 type SpeechIndicator interface {
-	Test(string) bool
+	Test(string) (bool, error)
 }
 
 //return true if it can be redelivered
@@ -244,7 +244,12 @@ func processStatus(message *messages.QueueMessage, data *ServiceData, from strin
 }
 
 func noSpeech(ID string, data *ServiceData) bool {
-	return !data.speechIndicator.Test(ID)
+	fileNonEmpty, err := data.speechIndicator.Test(ID)
+	if err != nil {
+		cmdapp.Log.Error(err)
+		return false
+	}
+	return !fileNonEmpty
 }
 
 func sendInformFailure(message *messages.QueueMessage, data *ServiceData) {

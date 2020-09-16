@@ -214,7 +214,20 @@ func TestHandlesMessagesWrongDiariazationMsg(t *testing.T) {
 func TestHandlesMessagesDiarizationMsg(t *testing.T) {
 	td := initTestData(t)
 
-	pegomock.When(speechIndicatorMock.Test(pegomock.AnyString())).ThenReturn(true)
+	pegomock.When(speechIndicatorMock.Test(pegomock.AnyString())).ThenReturn(true, nil)
+	msgdata, _ := json.Marshal(newTestMsg())
+	td.diac <- amqp.Delivery{Body: msgdata}
+	close(td.diac)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.Transcription))
+	speechIndicatorMock.VerifyWasCalled(pegomock.Times(1)).Test(pegomock.AnyString())
+	verifySendMessageOnce(t, messages.Transcription)
+}
+
+func TestHandlesMessagesDiarizationMsg_FailsSpeechIndicator(t *testing.T) {
+	td := initTestData(t)
+
+	pegomock.When(speechIndicatorMock.Test(pegomock.AnyString())).ThenReturn(true, errors.New("error"))
 	msgdata, _ := json.Marshal(newTestMsg())
 	td.diac <- amqp.Delivery{Body: msgdata}
 	close(td.diac)
@@ -227,7 +240,7 @@ func TestHandlesMessagesDiarizationMsg(t *testing.T) {
 func TestHandlesMessagesDiarizationMsgNoSpeech(t *testing.T) {
 	td := initTestData(t)
 
-	pegomock.When(speechIndicatorMock.Test(pegomock.AnyString())).ThenReturn(false)
+	pegomock.When(speechIndicatorMock.Test(pegomock.AnyString())).ThenReturn(false, nil)
 	msgdata, _ := json.Marshal(newTestMsg())
 	td.diac <- amqp.Delivery{Body: msgdata}
 	close(td.diac)
