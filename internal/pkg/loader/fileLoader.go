@@ -11,7 +11,7 @@ import (
 //OpenFileFunc declares function to open file by name and return Reader
 type OpenFileFunc func(fileName string) (api.File, error)
 
-// LocalFileLoader loade file on local disk
+// LocalFileLoader loads file on local disk
 type LocalFileLoader struct {
 	// StoragePath is the main folder to save into
 	Path         string
