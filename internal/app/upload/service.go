@@ -2,6 +2,7 @@ package upload
 
 import (
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -85,8 +86,14 @@ type uploadHandler struct {
 func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cmdapp.Log.Infof("Saving file from %s", r.Host)
 
-	r.ParseMultipartForm(32 << 20)
-	err := validateFormParams(r)
+	err := r.ParseMultipartForm(32 << 20)
+	if err != nil {
+		http.Error(w, "Can't parse MultipartForm", http.StatusBadRequest)
+		cmdapp.Log.Error(errors.Wrap(err, "Can't parse MultipartForm"))
+		return
+	}
+	defer cleanFiles(r.MultipartForm)
+	err = validateFormParams(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		cmdapp.Log.Error(err)
@@ -180,6 +187,12 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Can not prepare result", http.StatusInternalServerError)
 		cmdapp.Log.Error(err)
 		return
+	}
+}
+
+func cleanFiles(f *multipart.Form) {
+	if f != nil {
+		f.RemoveAll()
 	}
 }
 
