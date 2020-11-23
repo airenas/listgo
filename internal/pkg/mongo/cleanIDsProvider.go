@@ -1,11 +1,11 @@
 package mongo
 
 import (
-	"errors"
 	"time"
 
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+	"github.com/pkg/errors"
 )
 
 // CleanIDsProvider returns old IDs to remove from system
@@ -36,8 +36,8 @@ func (p *CleanIDsProvider) Get() ([]string, error) {
 	var m []bson.M
 	for {
 		err = c.Find(nil).Sort("_id").Skip(from).Limit(maxRecords).All(&m)
-		if err == mgo.ErrNotFound {
-			return nil, err
+		if err != mgo.ErrNotFound {
+			return nil, errors.Wrap(err, "Can't select from "+requestTable)
 		}
 		for _, r := range m {
 			if p.isOld(r, expDate) {
