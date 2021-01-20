@@ -45,7 +45,7 @@ func newSimpleEmailSender() (*SimpleEmailSender, error) {
 		return nil, errors.New("No smtp port")
 	}
 	if r.authType != SMTP_NOAUTH {
-		r.sendPool, err = email.NewPool(r.getFullHost(), 1, newAuth())
+		r.sendPool, err = email.NewPool(r.getFullHost(), 1, newAuth(r.authType))
 		if err != nil {
 			return nil, err
 		}
@@ -55,8 +55,8 @@ func newSimpleEmailSender() (*SimpleEmailSender, error) {
 	return &r, nil
 }
 
-func newAuth() smtp.Auth {
-	if strings.ToLower(cmdapp.Config.GetString("smtp.useLogin")) == "true" {
+func newAuth(authType string) smtp.Auth {
+	if authType == SMTP_LOGIN {
 		cmdapp.Log.Infof("Using custom login auth")
 		return auth.LoginAuth(cmdapp.Config.GetString("smtp.username"), cmdapp.Config.GetString("smtp.password"))
 	}
