@@ -21,7 +21,7 @@ func NewFileNameProvider(sessionProvider *SessionProvider) (*FileNameProvider, e
 
 //Get returns filename by ID
 func (ss *FileNameProvider) Get(id string) (string, error) {
-	cmdapp.Log.Infof("Geting email by ID %s", id)
+	cmdapp.Log.Infof("Getting file name by ID %s", id)
 
 	session, err := ss.SessionProvider.NewSession()
 	if err != nil {

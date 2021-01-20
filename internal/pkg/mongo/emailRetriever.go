@@ -21,7 +21,7 @@ func NewEmailRetriever(sessionProvider *SessionProvider) (*EmailRetriever, error
 
 //Get returns email by ID
 func (ss *EmailRetriever) Get(id string) (string, error) {
-	cmdapp.Log.Infof("Geting email by ID %s", id)
+	cmdapp.Log.Infof("Getting email by ID %s", id)
 
 	session, err := ss.SessionProvider.NewSession()
 	if err != nil {
