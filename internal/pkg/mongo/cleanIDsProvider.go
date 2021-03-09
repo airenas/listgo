@@ -38,8 +38,11 @@ func (p *CleanIDsProvider) Get() ([]string, error) {
 	var m []bson.M
 	for {
 		err = c.Find(nil).Sort("_id").Skip(from).Limit(maxRecords).All(&m)
-		if err != mgo.ErrNotFound {
-			return nil, errors.Wrap(err, "Can't select from "+requestTable)
+		if err != nil {
+			if err != mgo.ErrNotFound {
+				return nil, errors.Wrap(err, "Can't select from "+requestTable)
+			}
+			return result, nil
 		}
 		cmdapp.Log.Infof("Loaded %d records", len(m))
 		for _, r := range m {
