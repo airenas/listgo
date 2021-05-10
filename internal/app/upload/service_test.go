@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -30,6 +29,8 @@ import (
 
 var statusSaverMock *mocks.MockSaver
 
+var fileSaverMock *mocks.MockFileSaver
+
 var requestSaverMock *mocks.MockRequestSaver
 
 var msgSenderMock *mocks.MockSender
@@ -45,6 +46,7 @@ func initTest(t *testing.T) {
 	msgSenderMock = mocks.NewMockSender()
 	recognizerMapMock = mocks.NewMockRecognizerMap()
 	recognizerProviderMock = mocks.NewMockRecognizerProvider()
+	fileSaverMock = mocks.NewMockFileSaver()
 	pegomock.When(recognizerMapMock.Get(pegomock.AnyString())).ThenReturn("recID", nil)
 }
 
@@ -95,16 +97,22 @@ func TestPOSTNoFile(t *testing.T) {
 }
 
 func newReq4(file string, email string, externalID string, recID string) *http.Request {
-	return newReqMap(file, map[string]string{"email": email,
+	return newReqMap([]string{file}, map[string]string{"email": email,
 		"externalID": externalID, "recognizer": recID})
 }
 
-func newReqMap(file string, values map[string]string) *http.Request {
+func newReqMap(files []string, values map[string]string) *http.Request {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	if file != "" {
-		part, _ := writer.CreateFormFile("file", file)
-		_, _ = io.Copy(part, strings.NewReader("body"))
+	for i, file := range files {
+		suf := ""
+		if i > 0 {
+			suf = strconv.Itoa(i + 1)
+		}
+		if file != "" {
+			part, _ := writer.CreateFormFile("file"+suf, file)
+			_, _ = io.Copy(part, strings.NewReader("body"))
+		}
 	}
 	for k, v := range values {
 		if k != "" {
@@ -129,7 +137,7 @@ func newTestData() *ServiceData {
 	res := &ServiceData{StatusSaver: statusSaverMock,
 		MessageSender:      msgSenderMock,
 		RequestSaver:       requestSaverMock,
-		FileSaver:          testSaver{},
+		FileSaver:          fileSaverMock,
 		RecognizerMap:      recognizerMapMock,
 		RecognizerProvider: recognizerProviderMock,
 		health:             healthcheck.NewHandler(),
@@ -248,11 +256,9 @@ func TestPOST_SaverFails(t *testing.T) {
 	req := newReq("filename.wav", "a@a.a", "")
 	resp := httptest.NewRecorder()
 
+	pegomock.When(fileSaverMock.Save(pegomock.AnyString(), matchers.AnyIoReader())).ThenReturn(errors.New("error"))
+
 	data := newTestData()
-	data.FileSaver = testSaverFunc(
-		func(id string, reader io.Reader) error {
-			return errors.New("Can not send")
-		})
 	NewRouter(data).ServeHTTP(resp, req)
 
 	assert.Equal(t, 500, resp.Code)
@@ -298,9 +304,36 @@ func TestPOST_RequestSaverCalled(t *testing.T) {
 	assert.NotEmpty(t, rd.ID)
 }
 
+func TestPOST_RequestSaverMultiFiles(t *testing.T) {
+	initTest(t)
+	req := newReqMap([]string{"file.wav", "file2.wav", "olia.mp4"}, map[string]string{"email": "a@a.lt",
+		"recognizer": "rec"})
+	resp := httptest.NewRecorder()
+	pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(nil)
+
+	newTestRouter().ServeHTTP(resp, req)
+
+	rd := requestSaverMock.VerifyWasCalled(pegomock.Once()).Save(matchers.AnyApiRequestData()).GetCapturedArguments()
+	assert.Equal(t, rd.Email, "a@a.lt")
+	assert.Equal(t, "rec", rd.RecognizerKey)
+	assert.Equal(t, "recID", rd.RecognizerID)
+	assert.True(t, strings.HasSuffix(rd.File, ""))
+	assert.NotEmpty(t, rd.ID)
+	files, _ := fileSaverMock.VerifyWasCalled(pegomock.Times(3)).Save(pegomock.AnyString(), matchers.AnyIoReader()).
+		GetAllCapturedArguments()
+	if assert.Equal(t, 3, len(files)) {
+		assert.Equal(t, rd.ID+"/file.wav", files[0])
+		assert.Equal(t, rd.ID+"/file2.wav", files[1])
+		assert.Equal(t, rd.ID+"/olia.mp4", files[2])
+	}
+	_, q, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
+		pegomock.AnyString()).GetCapturedArguments()
+	assert.Equal(t, messages.DecodeMultiple, q)
+}
+
 func TestPOST_NumberOfSpeakersPassed(t *testing.T) {
 	initTest(t)
-	req := newReqMap("file.wav", map[string]string{"email": "a@a.lt",
+	req := newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt",
 		"recognizer": "rec", "numberOfSpeakers": "2"})
 	resp := httptest.NewRecorder()
 	newTestRouter().ServeHTTP(resp, req)
@@ -319,7 +352,7 @@ func TestPOST_NumberOfSpeakersPassed(t *testing.T) {
 
 func TestPOST_SkipNumJoinPassed(t *testing.T) {
 	initTest(t)
-	req := newReqMap("file.wav", map[string]string{"email": "a@a.lt",
+	req := newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt",
 		"recognizer": "rec", api.PrmSkipNumJoin: "1"})
 	resp := httptest.NewRecorder()
 	newTestRouter().ServeHTTP(resp, req)
@@ -338,7 +371,7 @@ func TestPOST_SkipNumJoinPassed(t *testing.T) {
 
 func TestPOST_TimestampAdded(t *testing.T) {
 	initTest(t)
-	req := newReqMap("file.wav", map[string]string{"email": "a@a.lt",
+	req := newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt",
 		"recognizer": "rec"})
 	resp := httptest.NewRecorder()
 	newTestRouter().ServeHTTP(resp, req)
@@ -361,7 +394,7 @@ func TestPOST_TimestampAdded(t *testing.T) {
 
 func TestPOST_NumberOfSpeakersNotPassed(t *testing.T) {
 	initTest(t)
-	req := newReqMap("file.wav", map[string]string{"email": "a@a.lt",
+	req := newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt",
 		"recognizer": "rec"})
 	resp := httptest.NewRecorder()
 	newTestRouter().ServeHTTP(resp, req)
@@ -379,7 +412,7 @@ func TestPOST_NumberOfSpeakersNotPassed(t *testing.T) {
 
 func TestPOST_SkipNumJoinNotPassed(t *testing.T) {
 	initTest(t)
-	req := newReqMap("file.wav", map[string]string{"email": "a@a.lt",
+	req := newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt",
 		"recognizer": "rec"})
 	resp := httptest.NewRecorder()
 	newTestRouter().ServeHTTP(resp, req)
@@ -396,29 +429,29 @@ func TestPOST_SkipNumJoinNotPassed(t *testing.T) {
 }
 
 func TestPOST_FailOnUnknownFormData(t *testing.T) {
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", "recognizer": "rec"}), 200)
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", "rec": "rec"}), 400)
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", "numSpeak": "rec"}), 400)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", "recognizer": "rec"}), 200)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", "rec": "rec"}), 400)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", "numSpeak": "rec"}), 400)
 }
 
 func TestPOST_FailOnWrongNumberOfSpeakers(t *testing.T) {
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "olia"}), 200)
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "$ olia"}), 400)
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "shell olia"}), 400)
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "eval olia"}), 400)
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "(olia"}), 400)
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "olia)"}), 400)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "olia"}), 200)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "$ olia"}), 400)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "shell olia"}), 400)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "eval olia"}), 400)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "(olia"}), 400)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "olia)"}), 400)
 }
 
 func TestPOST_FailOnWrongSkipNumJoin(t *testing.T) {
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "1"}), 200)
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "$ olia"}), 400)
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "shell olia"}), 400)
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "eval olia"}), 400)
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "(olia"}), 400)
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "olia)"}), 400)
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "{olia"}), 400)
-	testCode(t, newReqMap("file.wav", map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "olia}"}), 400)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "1"}), 200)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", api.PrmNumberOfSpeakers: "$ olia"}), 400)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "shell olia"}), 400)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "eval olia"}), 400)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "(olia"}), 400)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "olia)"}), 400)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "{olia"}), 400)
+	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", api.PrmSkipNumJoin: "olia}"}), 400)
 }
 
 func getTag(tags []messages.Tag, key string) string {
@@ -428,19 +461,6 @@ func getTag(tags []messages.Tag, key string) string {
 		}
 	}
 	return ""
-}
-
-type testSaverFunc func(name string, reader io.Reader) error
-
-func (f testSaverFunc) Save(name string, reader io.Reader) error {
-	return f(name, reader)
-}
-
-type testSaver struct{}
-
-func (saver testSaver) Save(name string, reader io.Reader) error {
-	log.Printf("Saving file %s\n", name)
-	return nil
 }
 
 func TestGET_Recognizers(t *testing.T) {
@@ -502,4 +522,22 @@ func TestPOST_MetricsCollected(t *testing.T) {
 func TestMetrics(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/metrics", nil)
 	testCode(t, req, 200)
+}
+
+func TestToLowerExt(t *testing.T) {
+	assert.Equal(t, "olia.wav", toLowerExt("olia.wav"))
+	assert.Equal(t, "olia.wav", toLowerExt("olia.WAV"))
+	assert.Equal(t, "OLIA.wav", toLowerExt("OLIA.WAV"))
+	assert.Equal(t, "ipdasidpasidp/olia.wav", toLowerExt("ipdasidpasidp/olia.Wav"))
+}
+
+func TestValidaHeaders(t *testing.T) {
+	assert.NotNil(t, validateFiles([]*multipart.FileHeader{{Filename: "oo.ooo"}}))
+	assert.NotNil(t, validateFiles([]*multipart.FileHeader{{Filename: "oo.wav"}, {Filename: "oo.ooo"}}))
+	assert.NotNil(t, validateFiles([]*multipart.FileHeader{{Filename: "../oo.wav"}}))
+	assert.NotNil(t, validateFiles([]*multipart.FileHeader{{Filename: "oo.wav"}, {Filename: "../oo.wav"}}))
+
+	assert.Nil(t, validateFiles([]*multipart.FileHeader{{Filename: "oo.wav"}}))
+	assert.Nil(t, validateFiles([]*multipart.FileHeader{{Filename: "oo.mp4"}, {Filename: "o1.mp4"}}))
+
 }
