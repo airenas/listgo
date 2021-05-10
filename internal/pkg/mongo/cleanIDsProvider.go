@@ -70,7 +70,7 @@ func (p *CleanIDsProvider) isOld(m bson.M, expireDate time.Time) bool {
 		cmdapp.Log.Warn("_id not found in record")
 		return false
 	}
-	cmdapp.Log.Debug("_id time %s", id.Time().String())
+	cmdapp.Log.Debugf("_id time %s", id.Time().String())
 	return id.Time().Before(expireDate)
 }
 
