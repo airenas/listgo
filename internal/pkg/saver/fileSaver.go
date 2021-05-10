@@ -3,7 +3,9 @@ package saver
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
@@ -45,7 +47,10 @@ func NewLocalFileSaver(storagePath string) (*LocalFileSaver, error) {
 
 // Save saves file to disk
 func (fs LocalFileSaver) Save(name string, reader io.Reader) error {
-	fileName := fs.StoragePath + name
+	if strings.Contains(name, "..") {
+		return errors.New("wrong path " + name)
+	}
+	fileName := filepath.Join(fs.StoragePath, name)
 	f, err := fs.OpenFileFunc(fileName)
 	if err != nil {
 		return errors.New("Can not create file " + fileName + ". " + err.Error())
@@ -60,6 +65,14 @@ func (fs LocalFileSaver) Save(name string, reader io.Reader) error {
 }
 
 func openFile(fileName string) (WriterCloser, error) {
+	dir := filepath.Dir(fileName)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		cmdapp.Log.Infof("Trying to create storage directory at: %s", dir)
+		err = os.MkdirAll(dir, os.ModePerm)
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't create dir '%s'", dir)
+		}
+	}
 	return os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0666)
 }
 

@@ -150,7 +150,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = validateExtensions(fHeaders)
+	err = validateFiles(fHeaders)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		cmdapp.Log.Error(err)
@@ -306,12 +306,14 @@ func takeFiles(r *http.Request, paramName string) ([]multipart.File, []*multipar
 	return fRes, fhRes, nil
 }
 
-func validateExtensions(fHeaders []*multipart.FileHeader) error {
+func validateFiles(fHeaders []*multipart.FileHeader) error {
 	for _, h := range fHeaders {
 		ext := filepath.Ext(h.Filename)
-		ext = strings.ToLower(ext)
-		if !checkFileExtension(ext) {
+		if !checkFileExtension(strings.ToLower(ext)) {
 			return errors.New("wrong file extension: " + ext)
+		}
+		if strings.Contains(h.Filename, "..") {
+			return errors.New("wrong file name: " + h.Filename)
 		}
 	}
 	return nil
@@ -326,10 +328,15 @@ func saveFiles(fs FileSaver, id string, files []multipart.File, fHeaders []*mult
 
 	for i, f := range files {
 		fn := filepath.Join(id, fHeaders[i].Filename)
-		err := fs.Save(fn, f)
+		err := fs.Save(toLowerExt(fn), f)
 		if err != nil {
 			return errors.Wrapf(err, "can't save %s", fn)
 		}
 	}
 	return nil
+}
+
+func toLowerExt(f string) string {
+	ext := filepath.Ext(f)
+	return f[:len(f)-len(ext)] + strings.ToLower(ext)
 }
