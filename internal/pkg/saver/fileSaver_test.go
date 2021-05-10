@@ -33,6 +33,17 @@ func TestFailsOnNoOpen(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestFails_WrongPath(t *testing.T) {
+	fakeFile := fakeWriterCloser{bytes.NewBufferString(""), "", false}
+	fileSaver := LocalFileSaver{StoragePath: "/data/",
+		OpenFileFunc: func(file string) (WriterCloser, error) {
+			fakeFile.Name = file
+			return &fakeFile, nil
+		}}
+	err := fileSaver.Save("../file", strings.NewReader("body"))
+	assert.NotNil(t, err)
+}
+
 func TestChecksDirOnInit(t *testing.T) {
 	_, err := NewLocalFileSaver("./")
 	assert.Nil(t, err)
