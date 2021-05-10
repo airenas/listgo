@@ -7,6 +7,10 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/confluentinc/confluent-kafka-go v1.0.0
 	github.com/coreos/go-etcd v2.0.0+incompatible // indirect
+	github.com/facebookgo/clock v0.0.0-20150410010913-600d898af40a // indirect
+	github.com/facebookgo/grace v0.0.0-20180706040059-75cf19382434 // indirect
+	github.com/facebookgo/httpdown v0.0.0-20180706035922-5979d39b15c2 // indirect
+	github.com/facebookgo/stats v0.0.0-20151006221625-1b76add642e4 // indirect
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
 	github.com/gogap/env_json v0.0.0-20150503135429-86150085ddbe // indirect

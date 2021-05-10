@@ -2,6 +2,7 @@ package upload
 
 import (
 	"encoding/json"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/badoux/checkmail"
+	"github.com/facebookgo/grace/gracehttp"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -55,14 +57,22 @@ type FileResult struct {
 func StartWebServer(data *ServiceData) error {
 	cmdapp.Log.Infof("Starting HTTP service at %d", data.Port)
 	r := NewRouter(data)
-	http.Handle("/", r)
-	portStr := strconv.Itoa(data.Port)
-	err := http.ListenAndServe(":"+portStr, nil)
 
-	if err != nil {
-		return errors.Wrap(err, "Can't start HTTP listener at port "+portStr)
+	portStr := strconv.Itoa(data.Port)
+	srv := http.Server{
+		Addr:              ":" + portStr,
+		WriteTimeout:      15 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       180 * time.Second,
+		Handler:           r,
 	}
-	return nil
+
+	w := cmdapp.Log.Writer()
+	defer w.Close()
+	l := log.New(w, "", 0)
+	gracehttp.SetLogger(l)
+
+	return gracehttp.Serve(&srv)
 }
 
 //NewRouter creates the router for HTTP service
@@ -184,7 +194,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := messages.Decode
-	if len(files) > 0 {
+	if len(files) > 1 {
 		msg = messages.DecodeMultiple
 	}
 
