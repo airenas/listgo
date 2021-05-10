@@ -3,6 +3,8 @@ package messages
 const (
 	// Decode queue
 	Decode string = "Decode"
+	// DecodeMultiple queue
+	DecodeMultiple string = "DecodeMultiple"
 	// Inform queue
 	Inform string = "Inform"
 	// AudioConvert queue

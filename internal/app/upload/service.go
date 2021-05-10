@@ -125,24 +125,35 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	cmdapp.Log.Infof("Found recognizer '%s' for '%s'", recID, recognizer)
 
-	file, handler, err := r.FormFile(api.PrmFile)
-	if err != nil {
+	files, fHeaders, err := takeFiles(r, api.PrmFile)
+	for _, f := range files {
+		defer f.Close()
+	}
+	if err != nil && len(files) == 0 {
 		http.Error(w, "No file", http.StatusBadRequest)
 		cmdapp.Log.Error(err)
 		return
 	}
-	defer file.Close()
+	if err != nil {
+		http.Error(w, "Wrong input form", http.StatusBadRequest)
+		cmdapp.Log.Error(err)
+		return
+	}
 
-	ext := filepath.Ext(handler.Filename)
-	ext = strings.ToLower(ext)
-	if !checkFileExtension(ext) {
-		http.Error(w, "Wrong file extension: "+ext, http.StatusBadRequest)
-		cmdapp.Log.Errorf("Wrong file extension: " + ext)
+	err = validateExtensions(fHeaders)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		cmdapp.Log.Error(err)
 		return
 	}
 
 	id := uuid.New().String()
-	fileName := id + ext
+	fileName := ""
+	if len(files) == 1 {
+		ext := filepath.Ext(fHeaders[0].Filename)
+		ext = strings.ToLower(ext)
+		fileName = id + ext
+	}
 
 	err = h.data.RequestSaver.Save(api.RequestData{ID: id, Email: email, File: fileName, ExternalID: externalID,
 		RecognizerKey: recognizer, RecognizerID: recID})
@@ -159,7 +170,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.data.FileSaver.Save(fileName, file)
+	err = saveFiles(h.data.FileSaver, id, files, fHeaders)
 	if err != nil {
 		http.Error(w, "Can not save file", http.StatusInternalServerError)
 		cmdapp.Log.Error(err)
@@ -172,7 +183,12 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		tags = append(tags, messages.NewTag(messages.TagSkipNumJoin, skipNumJoin))
 	}
 
-	err = h.data.MessageSender.Send(messages.NewQueueMessage(id, recID, tags), messages.Decode, "")
+	msg := messages.Decode
+	if len(files) > 0 {
+		msg = messages.DecodeMultiple
+	}
+
+	err = h.data.MessageSender.Send(messages.NewQueueMessage(id, recID, tags), msg, "")
 	if err != nil {
 		http.Error(w, "Can not send decode message", http.StatusInternalServerError)
 		cmdapp.Log.Error(err)
@@ -254,6 +270,55 @@ func validateInjection(r *http.Request, paramName string) error {
 	for _, k := range []string{"$", "(", ")", "eval", "shell", "{", "}"} {
 		if strings.Contains(lp, k) {
 			return errors.Errorf("Wrong parameter '%s' value '%s'", paramName, p)
+		}
+	}
+	return nil
+}
+
+func takeFiles(r *http.Request, paramName string) ([]multipart.File, []*multipart.FileHeader, error) {
+	file, handler, err := r.FormFile(paramName)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "no form param file")
+	}
+	fRes := []multipart.File{file}
+	fhRes := []*multipart.FileHeader{handler}
+	for i := 2; i <= 10; i++ {
+		file, handler, err := r.FormFile(paramName + strconv.Itoa(i))
+		if err == http.ErrMissingFile {
+			break
+		}
+		if err != nil {
+			return fRes, nil, errors.Wrapf(err, "error reading form param %s", paramName+strconv.Itoa(i))
+		}
+		fRes = append(fRes, file)
+		fhRes = append(fhRes, handler)
+	}
+	return fRes, fhRes, nil
+}
+
+func validateExtensions(fHeaders []*multipart.FileHeader) error {
+	for _, h := range fHeaders {
+		ext := filepath.Ext(h.Filename)
+		ext = strings.ToLower(ext)
+		if !checkFileExtension(ext) {
+			return errors.New("wrong file extension: " + ext)
+		}
+	}
+	return nil
+}
+
+func saveFiles(fs FileSaver, id string, files []multipart.File, fHeaders []*multipart.FileHeader) error {
+	if len(files) == 1 {
+		ext := filepath.Ext(fHeaders[0].Filename)
+		ext = strings.ToLower(ext)
+		return fs.Save(id+ext, files[0])
+	}
+
+	for i, f := range files {
+		fn := filepath.Join(id, fHeaders[i].Filename)
+		err := fs.Save(fn, f)
+		if err != nil {
+			return errors.Wrapf(err, "can't save %s", fn)
 		}
 	}
 	return nil
