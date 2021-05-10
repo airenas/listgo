@@ -266,10 +266,34 @@ func validateFormParams(r *http.Request) error {
 			return errors.Errorf("Unknown parameter '%s'", k)
 		}
 	}
-	for _, p := range []string{api.PrmNumberOfSpeakers, api.PrmSkipNumJoin} {
+	for _, p := range [...]string{api.PrmNumberOfSpeakers, api.PrmSkipNumJoin} {
 		if err := validateInjection(r, p); err != nil {
 			return err
 		}
+	}
+	return validateFormFiles(r.MultipartForm)
+}
+
+func validateFormFiles(form *multipart.Form) error {
+	check := make(map[string]bool)
+	if form != nil {
+		for k, _ := range form.File {
+			check[k] = true
+		}
+	}
+	if !check[api.PrmFile] {
+		return errors.New("no form file parameter 'file'")
+	}
+	delete(check, api.PrmFile)
+	for i := 2; i <= 10; i++ {
+		pn := api.PrmFile + strconv.Itoa(i)
+		if !check[pn] {
+			break
+		}
+		delete(check, pn)
+	}
+	for k := range check {
+		return errors.Errorf("unexpected form file parameters '%v'", k)
 	}
 	return nil
 }

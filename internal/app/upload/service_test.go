@@ -531,7 +531,7 @@ func TestToLowerExt(t *testing.T) {
 	assert.Equal(t, "ipdasidpasidp/olia.wav", toLowerExt("ipdasidpasidp/olia.Wav"))
 }
 
-func TestValidaHeaders(t *testing.T) {
+func TestValidateHeaders(t *testing.T) {
 	assert.NotNil(t, validateFiles([]*multipart.FileHeader{{Filename: "oo.ooo"}}))
 	assert.NotNil(t, validateFiles([]*multipart.FileHeader{{Filename: "oo.wav"}, {Filename: "oo.ooo"}}))
 	assert.NotNil(t, validateFiles([]*multipart.FileHeader{{Filename: "../oo.wav"}}))
@@ -539,5 +539,15 @@ func TestValidaHeaders(t *testing.T) {
 
 	assert.Nil(t, validateFiles([]*multipart.FileHeader{{Filename: "oo.wav"}}))
 	assert.Nil(t, validateFiles([]*multipart.FileHeader{{Filename: "oo.mp4"}, {Filename: "o1.mp4"}}))
+}
 
+func TestValidateFormFiles(t *testing.T) {
+	assert.NotNil(t, validateFormFiles(&multipart.Form{File: map[string][]*multipart.FileHeader{"file2": {}}}))
+	assert.NotNil(t, validateFormFiles(&multipart.Form{File: map[string][]*multipart.FileHeader{"file": {}, "file1": {}}}))
+	assert.NotNil(t, validateFormFiles(&multipart.Form{File: map[string][]*multipart.FileHeader{"file": {}, "file2": {}, "file4": {}}}))
+
+	assert.Nil(t, validateFormFiles(&multipart.Form{File: map[string][]*multipart.FileHeader{"file": {}}}))
+	assert.Nil(t, validateFormFiles(&multipart.Form{File: map[string][]*multipart.FileHeader{"file": {}, "file2": {}}}))
+	assert.Nil(t, validateFormFiles(&multipart.Form{File: map[string][]*multipart.FileHeader{"file": {}, "file2": {},
+		"file3": {}, "file4": {}}}))
 }
