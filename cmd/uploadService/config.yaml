@@ -9,8 +9,10 @@ messageServer:
     pass: olia
     
 mongo:
-    url: localhost:27018
+    url: mongodb://list:olia@localhost:27018
 
+recognizerConfig:
+    path: /home/airenas/projects/list/deploy/vdu/models/config
 
 logger:
     level: info
