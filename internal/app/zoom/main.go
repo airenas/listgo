@@ -2,9 +2,12 @@ package zoom
 
 import (
 	"bitbucket.org/airenas/listgo/internal/app/manager"
+	"bitbucket.org/airenas/listgo/internal/pkg/audio"
+	"bitbucket.org/airenas/listgo/internal/pkg/loader"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
+	"bitbucket.org/airenas/listgo/internal/pkg/saver"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
@@ -61,15 +64,25 @@ func run(cmd *cobra.Command, args []string) {
 	err = ch.Qos(1, 0, false)
 	cmdapp.CheckOrPanic(err, "can't set Qos")
 
-	data.DecodeMultiCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.Decode))
+	data.DecodeMultiCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.DecodeMultiple))
 
 	data.StatusSaver, err = mongo.NewStatusSaver(mongoSessionProvider)
-	cmdapp.CheckOrPanic(err, "Can't init status saver")
+	cmdapp.CheckOrPanic(err, "can't init status saver")
 	data.ResultSaver, err = mongo.NewResultSaver(mongoSessionProvider)
-	cmdapp.CheckOrPanic(err, "Can't init result saver")
+	cmdapp.CheckOrPanic(err, "can't init result saver")
+	data.FilesGetter, err = loader.NewLocalFileList(cmdapp.Config.GetString("audio.path"))
+	cmdapp.CheckOrPanic(err, "can't init files loader")
+	data.Loader, err = loader.NewLocalFileLoader(cmdapp.Config.GetString("audio.path"))
+	cmdapp.CheckOrPanic(err, "can't init file loader")
+	data.AudioLen, err = audio.NewDurationClient(cmdapp.Config.GetString("audio.durationUrl"))
+	cmdapp.CheckOrPanic(err, "can't init file loader")
+	data.FileSaver, err = saver.NewLocalFileSaver(cmdapp.Config.GetString("audio.path"))
+	cmdapp.CheckOrPanic(err, "can't init file storage")
+	data.RequestSaver, err = mongo.NewRequestSaver(mongoSessionProvider)
+	cmdapp.CheckOrPanic(err, "can't init request saver")
 
 	err = StartWorkerService(&data)
-	cmdapp.CheckOrPanic(err, "Can't start worker service")
+	cmdapp.CheckOrPanic(err, "can't start worker service")
 
 	<-data.fc.C
 	cmdapp.Log.Infof("Exiting service")

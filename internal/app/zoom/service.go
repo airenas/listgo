@@ -1,7 +1,6 @@
 package zoom
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"path/filepath"
@@ -9,6 +8,7 @@ import (
 	"time"
 
 	"bitbucket.org/airenas/listgo/internal/app/manager"
+	"bitbucket.org/airenas/listgo/internal/app/result"
 	"bitbucket.org/airenas/listgo/internal/app/upload"
 	"bitbucket.org/airenas/listgo/internal/app/upload/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
@@ -25,11 +25,8 @@ type (
 	FilesGetter interface {
 		List(ID string) ([]string, error)
 	}
-	FileLoader interface {
-		Load(file string) ([]byte, error)
-	}
-	FileLen interface {
-		Get(rd io.Reader) (time.Duration, error)
+	AudioDuration interface {
+		Get(string, io.Reader) (time.Duration, error)
 	}
 	// ServiceData keeps data required for service work
 	ServiceData struct {
@@ -39,8 +36,8 @@ type (
 		StatusSaver         status.Saver
 		ResultSaver         manager.ResultSaver
 		FilesGetter         FilesGetter
-		Loader              FileLoader
-		AudioLen            FileLen
+		Loader              result.FileLoader
+		AudioLen            AudioDuration
 		FileSaver           upload.FileSaver
 		RequestSaver        upload.RequestSaver
 		DecodeMultiCh       <-chan amqp.Delivery
@@ -72,10 +69,10 @@ func StartWorkerService(data *ServiceData) error {
 		return errors.New("statusSaver not provided")
 	}
 	if data.FilesGetter == nil {
-		return errors.New("FilesGetter not provided")
+		return errors.New("filesGetter not provided")
 	}
 	if data.Loader == nil {
-		return errors.New("Loader not provided")
+		return errors.New("loader not provided")
 	}
 	if data.AudioLen == nil {
 		return errors.New("audio len service not provided")
@@ -149,6 +146,12 @@ func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		return true, err
 	}
 
+	err = data.MessageSender.Send(messages.NewQueueMessageFromM(&message), messages.JoinAudio,
+		messages.ResultQueueFor(messages.JoinAudio))
+	if err != nil {
+		return true, err
+	}
+
 	err = startTranscriptions(data, files, &message)
 	if err != nil {
 		if d.Redelivered {
@@ -173,7 +176,8 @@ func validateLen(data *ServiceData, files []string) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		fl, err := data.AudioLen.Get(bytes.NewBuffer(bData))
+		defer bData.Close()
+		fl, err := data.AudioLen.Get(f, bData)
 		if err != nil {
 			return false, err
 		}
@@ -181,7 +185,7 @@ func validateLen(data *ServiceData, files []string) (bool, error) {
 			len = fl
 		}
 		if !cmpDur(len, fl) {
-			cmdapp.Log.Info("File len differs %s vs %s", len.String(), fl.String())
+			cmdapp.Log.Infof("File len differs %s vs %s", len.String(), fl.String())
 			return false, nil
 		}
 	}
@@ -211,6 +215,7 @@ func startTranscription(data *ServiceData, file string, message *messages.QueueM
 	if err != nil {
 		return err
 	}
+	defer bData.Close()
 
 	id := uuid.New().String()
 	ext := filepath.Ext(file)
@@ -226,7 +231,7 @@ func startTranscription(data *ServiceData, file string, message *messages.QueueM
 		return err
 	}
 
-	err = data.FileSaver.Save(fileName, bytes.NewBuffer(bData))
+	err = data.FileSaver.Save(fileName, bData)
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ package loader
 import (
 	"errors"
 	"os"
+	"path/filepath"
 
 	"bitbucket.org/airenas/listgo/internal/app/result/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
@@ -22,7 +23,7 @@ type LocalFileLoader struct {
 func NewLocalFileLoader(path string) (*LocalFileLoader, error) {
 	cmdapp.Log.Infof("Init Local File Storage at: %s", path)
 	if path == "" {
-		return nil, errors.New("No path provided")
+		return nil, errors.New("no path provided")
 	}
 	f := LocalFileLoader{Path: path, OpenFileFunc: openFile}
 	return &f, nil
@@ -30,7 +31,7 @@ func NewLocalFileLoader(path string) (*LocalFileLoader, error) {
 
 // Load loads file from disk
 func (fs LocalFileLoader) Load(name string) (api.File, error) {
-	fileName := fs.Path + name
+	fileName := filepath.Join(fs.Path, name)
 	f, err := fs.OpenFileFunc(fileName)
 	if err != nil {
 		return nil, errors.New("Can not open file " + fileName + ". " + err.Error())
