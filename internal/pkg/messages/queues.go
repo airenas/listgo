@@ -3,8 +3,6 @@ package messages
 const (
 	// Decode queue
 	Decode string = "Decode"
-	// DecodeMultiple queue
-	DecodeMultiple string = "DecodeMultiple"
 	// Inform queue
 	Inform string = "Inform"
 	// AudioConvert queue
@@ -17,6 +15,15 @@ const (
 	Rescore string = "Rescore"
 	// ResultMake queue
 	ResultMake string = "ResultMake"
+
+	// DecodeMultiple queue
+	DecodeMultiple string = "DecodeMultiple"
+	// JoinAudio queue
+	JoinAudio string = "JoinAudio"
+	// JoinResults queue
+	JoinResults string = "JoinResults"
+	// OneCompleted queue
+	OneCompleted string = "OneCompleted"
 )
 
 const (

@@ -5,14 +5,14 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 )
 
-type fakeMessageSender struct {
+type FakeMessageSender struct {
 }
 
-func newFakeMessageSender() *fakeMessageSender {
-	return &fakeMessageSender{}
+func NewFakeMessageSender() *FakeMessageSender {
+	return &FakeMessageSender{}
 }
 
-func (fms *fakeMessageSender) Send(message messages.Message, queue string, replyQueue string) error {
+func (fms *FakeMessageSender) Send(message messages.Message, queue string, replyQueue string) error {
 	cmdapp.Log.Debug("Skip sending message")
 	return nil
 }

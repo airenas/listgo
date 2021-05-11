@@ -52,7 +52,7 @@ func run(cmd *cobra.Command, args []string) {
 	if cmdapp.Config.GetBool("sendInformMessages") {
 		data.InformMessageSender = data.MessageSender
 	} else {
-		data.InformMessageSender = newFakeMessageSender()
+		data.InformMessageSender = NewFakeMessageSender()
 	}
 
 	data.Publisher = rabbit.NewPublisher(msgChannelProvider)
