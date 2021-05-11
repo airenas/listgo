@@ -80,6 +80,10 @@ import (
 
 //go:generate pegomock generate --package=mocks --output=taskSelector.go -m bitbucket.org/airenas/listgo/internal/pkg/strategy/api TaskSelector
 
+//go:generate pegomock generate --package=mocks --output=filesGetter.go -m bitbucket.org/airenas/listgo/internal/app/zoom FilesGetter
+
+//go:generate pegomock generate --package=mocks --output=audioDuration.go -m bitbucket.org/airenas/listgo/internal/app/zoom AudioDuration
+
 //AttachMockToTest register pegomock verification to be passed to testing engine
 func AttachMockToTest(t *testing.T) {
 	pegomock.RegisterMockFailHandler(handleByTest(t))
