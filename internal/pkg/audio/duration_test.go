@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -44,7 +45,7 @@ func TestClient(t *testing.T) {
 	r, err := d.Get("1.wav", strings.NewReader("olia"))
 
 	assert.Nil(t, err)
-	assert.Equal(t, float64(10), r)
+	assert.Equal(t, time.Second*10, r)
 }
 
 func TestClient_PassFile(t *testing.T) {
