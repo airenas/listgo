@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 )
 
 // LocalFileList loads file list from local disk dir.
@@ -24,7 +25,7 @@ func NewLocalFileList(path string) (*LocalFileList, error) {
 	return &f, nil
 }
 
-// Load loads file from disk
+// List returns file list in directory
 func (fs *LocalFileList) List(dir string) ([]string, error) {
 	fileName := filepath.Join(fs.Path, dir)
 	var files []string
@@ -34,7 +35,7 @@ func (fs *LocalFileList) List(dir string) ([]string, error) {
 	}
 	for _, file := range fileInfo {
 		ext := filepath.Ext(file.Name())
-		if !file.IsDir() && (ext == ".mp4" || ext == ".wav") {
+		if !file.IsDir() && utils.SupportAudioExt(ext) {
 			files = append(files, filepath.Join(dir, file.Name()))
 		}
 	}

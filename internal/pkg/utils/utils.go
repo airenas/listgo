@@ -73,3 +73,8 @@ func HidePass(link string) string {
 	}
 	return u.String()
 }
+
+//SupportAudioExt checks if audio ext is supported
+func SupportAudioExt(ext string) bool {
+	return ext == ".wav" || ext == ".mp3" || ext == ".mp4" || ext == ".m4a"
+}

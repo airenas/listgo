@@ -79,3 +79,14 @@ func TestHidePass_Mongo(t *testing.T) {
 	assert.Equal(t, "mongodb://mongo:27017", HidePass("mongodb://mongo:27017"))
 	assert.Equal(t, "mongodb://l:----@mongo:27017", HidePass("mongodb://l:olia@mongo:27017"))
 }
+
+func TestSupportAudioExt(t *testing.T) {
+	assert.True(t, SupportAudioExt(".wav"))
+	assert.True(t, SupportAudioExt(".mp4"))
+	assert.True(t, SupportAudioExt(".mp3"))
+	assert.True(t, SupportAudioExt(".m4a"))
+
+	assert.False(t, SupportAudioExt(""))
+	assert.False(t, SupportAudioExt(".txt"))
+	assert.False(t, SupportAudioExt(".mpeg"))
+}

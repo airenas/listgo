@@ -14,6 +14,7 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
+	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/badoux/checkmail"
@@ -222,10 +223,6 @@ func cleanFiles(f *multipart.Form) {
 	}
 }
 
-func checkFileExtension(ext string) bool {
-	return ext == ".wav" || ext == ".mp3" || ext == ".mp4" || ext == ".m4a"
-}
-
 func getRecErrMsg(rec string) string {
 	if rec == "" {
 		return "No recognizer"
@@ -333,7 +330,7 @@ func takeFiles(r *http.Request, paramName string) ([]multipart.File, []*multipar
 func validateFiles(fHeaders []*multipart.FileHeader) error {
 	for _, h := range fHeaders {
 		ext := filepath.Ext(h.Filename)
-		if !checkFileExtension(strings.ToLower(ext)) {
+		if !utils.SupportAudioExt(strings.ToLower(ext)) {
 			return errors.New("wrong file extension: " + ext)
 		}
 		if strings.Contains(h.Filename, "..") {
