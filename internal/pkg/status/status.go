@@ -1,27 +1,45 @@
 package status
 
 //Status represents transcription status
-type Status struct {
-	Name string
+type Status int
+
+const (
+	//Uploaded value
+	Uploaded Status = iota + 1
+	//AudioConvert value
+	AudioConvert
+	//Diarization value
+	Diarization
+	//Transcription
+	Transcription
+	Rescore
+	ResultMake
+	JoinResults
+	Completed
+)
+
+var (
+	statusName = map[Status]string{Uploaded: "UPLOADED", Completed: "COMPLETED",
+		AudioConvert: "AudioConvert", Diarization: "Diarization",
+		Transcription: "Transcription", Rescore: "Rescore",
+		ResultMake: "ResultMake", JoinResults: "JoinResults"}
+	nameStatus = map[string]Status{"UPLOADED": Uploaded, "COMPLETED": Completed,
+		"AudioConvert": AudioConvert, "Diarization": Diarization,
+		"Transcription": Transcription, "Rescore": Rescore,
+		"ResultMake": ResultMake, "JoinResults": JoinResults}
+)
+
+func Name(st Status) string {
+	return statusName[st]
 }
 
-//Uploaded - file is in server for transcription
-var Uploaded = Status{"UPLOADED"}
+func From(st string) Status {
+	return nameStatus[st]
+}
 
-//Completed - finished
-var Completed = Status{"COMPLETED"}
-
-//AudioConvert in progress
-var AudioConvert = Status{"AudioConvert"}
-
-//Diarization in progress
-var Diarization = Status{"Diarization"}
-
-//Transcription in progress
-var Transcription = Status{"Transcription"}
-
-//Rescore in progress
-var Rescore = Status{"Rescore"}
-
-//ResultMake indicates preparing result in progress
-var ResultMake = Status{"ResultMake"}
+func Min(st1, st2 Status) Status {
+	if st1 < st2 {
+		return st1
+	}
+	return st2
+}

@@ -4,20 +4,21 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
 )
 
-var statusProgressMap = make(map[string]int32)
+var statusProgressMap = make(map[status.Status]int32)
 
 func init() {
-	statusProgressMap[status.Uploaded.Name] = 5
-	statusProgressMap[status.AudioConvert.Name] = 6
-	statusProgressMap[status.Diarization.Name] = 35
-	statusProgressMap[status.Transcription.Name] = 50
-	statusProgressMap[status.Rescore.Name] = 70
-	statusProgressMap[status.ResultMake.Name] = 90
-	statusProgressMap[status.Completed.Name] = 100
+	statusProgressMap[status.Uploaded] = 5
+	statusProgressMap[status.AudioConvert] = 6
+	statusProgressMap[status.Diarization] = 35
+	statusProgressMap[status.Transcription] = 50
+	statusProgressMap[status.Rescore] = 70
+	statusProgressMap[status.ResultMake] = 90
+	statusProgressMap[status.JoinResults] = 95
+	statusProgressMap[status.Completed] = 100
 }
 
 //Convert return percentage value of a progress for status value
-func Convert(status string) int32 {
+func Convert(status status.Status) int32 {
 	pr, found := statusProgressMap[status]
 	if found {
 		return pr

@@ -82,6 +82,10 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "can't init file storage")
 	data.RequestSaver, err = mongo.NewRequestSaver(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "can't init request saver")
+	data.DB, err = mongo.NewWorkSaver(mongoSessionProvider)
+	cmdapp.CheckOrPanic(err, "can't init work db saver")
+	data.StatusProvider, err = mongo.NewStatusProvider(mongoSessionProvider)
+	cmdapp.CheckOrPanic(err, "can't init status provider")
 
 	err = StartWorkerService(&data)
 	cmdapp.CheckOrPanic(err, "can't start worker service")

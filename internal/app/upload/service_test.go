@@ -280,7 +280,7 @@ func TestPOST_RequestSaverFails(t *testing.T) {
 	initTest(t)
 	req := newReq("filename.wav", "a@a.a", "")
 	resp := httptest.NewRecorder()
-	pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(errors.New("error"))
+	pegomock.When(requestSaverMock.Save(matchers.AnyPtrToApiRequestData())).ThenReturn(errors.New("error"))
 
 	newTestRouter().ServeHTTP(resp, req)
 
@@ -291,11 +291,11 @@ func TestPOST_RequestSaverCalled(t *testing.T) {
 	initTest(t)
 	req := newReq("filename.wav", "a@a.a", "externalID")
 	resp := httptest.NewRecorder()
-	pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(nil)
+	pegomock.When(requestSaverMock.Save(matchers.AnyPtrToApiRequestData())).ThenReturn(nil)
 
 	newTestRouter().ServeHTTP(resp, req)
 
-	rd := requestSaverMock.VerifyWasCalled(pegomock.Once()).Save(matchers.AnyApiRequestData()).GetCapturedArguments()
+	rd := requestSaverMock.VerifyWasCalled(pegomock.Once()).Save(matchers.AnyPtrToApiRequestData()).GetCapturedArguments()
 	assert.Equal(t, rd.Email, "a@a.a")
 	assert.Equal(t, rd.ExternalID, "externalID")
 	assert.Equal(t, "recKey", rd.RecognizerKey)
@@ -309,11 +309,11 @@ func TestPOST_RequestSaverMultiFiles(t *testing.T) {
 	req := newReqMap([]string{"file.wav", "file2.wav", "olia.mp4"}, map[string]string{"email": "a@a.lt",
 		"recognizer": "rec"})
 	resp := httptest.NewRecorder()
-	pegomock.When(requestSaverMock.Save(matchers.AnyApiRequestData())).ThenReturn(nil)
+	pegomock.When(requestSaverMock.Save(matchers.AnyPtrToApiRequestData())).ThenReturn(nil)
 
 	newTestRouter().ServeHTTP(resp, req)
 
-	rd := requestSaverMock.VerifyWasCalled(pegomock.Once()).Save(matchers.AnyApiRequestData()).GetCapturedArguments()
+	rd := requestSaverMock.VerifyWasCalled(pegomock.Once()).Save(matchers.AnyPtrToApiRequestData()).GetCapturedArguments()
 	assert.Equal(t, rd.Email, "a@a.lt")
 	assert.Equal(t, "rec", rd.RecognizerKey)
 	assert.Equal(t, "recID", rd.RecognizerID)

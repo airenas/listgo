@@ -166,7 +166,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fileName = id + ext
 	}
 
-	err = h.data.RequestSaver.Save(api.RequestData{ID: id, Email: email, File: fileName, ExternalID: externalID,
+	err = h.data.RequestSaver.Save(&api.RequestData{ID: id, Email: email, File: fileName, ExternalID: externalID,
 		RecognizerKey: recognizer, RecognizerID: recID})
 	if err != nil {
 		http.Error(w, "Can not save request to DB", http.StatusInternalServerError)

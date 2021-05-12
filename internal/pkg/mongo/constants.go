@@ -5,7 +5,7 @@ const (
 	statusTable  = "status"
 	resultTable  = "result"
 	requestTable = "request"
-	relatedTable = "related"
+	workTable    = "work"
 	emailTable   = "emailLock"
 )
 
@@ -14,5 +14,5 @@ var indexData = []IndexData{
 	newIndexData(resultTable, "ID", true),
 	newIndexData(requestTable, "ID", true),
 	newIndexData(emailTable, "ID", false),
-	newIndexData(relatedTable, "ID", true),
+	newIndexData(workTable, "ID", true),
 }

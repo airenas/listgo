@@ -9,9 +9,11 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/app/manager"
 	"bitbucket.org/airenas/listgo/internal/app/result"
+	stapi "bitbucket.org/airenas/listgo/internal/app/status/api"
 	"bitbucket.org/airenas/listgo/internal/app/upload"
 	"bitbucket.org/airenas/listgo/internal/app/upload/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
@@ -22,8 +24,15 @@ import (
 )
 
 type (
+	StatusProvider interface {
+		Get(ID string) (*stapi.TranscriptionResult, error)
+	}
 	FilesGetter interface {
 		List(ID string) ([]string, error)
+	}
+	WorkPersistence interface {
+		Save(*persistence.WorkData) error
+		Get(ID string) (*persistence.WorkData, error)
 	}
 	AudioDuration interface {
 		Get(string, io.Reader) (time.Duration, error)
@@ -34,12 +43,14 @@ type (
 		InformMessageSender messages.Sender
 		Publisher           messages.Publisher
 		StatusSaver         status.Saver
+		StatusProvider      StatusProvider
 		ResultSaver         manager.ResultSaver
 		FilesGetter         FilesGetter
 		Loader              result.FileLoader
 		AudioLen            AudioDuration
 		FileSaver           upload.FileSaver
 		RequestSaver        upload.RequestSaver
+		DB                  WorkPersistence
 		DecodeMultiCh       <-chan amqp.Delivery
 		JoinAudioCh         <-chan amqp.Delivery
 		JoinResultsCh       <-chan amqp.Delivery
@@ -83,6 +94,12 @@ func StartWorkerService(data *ServiceData) error {
 	}
 	if data.RequestSaver == nil {
 		return errors.New("requestSaver not provided")
+	}
+	if data.DB == nil {
+		return errors.New("db not provided")
+	}
+	if data.StatusProvider == nil {
+		return errors.New("status provider not provided")
 	}
 
 	cmdapp.Log.Infof("Starting listen for messages")
@@ -154,7 +171,7 @@ func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		return true, err
 	}
 
-	err = startTranscriptions(data, files, &message)
+	ids, err := startTranscriptions(data, files, &message)
 	if err != nil {
 		if d.Redelivered {
 			if err := data.StatusSaver.SaveError(message.ID, "Can't start transcription. "+err.Error()); err != nil {
@@ -166,6 +183,9 @@ func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 			return false, err
 		}
 		return true, err
+	}
+	if err := data.DB.Save(&persistence.WorkData{ID: message.ID, Related: ids}); err != nil {
+		return true, errors.Wrapf(err, "can't save related ids")
 	}
 	return false, nil
 }
@@ -202,20 +222,22 @@ func cmpDur(d1, d2 time.Duration) bool {
 	return diff < time.Second
 }
 
-func startTranscriptions(data *ServiceData, files []string, message *messages.QueueMessage) error {
+func startTranscriptions(data *ServiceData, files []string, message *messages.QueueMessage) ([]string, error) {
+	res := make([]string, 0)
 	for _, f := range files {
-		err := startTranscription(data, f, message)
+		id, err := startTranscription(data, f, message)
 		if err != nil {
-			return err
+			return nil, err
 		}
+		res = append(res, id)
 	}
-	return nil
+	return res, nil
 }
 
-func startTranscription(data *ServiceData, file string, message *messages.QueueMessage) error {
+func startTranscription(data *ServiceData, file string, message *messages.QueueMessage) (string, error) {
 	bData, err := data.Loader.Load(file)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer bData.Close()
 
@@ -223,19 +245,19 @@ func startTranscription(data *ServiceData, file string, message *messages.QueueM
 	ext := filepath.Ext(file)
 	fileName := id + ext
 
-	err = data.RequestSaver.Save(api.RequestData{ID: id, File: fileName, RecognizerID: message.Recognizer})
+	err = data.RequestSaver.Save(&api.RequestData{ID: id, File: fileName, RecognizerID: message.Recognizer})
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	err = data.StatusSaver.Save(id, status.Uploaded)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	err = data.FileSaver.Save(fileName, bData)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	tags := make([]messages.Tag, 0)
@@ -252,7 +274,7 @@ func startTranscription(data *ServiceData, file string, message *messages.QueueM
 		messages.NewTag(messages.TagResultQueue, messages.OneCompleted),
 	)
 
-	return data.MessageSender.Send(messages.NewQueueMessage(id, message.Recognizer, tags), messages.Decode, "")
+	return id, data.MessageSender.Send(messages.NewQueueMessage(id, message.Recognizer, tags), messages.Decode, "")
 }
 
 func sendInformFailure(message *messages.QueueMessage, data *ServiceData) {
@@ -276,11 +298,60 @@ func newInformMessage(msg *messages.QueueMessage, it string) *messages.InformMes
 func gotStatus(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	var message messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
-		return false, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
+		return false, errors.Wrap(err, "can't unmarshal message "+string(d.Body))
 	}
 
 	cmdapp.Log.Infof("Got %s msg :%s (%s)", messages.OneStatus, message.ID, message.Recognizer)
+	pID, ok := messages.GetTag(message.Tags, messages.TagParentID)
+	if !ok {
+		return false, errors.New("no parent ID")
+	}
+	cmdapp.Log.Infof("Parent ID %s", pID)
+	wd, err := data.DB.Get(pID)
+	if err != nil {
+		return true, errors.Wrapf(err, "can't load work data")
+	}
+	st, err := data.StatusProvider.Get(pID)
+	if err != nil {
+		return true, errors.Wrapf(err, "can't load status")
+	}
+	if st.Error != "" || st.ErrorCode != "" { // already failed
+		return false, nil
+	}
 
+	nStatus := status.Completed
+	msg := messages.NewQueueMessage(pID, message.Recognizer, message.Tags)
+	for _, id := range wd.Related {
+		cSt, err := data.StatusProvider.Get(id)
+		cStatus := status.From(cSt.Status)
+		if err != nil {
+			return true, errors.Wrapf(err, "can't load status")
+		}
+		if cSt.Error != "" || cSt.ErrorCode != "" {
+			msg.Error = cSt.Error
+			if msg.Error == "" {
+				msg.Error = cSt.ErrorCode
+			}
+			c, err := processStatus(msg, data, messages.OneStatus, status.JoinResults)
+			if !c {
+				if err != nil {
+					cmdapp.Log.Error(err)
+				}
+				return true, err
+			}
+			break
+		}
+		nStatus = status.Min(nStatus, cStatus)
+	}
+	if nStatus != status.From(st.Status) && nStatus != status.Completed {
+		c, err := processStatus(msg, data, messages.OneStatus, nStatus)
+		if !c {
+			if err != nil {
+				cmdapp.Log.Error(err)
+			}
+			return true, err
+		}
+	}
 	return false, nil
 }
 
@@ -288,11 +359,92 @@ func gotStatus(d *amqp.Delivery, data *ServiceData) (bool, error) {
 func completed(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	var message messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
-		return false, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
+		return false, errors.Wrap(err, "can't unmarshal message "+string(d.Body))
 	}
 
 	cmdapp.Log.Infof("Got %s msg :%s (%s)", messages.OneCompleted, message.ID, message.Recognizer)
+	pID, ok := messages.GetTag(message.Tags, messages.TagParentID)
+	if !ok {
+		return false, errors.New("no parent ID")
+	}
+	cmdapp.Log.Infof("Parent ID %s", pID)
+	wd, err := data.DB.Get(pID)
+	if err != nil {
+		return true, errors.Wrapf(err, "can't load work data")
+	}
+	st, err := data.StatusProvider.Get(pID)
+	if err != nil {
+		return true, errors.Wrapf(err, "can't load status")
+	}
+	if st.Error != "" || st.ErrorCode != "" { // already failed
+		return false, nil
+	}
+
+	done := len(wd.Related) > 0
+	for _, id := range wd.Related {
+		cSt, err := data.StatusProvider.Get(id)
+		if err != nil {
+			return true, errors.Wrapf(err, "can't load status")
+		}
+		if cSt.Error != "" || cSt.ErrorCode != "" {
+			msg := messages.NewQueueMessage(pID, message.Recognizer, message.Tags)
+			msg.Error = cSt.Error
+			if msg.Error == "" {
+				msg.Error = cSt.ErrorCode
+			}
+			c, err := processStatus(msg, data, messages.OneCompleted, status.JoinResults)
+			if !c {
+				if err != nil {
+					cmdapp.Log.Error(err)
+				}
+				return true, err
+			}
+			done = false
+			break
+		}
+		if status.From(cSt.Status) != status.Completed {
+			cmdapp.Log.Debugf("Not finished ID %s", id)
+			done = false
+		}
+	}
+
+	if done {
+		msg := messages.NewQueueMessage(pID, message.Recognizer, message.Tags)
+		c, err := processStatus(msg, data, messages.OneCompleted, status.JoinResults)
+		if !c {
+			if err != nil {
+				cmdapp.Log.Error(err)
+			}
+			return true, err
+		}
+		err = data.MessageSender.Send(messages.NewQueueMessage(pID, message.Recognizer, message.Tags), messages.JoinResults,
+			messages.ResultQueueFor(messages.JoinResults))
+		if err != nil {
+			return true, err
+		}
+	}
 
 	return false, nil
 }
 
+func processStatus(message *messages.QueueMessage, data *ServiceData, from string, to status.Status) (bool, error) {
+	cmdapp.Log.Infof("Got %s msg :%s (%s)", from, message.ID, message.Recognizer)
+	if message.Error != "" {
+		err := data.StatusSaver.SaveError(message.ID, message.Error)
+		if err != nil {
+			cmdapp.Log.Error(err)
+			return false, err
+		}
+		publishStatusChange(message, data)
+		sendInformFailure(message, data)
+		return false, nil
+	}
+	err := data.StatusSaver.Save(message.ID, to)
+	if err != nil {
+		cmdapp.Log.Error(err)
+		sendInformFailure(message, data)
+		return false, err
+	}
+	publishStatusChange(message, data)
+	return true, nil
+}

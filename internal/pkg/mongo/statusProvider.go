@@ -1,13 +1,16 @@
 package mongo
 
 import (
+	"context"
+
 	"bitbucket.org/airenas/listgo/internal/app/status/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/err"
+	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
 	"bitbucket.org/airenas/listgo/internal/pkg/progress"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
-	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
+	"go.mongodb.org/mongo-driver/bson"
+	mgo "go.mongodb.org/mongo-driver/mongo"
 )
 
 // StatusProvider provides transcription status from mongo db
@@ -25,17 +28,20 @@ func NewStatusProvider(sessionProvider *SessionProvider) (*StatusProvider, error
 func (fs StatusProvider) Get(id string) (*api.TranscriptionResult, error) {
 	cmdapp.Log.Infof("Retrieving status %s", id)
 
+	ctx, cancel := mongoContext()
+	defer cancel()
+
 	session, err := fs.SessionProvider.NewSession()
 	if err != nil {
 		return nil, err
 	}
-	defer session.Close()
+	defer session.EndSession(context.Background())
 
-	c := session.DB(store).C(statusTable)
+	c := session.Client().Database(store).Collection(statusTable)
 
-	var m bson.M
-	err = c.Find(bson.M{"ID": id}).One(&m)
-	if err == mgo.ErrNotFound {
+	var m persistence.Status
+	err = c.FindOne(ctx, bson.M{"ID": id}).Decode(&m)
+	if err == mgo.ErrNoDocuments {
 		cmdapp.Log.Infof("ID not found %s", id)
 		return newNotFoundResult(id), nil
 	}
@@ -46,46 +52,35 @@ func (fs StatusProvider) Get(id string) (*api.TranscriptionResult, error) {
 
 	result := api.TranscriptionResult{ID: id}
 
-	st, ok := m["status"].(string)
-	if ok {
-		result.Status = st
-	}
-	errorCodeStr, ok := m["errorCode"].(string)
-	if ok {
-		result.ErrorCode = errorCodeStr
-	}
-	errorStr, ok := m["error"].(string)
-	if ok {
-		result.Error = errorStr
-	}
-	result.Progress = progress.Convert(result.Status)
-	if result.Status == status.Completed.Name {
-		result.RecognizedText, err = getResultText(session, id)
+	result.Status = m.Status
+	result.ErrorCode = m.ErrorCode
+	result.Error = m.Error
+	stv := status.From(result.Status)
+	result.Progress = progress.Convert(stv)
+	if stv == status.Completed {
+		result.RecognizedText, err = getResultText(ctx, session, id)
 	}
 
 	return &result, err
 }
 
 // Get retrieves status from DB
-func getResultText(session *mgo.Session, id string) (string, error) {
+func getResultText(ctx context.Context, session mgo.Session, id string) (string, error) {
 	cmdapp.Log.Infof("Retrieving result %s", id)
 
-	c := session.DB(store).C(resultTable)
+	c := session.Client().Database(store).Collection(resultTable)
 
-	var m bson.M
-	err := c.Find(bson.M{"ID": id}).One(&m)
-	if err == mgo.ErrNotFound {
+	var m persistence.Result
+
+	err := c.FindOne(ctx, bson.M{"ID": id}).Decode(&m)
+	if err == mgo.ErrNoDocuments {
 		cmdapp.Log.Infof("ID not found %s", id)
 		return "", nil
 	}
 	if err != nil {
 		return "", err
 	}
-	text, ok := m["text"].(string)
-	if ok {
-		return text, nil
-	}
-	return "", nil
+	return m.Text, nil
 }
 
 func newNotFoundResult(ID string) *api.TranscriptionResult {

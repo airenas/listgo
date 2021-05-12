@@ -1,10 +1,13 @@
 package mongo
 
 import (
+	"context"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/err"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
-	"github.com/globalsign/mgo/bson"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type errCodeExtractor interface {
@@ -24,35 +27,42 @@ func NewStatusSaver(sessionProvider *SessionProvider) (*StatusSaver, error) {
 }
 
 // Save saves status to DB
-func (ss *StatusSaver) Save(ID string, status status.Status) error {
-	cmdapp.Log.Infof("Saving status %s: %s", ID, status.Name)
+func (ss *StatusSaver) Save(ID string, st status.Status) error {
+	cmdapp.Log.Infof("Saving status %s: %s", ID, status.Name(st))
+
+	ctx, cancel := mongoContext()
+	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()
 	if err != nil {
 		return err
 	}
-	defer session.Close()
+	defer session.EndSession(context.Background())
 
-	c := session.DB(store).C(statusTable)
-	_, err = c.Upsert(bson.M{"ID": ID},
-		bson.M{"$set": bson.M{"status": status.Name}, "$unset": bson.M{"error": 1, "errorCode": 1}})
-	return err
+	c := session.Client().Database(store).Collection(statusTable)
+
+	return c.FindOneAndUpdate(ctx, bson.M{"ID": sanitize(ID)},
+		bson.M{"$set": bson.M{"status": status.Name(st)}, "$unset": bson.M{"error": 1, "errorCode": 1}},
+		options.FindOneAndUpdate().SetUpsert(true)).Err()
 }
 
 //SaveError saves error to DB
-func (ss *StatusSaver) SaveError(id string, errorStr string) error {
-	cmdapp.Log.Infof("Saving error %s: %s", id, errorStr)
+func (ss *StatusSaver) SaveError(ID string, errorStr string) error {
+	cmdapp.Log.Infof("Saving error %s: %s", ID, errorStr)
+
+	ctx, cancel := mongoContext()
+	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()
 	if err != nil {
 		return err
 	}
-	defer session.Close()
+	defer session.EndSession(context.Background())
+
+	c := session.Client().Database(store).Collection(statusTable)
 	errorCode := ss.errCodeExtractor.Get(errorStr)
-	c := session.DB(store).C(statusTable)
-	_, err = c.Upsert(
-		bson.M{"ID": id},
+
+	return c.FindOneAndUpdate(ctx, bson.M{"ID": sanitize(ID)},
 		bson.M{"$set": bson.M{"error": errorStr, "errorCode": errorCode}},
-	)
-	return err
+		options.FindOneAndUpdate().SetUpsert(true)).Err()
 }

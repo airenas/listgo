@@ -1,9 +1,11 @@
 package mongo
 
 import (
+	"context"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Locker acquires lock in db
@@ -21,41 +23,47 @@ func NewLocker(sessionProvider *SessionProvider) (*Locker, error) {
 func (ss *Locker) Lock(id string, lockKey string) error {
 	cmdapp.Log.Infof("Locking %s: %s", id, lockKey)
 
+	ctx, cancel := mongoContext()
+	defer cancel()
+
 	session, err := ss.SessionProvider.NewSession()
 	if err != nil {
 		return err
 	}
-	defer session.Close()
+	defer session.EndSession(context.Background())
 
-	c := session.DB(store).C(emailTable)
+	c := session.Client().Database(store).Collection(emailTable)
 
 	// make sure we have the record
-	_, err = c.Upsert(bson.M{"ID": id, "key": lockKey}, bson.M{"$setOnInsert": bson.M{"status": 0}})
+	err = c.FindOneAndUpdate(ctx, bson.M{
+		"$and": []bson.M{{"ID": sanitize(id)}, {"key": lockKey}}},
+		bson.M{"$setOnInsert": bson.M{"status": 0}},
+		options.FindOneAndUpdate().SetUpsert(true)).Err()
 	if err != nil {
 		return err
 	}
 
-	change := mgo.Change{Update: bson.M{"$set": bson.M{"status": 1}}, ReturnNew: true}
-	var lockRecord interface{}
-	_, err = c.Find(bson.M{"ID": id, "key": lockKey, "status": 0}).Apply(change, &lockRecord)
-	return err
+	return c.FindOneAndUpdate(ctx, bson.M{
+		"$and": []bson.M{{"ID": sanitize(id)}, {"key": lockKey}, {"status": 0}}},
+		bson.M{"$set": bson.M{"status": 1}}, options.FindOneAndUpdate().SetUpsert(false)).Err()
 }
 
 //UnLock marks record with specific value
 func (ss *Locker) UnLock(id string, lockKey string, value *int) error {
 	cmdapp.Log.Infof("Unlocking table %s: %s", id, lockKey)
 
+	ctx, cancel := mongoContext()
+	defer cancel()
+
 	session, err := ss.SessionProvider.NewSession()
 	if err != nil {
 		return err
 	}
-	defer session.Close()
+	defer session.EndSession(context.Background())
 
-	c := session.DB(store).C(emailTable)
+	c := session.Client().Database(store).Collection(emailTable)
 
-	change := mgo.Change{Update: bson.M{"$set": bson.M{"status": *value}}, ReturnNew: true}
-	var lockRecord interface{}
-	_, err = c.Find(bson.M{"ID": id, "key": lockKey, "status": 1}).Apply(change, &lockRecord)
-	cmdapp.LogIf(err)
-	return err
+	return c.FindOneAndUpdate(ctx, bson.M{
+		"$and": []bson.M{{"ID": sanitize(id)}, {"key": lockKey}, {"status": 0}}},
+		bson.M{"$set": bson.M{"status": *value}}, options.FindOneAndUpdate().SetUpsert(false)).Err()
 }

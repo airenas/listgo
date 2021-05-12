@@ -29,6 +29,8 @@ var loaderMock *mocks.MockFileLoader
 var saverMock *mocks.MockFileSaver
 var requestSaverMock *mocks.MockRequestSaver
 var fileMock *mocks.MockFile
+var dbMock *mocks.MockWorkPersistence
+var statusMock *mocks.MockProvider
 
 func initTest(t *testing.T) {
 	mocks.AttachMockToTest(t)
@@ -42,7 +44,10 @@ func initTest(t *testing.T) {
 	loaderMock = mocks.NewMockFileLoader()
 	saverMock = mocks.NewMockFileSaver()
 	requestSaverMock = mocks.NewMockRequestSaver()
+	dbMock = &mocks.MockWorkPersistence{}
 	fileMock = mocks.NewMockFile()
+	statusMock = mocks.NewMockProvider()
+
 }
 
 func TestInitManagerNoResultSaver(t *testing.T) {
@@ -100,6 +105,14 @@ func TestInitManager_Fails(t *testing.T) {
 	data = newTestServiceData(t)
 	data.StatusSaver = nil
 	assert.NotNil(t, StartWorkerService(data))
+
+	data = newTestServiceData(t)
+	data.DB = nil
+	assert.NotNil(t, StartWorkerService(data))
+
+	data = newTestServiceData(t)
+	data.StatusProvider = nil
+	assert.NotNil(t, StartWorkerService(data))
 }
 
 type testdata struct {
@@ -126,6 +139,8 @@ func newTestServiceData(t *testing.T) *ServiceData {
 	res.Loader = loaderMock
 	res.FileSaver = saverMock
 	res.RequestSaver = requestSaverMock
+	res.DB = dbMock
+	res.StatusProvider = statusMock
 	return res
 }
 

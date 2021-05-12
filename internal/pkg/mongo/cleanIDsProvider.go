@@ -1,12 +1,15 @@
 package mongo
 
 import (
+	"context"
 	"time"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 	"github.com/pkg/errors"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	mgo "go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // CleanIDsProvider returns old IDs to remove from system
@@ -25,59 +28,67 @@ func NewCleanIDsProvider(sessionProvider *SessionProvider, expireDuration time.D
 func (p *CleanIDsProvider) Get() ([]string, error) {
 	expDate := time.Now().Add(-p.expireDuration)
 	cmdapp.Log.Infof("Getting old records, time < %s", expDate.String())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
 	session, err := p.SessionProvider.NewSession()
 	if err != nil {
 		return nil, err
 	}
-	defer session.Close()
+	defer session.EndSession(context.Background())
 
-	c := session.DB(store).C(requestTable)
-	from := 0
-	maxRecords := 10
-	result := make([]string, 0)
-	var m []bson.M
+	c := session.Client().Database(store).Collection(requestTable)
+	from := int64(0)
+	maxRecords := int64(10)
+	res := make([]string, 0)
 	for {
-		err = c.Find(nil).Sort("_id").Skip(from).Limit(maxRecords).All(&m)
+		cursor, err := c.Find(ctx, bson.M{}, options.Find().SetSort(bson.M{"_id": 1}).SetSkip(from).SetLimit(maxRecords))
 		if err != nil {
-			if err != mgo.ErrNotFound {
-				return nil, errors.Wrap(err, "Can't select from "+requestTable)
+			if err != mgo.ErrNoDocuments {
+				return nil, errors.Wrap(err, "can't select from "+requestTable)
 			}
-			return result, nil
+			return res, nil
 		}
-		cmdapp.Log.Debugf("Loaded %d records", len(m))
-		for _, r := range m {
+		var recs []bson.M
+		if err := cursor.All(ctx, &recs); err != nil {
+			return nil, errors.Wrap(err, "can't get data")
+		}
+		cmdapp.Log.Debugf("Loaded %d records", len(recs))
+		for _, r := range recs {
 			if p.isOld(r, expDate) {
 				id, err := getID(r)
 				if err != nil {
 					return nil, err
 				}
-				result = append(result, id)
+				res = append(res, id)
 			} else {
-				return result, nil
+				return res, nil
 			}
 		}
+
 		from = from + maxRecords
-		if from > len(result) {
-			return result, nil
+		if from > int64(len(res)) {
+			return res, nil
 		}
 		// do futher selection
 	}
 }
 
 func (p *CleanIDsProvider) isOld(m bson.M, expireDate time.Time) bool {
-	id, ok := m["_id"].(bson.ObjectId)
+	id, ok := m["_id"].(primitive.ObjectID)
 	if !ok {
 		cmdapp.Log.Warn("_id not found in record")
 		return false
 	}
-	cmdapp.Log.Debugf("_id time %s", id.Time().String())
-	return id.Time().Before(expireDate)
+	cmdapp.Log.Debugf("_id time %s", id.Timestamp().String())
+	return id.Timestamp().Before(expireDate)
 }
 
 func getID(m bson.M) (string, error) {
 	id, ok := m["ID"].(string)
 	if !ok || id == "" {
-		return "", errors.New("Empty ID")
+		return "", errors.New("empty ID")
 	}
 	return id, nil
 }

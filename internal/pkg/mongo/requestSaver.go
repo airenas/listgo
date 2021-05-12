@@ -1,9 +1,12 @@
 package mongo
 
 import (
+	"context"
+
 	"bitbucket.org/airenas/listgo/internal/app/upload/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"github.com/globalsign/mgo/bson"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // RequestSaver saves process request to mongo db
@@ -18,17 +21,22 @@ func NewRequestSaver(sessionProvider *SessionProvider) (*RequestSaver, error) {
 }
 
 // Save saves resquest to DB
-func (ss *RequestSaver) Save(data api.RequestData) error {
+func (ss *RequestSaver) Save(data *api.RequestData) error {
 	cmdapp.Log.Infof("Saving request %s: %s", data.ID, data.Email)
+
+	ctx, cancel := mongoContext()
+	defer cancel()
 
 	session, err := ss.SessionProvider.NewSession()
 	if err != nil {
 		return err
 	}
-	defer session.Close()
+	defer session.EndSession(context.Background())
 
-	c := session.DB(store).C(requestTable)
-	_, err = c.Upsert(bson.M{"ID": data.ID}, bson.M{"$set": bson.M{"email": data.Email, "file": data.File,
-		"externalID": data.ExternalID, "recognizerKey": data.RecognizerKey, "recognizerID": data.RecognizerID}})
-	return err
+	c := session.Client().Database(store).Collection(requestTable)
+
+	return c.FindOneAndUpdate(ctx, bson.M{"ID": sanitize(data.ID)},
+		bson.M{"$set": bson.M{"email": data.Email, "file": data.File,
+			"externalID": data.ExternalID, "recognizerKey": data.RecognizerKey, "recognizerID": data.RecognizerID}},
+		options.FindOneAndUpdate().SetUpsert(true)).Err()
 }

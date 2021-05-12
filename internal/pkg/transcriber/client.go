@@ -80,7 +80,7 @@ func (sp *Client) GetStatus(ID string) (*kafkaapi.Status, error) {
 	res.ErrorCode = result.ErrorCode
 	res.Error = result.Error
 	res.Text = result.RecognizedText
-	res.Completed = result.Status == status.Completed.Name
+	res.Completed = status.From(result.Status) == status.Completed
 
 	return &res, nil
 }

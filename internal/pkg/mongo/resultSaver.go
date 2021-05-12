@@ -1,8 +1,11 @@
 package mongo
 
 import (
+	"context"
+
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"github.com/globalsign/mgo/bson"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // ResultSaver saves process status to mongo db
@@ -20,16 +23,18 @@ func NewResultSaver(sessionProvider *SessionProvider) (*ResultSaver, error) {
 func (fs *ResultSaver) Save(ID string, result string) error {
 	cmdapp.Log.Infof("Saving result for %s", ID)
 
+	ctx, cancel := mongoContext()
+	defer cancel()
+
 	session, err := fs.SessionProvider.NewSession()
 	if err != nil {
 		return err
 	}
-	defer session.Close()
+	defer session.EndSession(context.Background())
 
-	c := session.DB(store).C(resultTable)
-	_, err = c.Upsert(
-		bson.M{"ID": ID},
+	c := session.Client().Database(store).Collection(resultTable)
+
+	return c.FindOneAndUpdate(ctx, bson.M{"ID": sanitize(ID)},
 		bson.M{"$set": bson.M{"text": result}},
-	)
-	return err
+		options.FindOneAndUpdate().SetUpsert(true)).Err()
 }
