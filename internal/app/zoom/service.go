@@ -44,6 +44,7 @@ type (
 		JoinAudioCh         <-chan amqp.Delivery
 		JoinResultsCh       <-chan amqp.Delivery
 		OneCompletedCh      <-chan amqp.Delivery
+		OneStatusCh         <-chan amqp.Delivery
 		fc                  *utils.MultiCloseChannel
 	}
 )
@@ -87,6 +88,8 @@ func StartWorkerService(data *ServiceData) error {
 	cmdapp.Log.Infof("Starting listen for messages")
 
 	go listenQueue(data.DecodeMultiCh, decode, data)
+	go listenQueue(data.OneStatusCh, gotStatus, data)
+	go listenQueue(data.OneCompletedCh, completed, data)
 
 	return nil
 }
@@ -112,7 +115,6 @@ func listenQueue(q <-chan amqp.Delivery, f prFunc, data *ServiceData) {
 // 2. validate file lengths
 // 3. copy each file for transcription
 // 4. send 'Decode' event for each file
-
 func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	var message messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
@@ -244,7 +246,11 @@ func startTranscription(data *ServiceData, file string, message *messages.QueueM
 		tags = append(tags, t)
 	}
 	tags = append(tags, messages.NewTag(messages.TagNumberOfSpeakers, "1"),
-		messages.NewTag(messages.TagTimestamp, strconv.FormatInt(time.Now().Unix(), 10)))
+		messages.NewTag(messages.TagTimestamp, strconv.FormatInt(time.Now().Unix(), 10)),
+		messages.NewTag(messages.TagParentID, message.ID),
+		messages.NewTag(messages.TagStatusQueue, messages.OneStatus),
+		messages.NewTag(messages.TagResultQueue, messages.OneCompleted),
+	)
 
 	return data.MessageSender.Send(messages.NewQueueMessage(id, message.Recognizer, tags), messages.Decode, "")
 }
@@ -265,3 +271,28 @@ func newInformMessage(msg *messages.QueueMessage, it string) *messages.InformMes
 	return &messages.InformMessage{QueueMessage: messages.QueueMessage{ID: msg.ID, Recognizer: msg.Recognizer, Tags: msg.Tags},
 		Type: it, At: time.Now().UTC()}
 }
+
+//gotStatus precess status msgs from child transcriptions
+func gotStatus(d *amqp.Delivery, data *ServiceData) (bool, error) {
+	var message messages.QueueMessage
+	if err := json.Unmarshal(d.Body, &message); err != nil {
+		return false, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
+	}
+
+	cmdapp.Log.Infof("Got %s msg :%s (%s)", messages.OneStatus, message.ID, message.Recognizer)
+
+	return false, nil
+}
+
+//completed precess result msgs from child transcriptions
+func completed(d *amqp.Delivery, data *ServiceData) (bool, error) {
+	var message messages.QueueMessage
+	if err := json.Unmarshal(d.Body, &message); err != nil {
+		return false, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
+	}
+
+	cmdapp.Log.Infof("Got %s msg :%s (%s)", messages.OneCompleted, message.ID, message.Recognizer)
+
+	return false, nil
+}
+

@@ -17,6 +17,12 @@ const (
 	TagNumberOfSpeakers = "number_of_speakers"
 	//TagSkipNumJoin skips joining of numbers in final transcription
 	TagSkipNumJoin = "skip_num_join"
+	//TagParentID id of parent transcription
+	TagParentID = "parent_id"
+	//TagResultQueue //TagStatusQueue is queue name for result message
+	TagResultQueue = "result_queue"
+	//TagStatusQueue is queue name for status messages
+	TagStatusQueue = "status_queue"
 )
 
 //QueueMessage message going throuht broker
@@ -75,4 +81,14 @@ func NewQueueMsgWithError(id string, errMsg string) *QueueMessage {
 //NewTag creates new tag
 func NewTag(key string, value string) Tag {
 	return Tag{Key: key, Value: value}
+}
+
+//GetTag retrieves tag value from tag list
+func GetTag(tags []Tag, key string) (string, bool) {
+	for _, t := range tags {
+		if t.Key == key {
+			return t.Value, true
+		}
+	}
+	return "", false
 }

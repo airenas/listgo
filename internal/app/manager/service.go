@@ -215,6 +215,10 @@ func resultMakeFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		}
 		return true, err
 	}
+	if tq, ok := messages.GetTag(message.Tags, messages.TagResultQueue); ok {
+		err := data.MessageSender.Send(message, tq, "")
+		cmdapp.LogIf(err)
+	}
 	return true, data.InformMessageSender.Send(newInformMessage(&message.QueueMessage, messages.InformType_Finished),
 		messages.Inform, "")
 }
@@ -256,12 +260,22 @@ func sendInformFailure(message *messages.QueueMessage, data *ServiceData) {
 	cmdapp.Log.Infof("Trying send inform msg about failure %s", message.ID)
 	err := data.InformMessageSender.Send(newInformMessage(message, messages.InformType_Failed), messages.Inform, "")
 	cmdapp.LogIf(err)
+	if tq, ok := messages.GetTag(message.Tags, messages.TagResultQueue); ok {
+		msg := messages.NewQueueMessageFromM(message)
+		err := data.MessageSender.Send(msg, tq, "")
+		cmdapp.LogIf(err)
+	}
 }
 
 func publishStatusChange(message *messages.QueueMessage, data *ServiceData) {
 	cmdapp.Log.Infof("Publishing status change %s", message.ID)
 	err := data.Publisher.Publish(message.ID, messages.TopicStatusChange)
 	cmdapp.LogIf(err)
+	if tq, ok := messages.GetTag(message.Tags, messages.TagStatusQueue); ok {
+		msg := messages.NewQueueMessageFromM(message)
+		err := data.MessageSender.Send(msg, tq, "")
+		cmdapp.LogIf(err)
+	}
 }
 
 func newInformMessage(msg *messages.QueueMessage, it string) *messages.InformMessage {

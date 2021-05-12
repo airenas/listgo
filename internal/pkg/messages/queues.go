@@ -24,6 +24,8 @@ const (
 	JoinResults string = "JoinResults"
 	// OneCompleted queue
 	OneCompleted string = "OneCompleted"
+	// OneStatus queue
+	OneStatus string = "OneStatus"
 )
 
 const (

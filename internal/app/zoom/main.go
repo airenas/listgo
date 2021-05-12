@@ -65,6 +65,8 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.CheckOrPanic(err, "can't set Qos")
 
 	data.DecodeMultiCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.DecodeMultiple))
+	data.OneStatusCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.OneStatus))
+	data.OneCompletedCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.OneCompleted))
 
 	data.StatusSaver, err = mongo.NewStatusSaver(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "can't init status saver")
@@ -100,7 +102,7 @@ func initQueues(prv *rabbit.ChannelProvider) error {
 		queues := []string{messages.DecodeMultiple,
 			messages.JoinAudio, messages.ResultQueueFor(messages.JoinAudio),
 			messages.JoinResults, messages.ResultQueueFor(messages.JoinResults),
-			messages.OneCompleted}
+			messages.OneCompleted, messages.OneStatus}
 		for _, queue := range queues {
 			_, err := rabbit.DeclareQueue(ch, prv.QueueName(queue))
 			if err != nil {
