@@ -3,8 +3,8 @@ package mongo
 import (
 	"context"
 
-	"bitbucket.org/airenas/listgo/internal/app/upload/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -21,7 +21,7 @@ func NewRequestSaver(sessionProvider *SessionProvider) (*RequestSaver, error) {
 }
 
 // Save saves resquest to DB
-func (ss *RequestSaver) Save(data *api.RequestData) error {
+func (ss *RequestSaver) Save(data *persistence.Request) error {
 	cmdapp.Log.Infof("Saving request %s: %s", data.ID, data.Email)
 
 	ctx, cancel := mongoContext()

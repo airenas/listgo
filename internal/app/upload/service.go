@@ -13,6 +13,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/app/upload/api"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
@@ -166,7 +167,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fileName = id + ext
 	}
 
-	err = h.data.RequestSaver.Save(&api.RequestData{ID: id, Email: email, File: fileName, ExternalID: externalID,
+	err = h.data.RequestSaver.Save(&persistence.Request{ID: id, Email: email, File: fileName, ExternalID: externalID,
 		RecognizerKey: recognizer, RecognizerID: recID})
 	if err != nil {
 		http.Error(w, "Can not save request to DB", http.StatusInternalServerError)

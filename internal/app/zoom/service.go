@@ -11,7 +11,6 @@ import (
 	"bitbucket.org/airenas/listgo/internal/app/result"
 	stapi "bitbucket.org/airenas/listgo/internal/app/status/api"
 	"bitbucket.org/airenas/listgo/internal/app/upload"
-	"bitbucket.org/airenas/listgo/internal/app/upload/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
@@ -245,7 +244,7 @@ func startTranscription(data *ServiceData, file string, message *messages.QueueM
 	ext := filepath.Ext(file)
 	fileName := id + ext
 
-	err = data.RequestSaver.Save(&api.RequestData{ID: id, File: fileName, RecognizerID: message.Recognizer})
+	err = data.RequestSaver.Save(&persistence.Request{ID: id, File: fileName, RecognizerID: message.Recognizer})
 	if err != nil {
 		return "", err
 	}
