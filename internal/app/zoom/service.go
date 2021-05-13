@@ -246,17 +246,17 @@ func startTranscription(data *ServiceData, file string, message *messages.QueueM
 
 	err = data.RequestSaver.Save(&persistence.Request{ID: id, File: fileName, RecognizerID: message.Recognizer})
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "can't save request")
 	}
 
 	err = data.StatusSaver.Save(id, status.Uploaded)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "can't save status")
 	}
 
 	err = data.FileSaver.Save(fileName, bData)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "can't save file")
 	}
 
 	tags := make([]messages.Tag, 0)

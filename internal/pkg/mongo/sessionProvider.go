@@ -123,3 +123,23 @@ func mongoContext() (context.Context, context.CancelFunc) {
 func sanitize(s string) string {
 	return strings.Trim(s, " $/^\\")
 }
+
+func skipNoDocErr(err error) error {
+	if err == mgo.ErrNoDocuments {
+		return nil
+	}
+	return err
+}
+
+func newColl(pr *SessionProvider, tName string) (*mgo.Collection, context.Context, func(), error) {
+	session, err := pr.NewSession()
+	if err != nil {
+		return nil, nil, nil, errors.Wrap(err, "can't init new session")
+	}
+	res := session.Client().Database(store).Collection(tName)
+	ctx, cancel := mongoContext()
+	return res, ctx, func() {
+		session.EndSession(context.Background())
+		cancel()
+	}, nil
+}

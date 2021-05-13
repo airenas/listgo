@@ -1,8 +1,6 @@
 package mongo
 
 import (
-	"context"
-
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
 	"go.mongodb.org/mongo-driver/bson"
@@ -24,19 +22,14 @@ func NewRequestSaver(sessionProvider *SessionProvider) (*RequestSaver, error) {
 func (ss *RequestSaver) Save(data *persistence.Request) error {
 	cmdapp.Log.Infof("Saving request %s: %s", data.ID, data.Email)
 
-	ctx, cancel := mongoContext()
-	defer cancel()
-
-	session, err := ss.SessionProvider.NewSession()
+	c, ctx, cancel, err := newColl(ss.SessionProvider, requestTable)
 	if err != nil {
 		return err
 	}
-	defer session.EndSession(context.Background())
+	defer cancel()
 
-	c := session.Client().Database(store).Collection(requestTable)
-
-	return c.FindOneAndUpdate(ctx, bson.M{"ID": sanitize(data.ID)},
+	return skipNoDocErr(c.FindOneAndUpdate(ctx, bson.M{"ID": sanitize(data.ID)},
 		bson.M{"$set": bson.M{"email": data.Email, "file": data.File,
 			"externalID": data.ExternalID, "recognizerKey": data.RecognizerKey, "recognizerID": data.RecognizerID}},
-		options.FindOneAndUpdate().SetUpsert(true)).Err()
+		options.FindOneAndUpdate().SetUpsert(true)).Err())
 }
