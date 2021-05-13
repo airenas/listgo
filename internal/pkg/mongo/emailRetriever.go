@@ -1,11 +1,9 @@
 package mongo
 
 import (
-	"context"
-	"errors"
-
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
+	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	mgo "go.mongodb.org/mongo-driver/mongo"
 )
@@ -25,16 +23,11 @@ func NewEmailRetriever(sessionProvider *SessionProvider) (*EmailRetriever, error
 func (ss *EmailRetriever) Get(id string) (string, error) {
 	cmdapp.Log.Infof("Getting email by ID %s", id)
 
-	ctx, cancel := mongoContext()
-	defer cancel()
-
-	session, err := ss.SessionProvider.NewSession()
+	c, ctx, cancel, err := newColl(ss.SessionProvider, requestTable)
 	if err != nil {
 		return "", err
 	}
-	defer session.EndSession(context.Background())
-
-	c := session.Client().Database(store).Collection(requestTable)
+	defer cancel()
 
 	var m persistence.Request
 	err = c.FindOne(ctx, bson.M{"ID": id}).Decode(&m)
@@ -43,7 +36,7 @@ func (ss *EmailRetriever) Get(id string) (string, error) {
 		return "", nil
 	}
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "can't get request record")
 	}
 	if m.Email == "" {
 		return "", errors.New("Empty email")

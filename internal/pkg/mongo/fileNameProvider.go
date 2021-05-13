@@ -1,11 +1,9 @@
 package mongo
 
 import (
-	"context"
-	"errors"
-
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
+	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	mgo "go.mongodb.org/mongo-driver/mongo"
 )
@@ -25,16 +23,11 @@ func NewFileNameProvider(sessionProvider *SessionProvider) (*FileNameProvider, e
 func (ss *FileNameProvider) Get(id string) (string, error) {
 	cmdapp.Log.Infof("Getting file name by ID %s", id)
 
-	ctx, cancel := mongoContext()
-	defer cancel()
-
-	session, err := ss.SessionProvider.NewSession()
+	c, ctx, cancel, err := newColl(ss.SessionProvider, requestTable)
 	if err != nil {
 		return "", err
 	}
-	defer session.EndSession(context.Background())
-
-	c := session.Client().Database(store).Collection(requestTable)
+	defer cancel()
 
 	var m persistence.Request
 	err = c.FindOne(ctx, bson.M{"ID": id}).Decode(&m)
@@ -43,10 +36,10 @@ func (ss *FileNameProvider) Get(id string) (string, error) {
 		return "", nil
 	}
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "can't get request record")
 	}
 	if m.File == "" {
-		return "", errors.New("Empty file")
+		return "", errors.New("empty file")
 	}
 	return m.File, nil
 }

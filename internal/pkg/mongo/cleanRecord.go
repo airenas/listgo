@@ -1,9 +1,8 @@
 package mongo
 
 import (
-	"context"
-
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -34,20 +33,15 @@ func newCleanRecord(sessionProvider *SessionProvider, table string) *CleanRecord
 func (fs *CleanRecord) Clean(ID string) error {
 	cmdapp.Log.Infof("Cleaning record for for %s[ID=%s]", fs.Table, ID)
 
-	ctx, cancel := mongoContext()
-	defer cancel()
-
-	session, err := fs.SessionProvider.NewSession()
+	c, ctx, cancel, err := newColl(fs.SessionProvider, fs.Table)
 	if err != nil {
 		return err
 	}
-	defer session.EndSession(context.Background())
-
-	c := session.Client().Database(store).Collection(fs.Table)
+	defer cancel()
 
 	info, err := c.DeleteMany(ctx, bson.M{"ID": ID})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "can't delete")
 	}
 	cmdapp.Log.Infof("Deleted %d", info.DeletedCount)
 	return nil

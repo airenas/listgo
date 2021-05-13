@@ -1,8 +1,6 @@
 package mongo
 
 import (
-	"context"
-
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -23,18 +21,13 @@ func NewResultSaver(sessionProvider *SessionProvider) (*ResultSaver, error) {
 func (fs *ResultSaver) Save(ID string, result string) error {
 	cmdapp.Log.Infof("Saving result for %s", ID)
 
-	ctx, cancel := mongoContext()
-	defer cancel()
-
-	session, err := fs.SessionProvider.NewSession()
+	c, ctx, cancel, err := newColl(fs.SessionProvider, resultTable)
 	if err != nil {
 		return err
 	}
-	defer session.EndSession(context.Background())
+	defer cancel()
 
-	c := session.Client().Database(store).Collection(resultTable)
-
-	return c.FindOneAndUpdate(ctx, bson.M{"ID": sanitize(ID)},
+	return skipNoDocErr(c.FindOneAndUpdate(ctx, bson.M{"ID": sanitize(ID)},
 		bson.M{"$set": bson.M{"text": result}},
-		options.FindOneAndUpdate().SetUpsert(true)).Err()
+		options.FindOneAndUpdate().SetUpsert(true)).Err())
 }

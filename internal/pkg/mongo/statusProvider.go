@@ -9,6 +9,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
 	"bitbucket.org/airenas/listgo/internal/pkg/progress"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
+	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	mgo "go.mongodb.org/mongo-driver/mongo"
 )
@@ -78,7 +79,7 @@ func getResultText(ctx context.Context, session mgo.Session, id string) (string,
 		return "", nil
 	}
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "can't load results")
 	}
 	return m.Text, nil
 }
