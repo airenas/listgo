@@ -67,6 +67,7 @@ func run(cmd *cobra.Command, args []string) {
 	data.DecodeMultiCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.DecodeMultiple))
 	data.OneStatusCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.OneStatus))
 	data.OneCompletedCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.OneCompleted))
+	data.JoinAudioCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.ResultQueueFor(messages.JoinAudio)))
 
 	data.StatusSaver, err = mongo.NewStatusSaver(mongoSessionProvider)
 	cmdapp.CheckOrPanic(err, "can't init status saver")

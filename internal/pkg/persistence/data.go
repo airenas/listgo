@@ -7,10 +7,11 @@ type (
 	}
 
 	Status struct {
-		ID        string `json:"ID"`
-		Status    string `json:"status,omitempty"`
-		Error     string `json:"error,omitempty"`
-		ErrorCode string `json:"errorCode,omitempty"`
+		ID          string `json:"ID"`
+		Status      string `json:"status,omitempty"`
+		Error       string `json:"error,omitempty"`
+		ErrorCode   string `json:"errorCode,omitempty"`
+		InFileReady bool   `json:"inFileReady,omitempty"`
 	}
 
 	Result struct {

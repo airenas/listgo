@@ -161,10 +161,12 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	id := uuid.New().String()
 	fileName := id + ".mp3"
+	fileReady := false
 	if len(files) == 1 {
 		ext := filepath.Ext(fHeaders[0].Filename)
 		ext = strings.ToLower(ext)
 		fileName = id + ext
+		fileReady = true
 	}
 
 	err = h.data.RequestSaver.Save(&persistence.Request{ID: id, Email: email, File: fileName, ExternalID: externalID,
@@ -175,7 +177,9 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.data.StatusSaver.Save(id, status.Uploaded)
+	err = h.data.StatusSaver.SaveF(id, map[string]interface{}{
+		"status":      status.Name(status.Uploaded),
+		"inFileReady": fileReady}, nil)
 	if err != nil {
 		http.Error(w, "Can not save status", http.StatusInternalServerError)
 		cmdapp.Log.Error(err)

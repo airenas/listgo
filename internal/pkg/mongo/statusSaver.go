@@ -39,6 +39,36 @@ func (ss *StatusSaver) Save(ID string, st status.Status) error {
 		options.FindOneAndUpdate().SetUpsert(true)).Err())
 }
 
+// SaveF saves status to DB fields
+func (ss *StatusSaver) SaveF(id string, set, unset map[string]interface{}) error {
+	cmdapp.Log.Infof("Saving status %s", id)
+
+	c, ctx, cancel, err := newColl(ss.SessionProvider, statusTable)
+	if err != nil {
+		return err
+	}
+	defer cancel()
+
+	update, err := makeUpdate(set, unset)
+	if err != nil {
+		return err
+	}
+
+	return skipNoDocErr(c.FindOneAndUpdate(ctx, bson.M{"ID": sanitize(id)}, update,
+		options.FindOneAndUpdate().SetUpsert(true)).Err())
+}
+
+func makeUpdate(set, unset map[string]interface{}) (bson.M, error) {
+	res := bson.M{}
+	if (len(set)) > 0 {
+		res["$set"] = set
+	}
+	if (len(unset)) > 0 {
+		res["$unset"] = unset
+	}
+	return res, nil
+}
+
 //SaveError saves error to DB
 func (ss *StatusSaver) SaveError(ID string, errorStr string) error {
 	cmdapp.Log.Infof("Saving error %s: %s", ID, errorStr)

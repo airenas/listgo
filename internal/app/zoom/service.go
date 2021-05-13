@@ -106,6 +106,7 @@ func StartWorkerService(data *ServiceData) error {
 	go listenQueue(data.DecodeMultiCh, decode, data)
 	go listenQueue(data.OneStatusCh, gotStatus, data)
 	go listenQueue(data.OneCompletedCh, completed, data)
+	go listenQueue(data.JoinAudioCh, mergedAudio, data)
 
 	return nil
 }
@@ -249,7 +250,7 @@ func startTranscription(data *ServiceData, file string, message *messages.QueueM
 		return "", errors.Wrapf(err, "can't save request")
 	}
 
-	err = data.StatusSaver.Save(id, status.Uploaded)
+	err = data.StatusSaver.SaveF(id, map[string]interface{}{"status": status.Name(status.Uploaded), "inFileReady": true}, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "can't save status")
 	}
@@ -293,7 +294,7 @@ func newInformMessage(msg *messages.QueueMessage, it string) *messages.InformMes
 		Type: it, At: time.Now().UTC()}
 }
 
-//gotStatus precess status msgs from child transcriptions
+//gotStatus process status msgs from child transcriptions
 func gotStatus(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	var message messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
@@ -355,7 +356,7 @@ func gotStatus(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	return false, nil
 }
 
-//completed precess result msgs from child transcriptions
+//completed process result msgs from child transcriptions
 func completed(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	var message messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
@@ -447,5 +448,42 @@ func processStatus(message *messages.QueueMessage, data *ServiceData, from strin
 		return false, err
 	}
 	publishStatusChange(message, data)
+	return true, nil
+}
+
+//mergedAudio process audio merge event result
+func mergedAudio(d *amqp.Delivery, data *ServiceData) (bool, error) {
+	var message messages.QueueMessage
+	if err := json.Unmarshal(d.Body, &message); err != nil {
+		return false, errors.Wrap(err, "can't unmarshal message "+string(d.Body))
+	}
+
+	cmdapp.Log.Infof("Got %s msg :%s (%s)", messages.ResultQueueFor(messages.JoinAudio), message.ID, message.Recognizer)
+	st, err := data.StatusProvider.Get(message.ID)
+	if err != nil {
+		return true, errors.Wrapf(err, "can't load status")
+	}
+	if st.Error != "" || st.ErrorCode != "" { // already failed
+		cmdapp.Log.Infof("Skip ID %s - already failed", message.ID)
+		return false, nil
+	}
+
+	if message.Error != "" {
+		err := data.StatusSaver.SaveError(message.ID, message.Error)
+		if err != nil {
+			cmdapp.Log.Error(err)
+			return false, err
+		}
+		publishStatusChange(&message, data)
+		sendInformFailure(&message, data)
+		return false, nil
+	}
+	err = data.StatusSaver.SaveF(message.ID, map[string]interface{}{"inFileReady": true}, nil)
+	if err != nil {
+		cmdapp.Log.Error(err)
+		sendInformFailure(&message, data)
+		return false, err
+	}
+	publishStatusChange(&message, data)
 	return true, nil
 }
