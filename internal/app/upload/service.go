@@ -160,7 +160,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := uuid.New().String()
-	fileName := ""
+	fileName := id + ".mp3"
 	if len(files) == 1 {
 		ext := filepath.Ext(fHeaders[0].Filename)
 		ext = strings.ToLower(ext)

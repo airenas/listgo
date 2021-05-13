@@ -315,6 +315,7 @@ func gotStatus(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		return true, errors.Wrapf(err, "can't load status")
 	}
 	if st.Error != "" || st.ErrorCode != "" { // already failed
+		cmdapp.Log.Infof("Skip ID %s - already failed", pID)
 		return false, nil
 	}
 
@@ -376,6 +377,7 @@ func completed(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		return true, errors.Wrapf(err, "can't load status")
 	}
 	if st.Error != "" || st.ErrorCode != "" { // already failed
+		cmdapp.Log.Infof("Skip ID %s - already failed", pID)
 		return false, nil
 	}
 
