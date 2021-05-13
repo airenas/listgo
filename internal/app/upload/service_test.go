@@ -268,8 +268,8 @@ func TestPOST_StatusSaverFails(t *testing.T) {
 	initTest(t)
 	req := newReq("filename.wav", "a@a.a", "")
 	resp := httptest.NewRecorder()
-	pegomock.When(statusSaverMock.Save(pegomock.AnyString(),
-		matchers.AnyStatusStatus())).ThenReturn(errors.New("error"))
+	pegomock.When(statusSaverMock.SaveF(pegomock.AnyString(),
+		matchers.AnyMapOfStringToInterface(), matchers.AnyMapOfStringToInterface())).ThenReturn(errors.New("error"))
 
 	newTestRouter().ServeHTTP(resp, req)
 
