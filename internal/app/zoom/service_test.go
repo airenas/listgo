@@ -237,6 +237,25 @@ func TestHandlesMessagesDecodeMsg_FailGet(t *testing.T) {
 	verifySendMessage(t, messages.Decode, 0)
 }
 
+func TestMakeIdsFNMap(t *testing.T) {
+	tests := []struct {
+		i1, i2 []string
+		e      string
+		f      bool
+	}{
+		{i1: []string{"1"}, i2: []string{"a"}, e: "1=a"},
+		{i1: []string{"1", "2"}, i2: []string{"a", "b"}, e: "1=a;2=b"},
+		{i1: []string{"1", "2"}, i2: []string{"a"}, e: "", f: true},
+	}
+
+	for i, tc := range tests {
+		v, err := makeIDsFnMap(tc.i1, tc.i2)
+		assert.Equal(t, tc.f, err != nil, "Fail %d", i)
+		assert.Equal(t, tc.e, v, "Fail %d", i)
+	}
+
+}
+
 func verifySendMessage(t *testing.T, mType string, count int) {
 	msgSenderMock.VerifyWasCalled(pegomock.Times(count)).Send(matchers.AnyMessagesMessage(), pegomock.EqString(mType), pegomock.AnyString())
 	if count > 0 {

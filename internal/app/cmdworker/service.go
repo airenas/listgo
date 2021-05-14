@@ -181,12 +181,20 @@ func ReadFile(file string, id string) (string, error) {
 
 func collectEnvParams(rp *recognizer.Info, msg *messages.QueueMessage) ([]string, error) {
 	var res []string
+	seen := make(map[string]bool)
 	for _, t := range msg.Tags {
-		res = append(res, fmt.Sprintf("%s=%s", strings.ToUpper(t.Key), t.Value))
+		k := strings.ToUpper(t.Key)
+		if !seen[k] {
+			res = append(res, fmt.Sprintf("%s=%s", k, t.Value))
+			seen[k] = true
+		}
 	}
 
 	for k, v := range rp.Settings {
-		res = append(res, fmt.Sprintf("%s=%s", strings.ToUpper(k), v))
+		ku := strings.ToUpper(k)
+		if !seen[ku] {
+			res = append(res, fmt.Sprintf("%s=%s", ku, v))
+		}
 	}
 	return res, nil
 }

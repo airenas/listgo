@@ -27,7 +27,7 @@ func (ws *WorkSaver) Save(data *persistence.WorkData) error {
 	defer cancel()
 
 	return skipNoDocErr(c.FindOneAndUpdate(ctx, bson.M{"ID": sanitize(data.ID)},
-		bson.M{"$set": bson.M{"related": data.Related}},
+		bson.M{"$set": bson.M{"related": data.Related, "fileNames": data.FileNames}},
 		options.FindOneAndUpdate().SetUpsert(true)).Err())
 }
 

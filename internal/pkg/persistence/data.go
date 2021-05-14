@@ -2,8 +2,9 @@ package persistence
 
 type (
 	WorkData struct {
-		ID      string   `json:"ID"`
-		Related []string `json:"related,omitempty"`
+		ID        string   `json:"ID"`
+		Related   []string `json:"related,omitempty"`
+		FileNames []string `json:"fileNames,omitempty"`
 	}
 
 	Status struct {

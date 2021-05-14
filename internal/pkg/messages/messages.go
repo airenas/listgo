@@ -23,6 +23,10 @@ const (
 	TagResultQueue = "result_queue"
 	//TagStatusQueue is queue name for status messages
 	TagStatusQueue = "status_queue"
+	//TagChildIDS contains IDs of childrens transcriptions
+	TagChildIDS = "ch_ids"
+	//TagChildIDSFileNames contains IDs=FileName mappings of childrens transcriptions
+	TagChildIDSFileNames = "ch_ids_fn"
 )
 
 //QueueMessage message going throuht broker

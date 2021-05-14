@@ -2,9 +2,11 @@ package zoom
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"bitbucket.org/airenas/listgo/internal/app/manager"
@@ -172,7 +174,7 @@ func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		return true, err
 	}
 
-	ids, err := startTranscriptions(data, files, &message)
+	ids, fNames, err := startTranscriptions(data, files, &message)
 	if err != nil {
 		if d.Redelivered {
 			if err := data.StatusSaver.SaveError(message.ID, "Can't start transcription. "+err.Error()); err != nil {
@@ -185,7 +187,7 @@ func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		}
 		return true, err
 	}
-	if err := data.DB.Save(&persistence.WorkData{ID: message.ID, Related: ids}); err != nil {
+	if err := data.DB.Save(&persistence.WorkData{ID: message.ID, Related: ids, FileNames: fNames}); err != nil {
 		return true, errors.Wrapf(err, "can't save related ids")
 	}
 	return false, nil
@@ -223,16 +225,18 @@ func cmpDur(d1, d2 time.Duration) bool {
 	return diff < time.Second
 }
 
-func startTranscriptions(data *ServiceData, files []string, message *messages.QueueMessage) ([]string, error) {
+func startTranscriptions(data *ServiceData, files []string, message *messages.QueueMessage) ([]string, []string, error) {
 	res := make([]string, 0)
+	resF := make([]string, 0)
 	for _, f := range files {
 		id, err := startTranscription(data, f, message)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		res = append(res, id)
+		resF = append(resF, filepath.Base(f))
 	}
-	return res, nil
+	return res, resF, nil
 }
 
 func startTranscription(data *ServiceData, file string, message *messages.QueueMessage) (string, error) {
@@ -420,7 +424,15 @@ func completed(d *amqp.Delivery, data *ServiceData) (bool, error) {
 			}
 			return true, err
 		}
-		err = data.MessageSender.Send(messages.NewQueueMessage(pID, message.Recognizer, message.Tags), messages.JoinResults,
+
+		tags := message.Tags
+		tags = append(tags, messages.NewTag(messages.TagChildIDS, strings.Join(wd.Related, " ")))
+		ifm, err := makeIDsFnMap(wd.Related, wd.FileNames)
+		if err != nil {
+			cmdapp.Log.Error(err)
+		}
+		tags = append(tags, messages.NewTag(messages.TagChildIDSFileNames, ifm))
+		err = data.MessageSender.Send(messages.NewQueueMessage(pID, message.Recognizer, tags), messages.JoinResults,
 			messages.ResultQueueFor(messages.JoinResults))
 		if err != nil {
 			return true, err
@@ -428,6 +440,20 @@ func completed(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func makeIDsFnMap(ids, fns []string) (string, error) {
+	res := strings.Builder{}
+	if len(ids) != len(fns) {
+		return "", errors.New("ids and file names len does not match")
+	}
+	for i, id := range ids {
+		if i > 0 {
+			res.WriteString(";")
+		}
+		res.WriteString(fmt.Sprintf("%s=%s", id, fns[i]))
+	}
+	return res.String(), nil
 }
 
 func processStatus(message *messages.QueueMessage, data *ServiceData, from string, to status.Status) (bool, error) {
