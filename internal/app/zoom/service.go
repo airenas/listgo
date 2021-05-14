@@ -530,11 +530,11 @@ func joinResultsFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 			cmdapp.Log.Error(err)
 			return true, err
 		}
-	} else {
-		err := data.StatusSaver.SaveF(message.ID, map[string]interface{}{
+		err = data.StatusSaver.SaveF(message.ID, map[string]interface{}{
 			persistence.StAvailableResults: []string{resultConst.TxtFinal, resultConst.WebVTT}}, nil)
 		if err != nil {
 			cmdapp.Log.Error(err)
+			return true, err
 		}
 	}
 	c, err := processStatus(&message.QueueMessage, data, messages.JoinAudio, status.Completed)
