@@ -1,5 +1,10 @@
 package persistence
 
+const (
+	StAudioReady       = "audioReady"
+	StAvailableResults = "avResults"
+)
+
 type (
 	WorkData struct {
 		ID        string   `json:"ID"`
@@ -8,11 +13,12 @@ type (
 	}
 
 	Status struct {
-		ID          string `json:"ID"`
-		Status      string `json:"status,omitempty"`
-		Error       string `json:"error,omitempty"`
-		ErrorCode   string `json:"errorCode,omitempty"`
-		InFileReady bool   `json:"inFileReady,omitempty"`
+		ID               string   `json:"ID"`
+		Status           string   `json:"status,omitempty"`
+		Error            string   `json:"error,omitempty"`
+		ErrorCode        string   `json:"errorCode,omitempty"`
+		AudioReady       bool     `json:"audioReady,omitempty"`
+		AvailableResults []string `json:"avResults,omitempty"`
 	}
 
 	Result struct {

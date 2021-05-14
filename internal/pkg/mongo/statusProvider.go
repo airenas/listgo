@@ -61,6 +61,8 @@ func (fs StatusProvider) Get(id string) (*api.TranscriptionResult, error) {
 	if stv == status.Completed {
 		result.RecognizedText, err = getResultText(ctx, session, id)
 	}
+	result.AudioReady = m.AudioReady
+	result.AvailableResults = m.AvailableResults
 
 	return &result, err
 }

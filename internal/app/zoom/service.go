@@ -15,6 +15,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/app/upload"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
+	resultConst "bitbucket.org/airenas/listgo/internal/pkg/result"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
@@ -505,7 +506,7 @@ func mergedAudio(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		sendInformFailure(&message, data)
 		return false, nil
 	}
-	err = data.StatusSaver.SaveF(message.ID, map[string]interface{}{"inFileReady": true}, nil)
+	err = data.StatusSaver.SaveF(message.ID, map[string]interface{}{persistence.StAudioReady: true}, nil)
 	if err != nil {
 		cmdapp.Log.Error(err)
 		sendInformFailure(&message, data)
@@ -528,6 +529,12 @@ func joinResultsFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		if err != nil {
 			cmdapp.Log.Error(err)
 			return true, err
+		}
+	} else {
+		err := data.StatusSaver.SaveF(message.ID, map[string]interface{}{
+			persistence.StAvailableResults: []string{resultConst.TxtFinal, resultConst.WebVTT}}, nil)
+		if err != nil {
+			cmdapp.Log.Error(err)
 		}
 	}
 	c, err := processStatus(&message.QueueMessage, data, messages.JoinAudio, status.Completed)

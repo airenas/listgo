@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
+	"bitbucket.org/airenas/listgo/internal/pkg/result"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 
@@ -206,6 +208,14 @@ func resultMakeFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		if err != nil {
 			cmdapp.Log.Error(err)
 			return true, err
+		}
+	} else {
+		err := data.StatusSaver.SaveF(message.ID, map[string]interface{}{
+			persistence.StAvailableResults: []string{result.Txt, result.TxtFinal,
+				result.Lat, result.LatGz,
+				result.LatRestored, result.LatRestoredGz, result.WebVTT}}, nil)
+		if err != nil {
+			cmdapp.Log.Error(err)
 		}
 	}
 	c, err := processStatus(&message.QueueMessage, data, messages.ResultMake, status.Completed)
