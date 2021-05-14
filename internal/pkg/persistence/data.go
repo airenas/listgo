@@ -13,12 +13,12 @@ type (
 	}
 
 	Status struct {
-		ID               string   `json:"ID"`
-		Status           string   `json:"status,omitempty"`
-		Error            string   `json:"error,omitempty"`
-		ErrorCode        string   `json:"errorCode,omitempty"`
-		AudioReady       bool     `json:"audioReady,omitempty"`
-		AvailableResults []string `json:"avResults,omitempty"`
+		ID               string   `bson:"ID"`
+		Status           string   `bson:"status,omitempty"`
+		Error            string   `bson:"error,omitempty"`
+		ErrorCode        string   `bson:"errorCode,omitempty"`
+		AudioReady       bool     `bson:"audioReady,omitempty"`
+		AvailableResults []string `bson:"avResults,omitempty"`
 	}
 
 	Result struct {
