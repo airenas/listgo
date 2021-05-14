@@ -107,6 +107,7 @@ func StartWorkerService(data *ServiceData) error {
 	go listenQueue(data.OneStatusCh, gotStatus, data)
 	go listenQueue(data.OneCompletedCh, completed, data)
 	go listenQueue(data.JoinAudioCh, mergedAudio, data)
+	go listenQueue(data.JoinResultsCh, joinResultsFinish, data)
 
 	return nil
 }
@@ -486,4 +487,30 @@ func mergedAudio(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	}
 	publishStatusChange(&message, data)
 	return true, nil
+}
+
+//transcriptionFinish processes transcription result messages
+// 1. logs status
+// 2. sends 'FinishDecode' message
+func joinResultsFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
+	var message messages.ResultMessage
+	if err := json.Unmarshal(d.Body, &message); err != nil {
+		return false, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
+	}
+	if message.Error == "" {
+		err := data.ResultSaver.Save(message.ID, message.Result)
+		if err != nil {
+			cmdapp.Log.Error(err)
+			return true, err
+		}
+	}
+	c, err := processStatus(&message.QueueMessage, data, messages.JoinAudio, status.Completed)
+	if !c {
+		if err != nil {
+			cmdapp.Log.Error(err)
+		}
+		return true, err
+	}
+	return true, data.InformMessageSender.Send(newInformMessage(&message.QueueMessage, messages.InformType_Finished),
+		messages.Inform, "")
 }
