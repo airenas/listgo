@@ -2,6 +2,8 @@ package persistence
 
 const (
 	StAudioReady       = "audioReady"
+	StError            = "error"
+	StErrorCode        = "errorCode"
 	StAvailableResults = "avResults"
 )
 

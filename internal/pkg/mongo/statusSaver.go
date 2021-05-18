@@ -3,6 +3,7 @@ package mongo
 import (
 	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
 	"bitbucket.org/airenas/listgo/internal/pkg/err"
+	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -35,7 +36,9 @@ func (ss *StatusSaver) Save(ID string, st status.Status) error {
 	defer cancel()
 
 	return skipNoDocErr(c.FindOneAndUpdate(ctx, bson.M{"ID": sanitize(ID)},
-		bson.M{"$set": bson.M{"status": status.Name(st)}, "$unset": bson.M{"error": 1, "errorCode": 1}},
+		bson.M{"$set": bson.M{"status": status.Name(st)}, "$unset": bson.M{
+			persistence.StError:     1,
+			persistence.StErrorCode: 1}},
 		options.FindOneAndUpdate().SetUpsert(true)).Err())
 }
 
@@ -82,6 +85,6 @@ func (ss *StatusSaver) SaveError(ID string, errorStr string) error {
 	errorCode := ss.errCodeExtractor.Get(errorStr)
 
 	return skipNoDocErr(c.FindOneAndUpdate(ctx, bson.M{"ID": sanitize(ID)},
-		bson.M{"$set": bson.M{"error": errorStr, "errorCode": errorCode}},
+		bson.M{"$set": bson.M{persistence.StError: errorStr, persistence.StErrorCode: errorCode}},
 		options.FindOneAndUpdate().SetUpsert(true)).Err())
 }

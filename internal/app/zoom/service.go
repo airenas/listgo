@@ -153,7 +153,10 @@ func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		return true, err
 	}
 	if !ok {
-		err := data.StatusSaver.SaveError(message.ID, "Files len differ")
+		err := data.StatusSaver.SaveF(message.ID, map[string]interface{}{
+			persistence.StError:     "Files length differ",
+			persistence.StErrorCode: "LEN_DIFFER",
+		}, nil)
 		if err != nil {
 			cmdapp.Log.Error(err)
 			return true, err
@@ -256,7 +259,8 @@ func startTranscription(data *ServiceData, file string, message *messages.QueueM
 		return "", errors.Wrapf(err, "can't save request")
 	}
 
-	err = data.StatusSaver.SaveF(id, map[string]interface{}{"status": status.Name(status.Uploaded), "inFileReady": true}, nil)
+	err = data.StatusSaver.SaveF(id, map[string]interface{}{"status": status.Name(status.Uploaded),
+		persistence.StAudioReady: true}, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "can't save status")
 	}
