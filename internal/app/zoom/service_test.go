@@ -14,6 +14,8 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/app/status/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
+	"bitbucket.org/airenas/listgo/internal/pkg/status"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
@@ -120,6 +122,8 @@ type testdata struct {
 	decodeCh      chan amqp.Delivery
 	joinAudioCh   chan amqp.Delivery
 	joinResultsCh chan amqp.Delivery
+	statusCh      chan amqp.Delivery
+	completeCh    chan amqp.Delivery
 	data          *ServiceData
 	fc            <-chan os.Signal
 }
@@ -149,10 +153,14 @@ func initTestData(t *testing.T) *testdata {
 	res.decodeCh = make(chan amqp.Delivery)
 	res.joinAudioCh = make(chan amqp.Delivery)
 	res.joinResultsCh = make(chan amqp.Delivery)
+	res.statusCh = make(chan amqp.Delivery)
+	res.completeCh = make(chan amqp.Delivery)
 
 	res.data.DecodeMultiCh = res.decodeCh
 	res.data.JoinAudioCh = res.joinAudioCh
 	res.data.JoinResultsCh = res.joinResultsCh
+	res.data.OneStatusCh = res.statusCh
+	res.data.OneCompletedCh = res.completeCh
 
 	res.data.fc = utils.NewMultiCloseChannel()
 	res.fc = res.data.fc.C
@@ -284,6 +292,131 @@ func TestHandlesJoinResults_Failure(t *testing.T) {
 	verifySendInform(t, messages.InformType_Failed, 1)
 }
 
+func TestHandlesOneStatus(t *testing.T) {
+	td := initTestData(t)
+	pegomock.When(dbMock.Get(pegomock.AnyString())).ThenReturn(&persistence.WorkData{Related: []string{"1", "11"}}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("2"))).ThenReturn(&api.TranscriptionResult{Status: "AudioConvert"}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("1"))).ThenReturn(&api.TranscriptionResult{Status: "Diarization"}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("11"))).ThenReturn(&api.TranscriptionResult{Status: "Diarization"}, nil)
+	msg := newTestMsg()
+	msg.Tags = append(msg.Tags, messages.NewTag(messages.TagParentID, "2"))
+	msgdata, _ := json.Marshal(msg)
+	td.statusCh <- amqp.Delivery{Body: msgdata}
+	close(td.statusCh)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Once()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+}
+
+func TestHandlesOneStatus_Skip(t *testing.T) {
+	td := initTestData(t)
+	pegomock.When(dbMock.Get(pegomock.AnyString())).ThenReturn(&persistence.WorkData{Related: []string{"1", "11"}}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("2"))).ThenReturn(&api.TranscriptionResult{Status: "AudioConvert"}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("1"))).ThenReturn(&api.TranscriptionResult{Status: "Diarization"}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("11"))).ThenReturn(&api.TranscriptionResult{Status: "AudioConvert"}, nil)
+	msg := newTestMsg()
+	msg.Tags = append(msg.Tags, messages.NewTag(messages.TagParentID, "2"))
+	msgdata, _ := json.Marshal(msg)
+	td.statusCh <- amqp.Delivery{Body: msgdata}
+	close(td.statusCh)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+}
+
+func TestHandlesOneStatus_SkipError(t *testing.T) {
+	td := initTestData(t)
+	pegomock.When(dbMock.Get(pegomock.AnyString())).ThenReturn(&persistence.WorkData{Related: []string{"1", "11"}}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("2"))).ThenReturn(&api.TranscriptionResult{Error: "error"}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("1"))).ThenReturn(&api.TranscriptionResult{Status: "Diarization"}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("11"))).ThenReturn(&api.TranscriptionResult{Status: "AudioConvert"}, nil)
+	msg := newTestMsg()
+	msg.Tags = append(msg.Tags, messages.NewTag(messages.TagParentID, "2"))
+	msgdata, _ := json.Marshal(msg)
+	td.statusCh <- amqp.Delivery{Body: msgdata}
+	close(td.statusCh)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+}
+
+func TestHandlesOneStatus_SavesError(t *testing.T) {
+	td := initTestData(t)
+	pegomock.When(dbMock.Get(pegomock.AnyString())).ThenReturn(&persistence.WorkData{Related: []string{"1", "11"}}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("2"))).ThenReturn(&api.TranscriptionResult{Status: "AudioConvert"}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("1"))).ThenReturn(&api.TranscriptionResult{Status: "Diarization"}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("11"))).ThenReturn(&api.TranscriptionResult{Error: "error"}, nil)
+	msg := newTestMsg()
+	msg.Tags = append(msg.Tags, messages.NewTag(messages.TagParentID, "2"))
+	msgdata, _ := json.Marshal(msg)
+	td.statusCh <- amqp.Delivery{Body: msgdata}
+	close(td.statusCh)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Once()).SaveError(pegomock.AnyString(), pegomock.AnyString())
+	verifySendInform(t, messages.InformType_Failed, 1)
+}
+
+func TestHandlesOneCompleted(t *testing.T) {
+	td := initTestData(t)
+	pegomock.When(dbMock.Get(pegomock.AnyString())).ThenReturn(&persistence.WorkData{Related: []string{"1", "11"}}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("2"))).ThenReturn(&api.TranscriptionResult{Status: "AudioConvert"}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("1"))).ThenReturn(&api.TranscriptionResult{Status: status.Name(status.Completed)}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("11"))).ThenReturn(&api.TranscriptionResult{Status: status.Name(status.Completed)}, nil)
+	msg := newTestMsg()
+	msg.Tags = append(msg.Tags, messages.NewTag(messages.TagParentID, "2"))
+	msgdata, _ := json.Marshal(msg)
+	td.completeCh <- amqp.Delivery{Body: msgdata}
+	close(td.completeCh)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Once()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+	verifySendMessage(t, messages.JoinResults, 1)
+}
+
+func TestHandlesOneCompleted_Skip(t *testing.T) {
+	td := initTestData(t)
+	pegomock.When(dbMock.Get(pegomock.AnyString())).ThenReturn(&persistence.WorkData{Related: []string{"1", "11"}}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("2"))).ThenReturn(&api.TranscriptionResult{Status: "AudioConvert"}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("1"))).ThenReturn(&api.TranscriptionResult{Status: status.Name(status.Completed)}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("11"))).ThenReturn(&api.TranscriptionResult{Status: status.Name(status.Rescore)}, nil)
+	msg := newTestMsg()
+	msg.Tags = append(msg.Tags, messages.NewTag(messages.TagParentID, "2"))
+	msgdata, _ := json.Marshal(msg)
+	td.completeCh <- amqp.Delivery{Body: msgdata}
+	close(td.completeCh)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
+	verifySendMessage(t, messages.JoinResults, 0)
+}
+
+func TestHandlesOneCompleted_SkipError(t *testing.T) {
+	td := initTestData(t)
+	pegomock.When(dbMock.Get(pegomock.AnyString())).ThenReturn(&persistence.WorkData{Related: []string{"1", "11"}}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("2"))).ThenReturn(&api.TranscriptionResult{Error: "error"}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("1"))).ThenReturn(&api.TranscriptionResult{Status: status.Name(status.Completed)}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("11"))).ThenReturn(&api.TranscriptionResult{Status: status.Name(status.Completed)}, nil)
+	msg := newTestMsg()
+	msg.Tags = append(msg.Tags, messages.NewTag(messages.TagParentID, "2"))
+	msgdata, _ := json.Marshal(msg)
+	td.completeCh <- amqp.Delivery{Body: msgdata}
+	close(td.completeCh)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Never()).SaveError(pegomock.AnyString(), pegomock.AnyString())
+	verifySendMessage(t, messages.JoinResults, 0)
+}
+
+func TestHandlesOneCompleted_SaveError(t *testing.T) {
+	td := initTestData(t)
+	pegomock.When(dbMock.Get(pegomock.AnyString())).ThenReturn(&persistence.WorkData{Related: []string{"1", "11"}}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("2"))).ThenReturn(&api.TranscriptionResult{Status: status.Name(status.Completed)}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("1"))).ThenReturn(&api.TranscriptionResult{Status: status.Name(status.Completed)}, nil)
+	pegomock.When(statusMock.Get(pegomock.EqString("11"))).ThenReturn(&api.TranscriptionResult{Error: "error"}, nil)
+	msg := newTestMsg()
+	msg.Tags = append(msg.Tags, messages.NewTag(messages.TagParentID, "2"))
+	msgdata, _ := json.Marshal(msg)
+	td.completeCh <- amqp.Delivery{Body: msgdata}
+	close(td.completeCh)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Once()).SaveError(pegomock.AnyString(), pegomock.AnyString())
+	verifySendInform(t, messages.InformType_Failed, 1)
+}
+
 func TestMakeIdsFNMap(t *testing.T) {
 	tests := []struct {
 		i1, i2 []string
@@ -301,6 +434,15 @@ func TestMakeIdsFNMap(t *testing.T) {
 		assert.Equal(t, tc.e, v, "Fail %d", i)
 	}
 
+}
+
+func TestCmpDur(t *testing.T) {
+	assert.True(t, cmpDur(time.Hour, time.Hour))
+	assert.True(t, cmpDur(time.Hour, time.Hour+time.Millisecond*900))
+	assert.True(t, cmpDur(time.Hour+time.Millisecond*900, time.Hour))
+
+	assert.False(t, cmpDur(time.Hour+time.Second*2, time.Hour))
+	assert.False(t, cmpDur(time.Hour, time.Hour+time.Second*2))
 }
 
 func verifySendMessage(t *testing.T, mType string, count int) {
