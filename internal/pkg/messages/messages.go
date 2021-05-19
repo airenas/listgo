@@ -33,14 +33,14 @@ const (
 type QueueMessage struct {
 	ID         string `json:"id"`
 	Recognizer string `json:"recognizer"`
-	Tags       []Tag  `json:"tags"`
-	Error      string `json:"error"`
+	Tags       []Tag  `json:"tags,omitempty"`
+	Error      string `json:"error,omitempty"`
 }
 
 //ResultMessage message going throuht broker with result
 type ResultMessage struct {
 	QueueMessage
-	Result string `json:"result"`
+	Result string `json:"result,omitempty"`
 }
 
 //InformMessage message with inform information

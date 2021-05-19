@@ -226,7 +226,7 @@ func resultMakeFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		return true, err
 	}
 	if tq, ok := messages.GetTag(message.Tags, messages.TagResultQueue); ok {
-		err := data.MessageSender.Send(message, tq, "")
+		err := data.MessageSender.Send(&message.QueueMessage, tq, "")
 		cmdapp.LogIf(err)
 	}
 	return true, data.InformMessageSender.Send(newInformMessage(&message.QueueMessage, messages.InformType_Finished),
