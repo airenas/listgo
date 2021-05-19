@@ -12,6 +12,7 @@ import (
 
 	"github.com/streadway/amqp"
 
+	"bitbucket.org/airenas/listgo/internal/app/status/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
@@ -116,14 +117,11 @@ func TestInitManager_Fails(t *testing.T) {
 }
 
 type testdata struct {
-	dc     chan amqp.Delivery
-	ac     chan amqp.Delivery
-	diac   chan amqp.Delivery
-	tc     chan amqp.Delivery
-	rescCh chan amqp.Delivery
-	rc     chan amqp.Delivery
-	data   *ServiceData
-	fc     <-chan os.Signal
+	decodeCh      chan amqp.Delivery
+	joinAudioCh   chan amqp.Delivery
+	joinResultsCh chan amqp.Delivery
+	data          *ServiceData
+	fc            <-chan os.Signal
 }
 
 func newTestServiceData(t *testing.T) *ServiceData {
@@ -148,16 +146,15 @@ func initTestData(t *testing.T) *testdata {
 	res := testdata{}
 	res.data = newTestServiceData(t)
 
-	res.dc = make(chan amqp.Delivery)
-	res.ac = make(chan amqp.Delivery)
-	res.diac = make(chan amqp.Delivery)
-	res.tc = make(chan amqp.Delivery)
-	res.rescCh = make(chan amqp.Delivery)
-	res.rc = make(chan amqp.Delivery)
+	res.decodeCh = make(chan amqp.Delivery)
+	res.joinAudioCh = make(chan amqp.Delivery)
+	res.joinResultsCh = make(chan amqp.Delivery)
 
-	res.data.DecodeMultiCh = res.dc
+	res.data.DecodeMultiCh = res.decodeCh
+	res.data.JoinAudioCh = res.joinAudioCh
+	res.data.JoinResultsCh = res.joinResultsCh
+
 	res.data.fc = utils.NewMultiCloseChannel()
-
 	res.fc = res.data.fc.C
 	err := StartWorkerService(res.data)
 	assert.Nil(t, err)
@@ -169,8 +166,8 @@ func initTestData(t *testing.T) *testdata {
 
 func TestHandlesMessagesWrongMsg(t *testing.T) {
 	td := initTestData(t)
-	td.dc <- amqp.Delivery{}
-	close(td.dc)
+	td.decodeCh <- amqp.Delivery{}
+	close(td.decodeCh)
 	<-td.fc
 	statusSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), matchers.AnyStatusStatus())
 	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
@@ -183,8 +180,8 @@ func TestHandlesMessagesDecodeMsg(t *testing.T) {
 	pegomock.When(loaderMock.Load(pegomock.AnyString())).ThenReturn(fileMock, nil)
 	pegomock.When(lenMock.Get(pegomock.AnyString(), matchers.AnyIoReader())).ThenReturn(time.Second, nil)
 	msgdata, _ := json.Marshal(newTestMsg())
-	td.dc <- amqp.Delivery{Body: msgdata}
-	close(td.dc)
+	td.decodeCh <- amqp.Delivery{Body: msgdata}
+	close(td.decodeCh)
 	<-td.fc
 	verifySendInform(t, messages.InformType_Started, 1)
 	verifySendMessage(t, messages.JoinAudio, 1)
@@ -201,8 +198,8 @@ func TestHandlesMessagesDecodeMsg_FailLen(t *testing.T) {
 	pegomock.When(lenMock.Get(pegomock.EqString("1.mp4"), matchers.AnyIoReader())).ThenReturn(time.Second, nil)
 	pegomock.When(lenMock.Get(pegomock.EqString("2.mp4"), matchers.AnyIoReader())).ThenReturn(time.Second*2, nil)
 	msgdata, _ := json.Marshal(newTestMsg())
-	td.dc <- amqp.Delivery{Body: msgdata}
-	close(td.dc)
+	td.decodeCh <- amqp.Delivery{Body: msgdata}
+	close(td.decodeCh)
 	<-td.fc
 	verifySendInform(t, messages.InformType_Failed, 1)
 	verifySendMessage(t, messages.JoinAudio, 0)
@@ -215,8 +212,8 @@ func TestHandlesMessagesDecodeMsg_FailLenError(t *testing.T) {
 	pegomock.When(loaderMock.Load(pegomock.AnyString())).ThenReturn(fileMock, nil)
 	pegomock.When(lenMock.Get(pegomock.AnyString(), matchers.AnyIoReader())).ThenReturn(time.Second, errors.New("err"))
 	msgdata, _ := json.Marshal(newTestMsg())
-	td.dc <- amqp.Delivery{Body: msgdata}
-	close(td.dc)
+	td.decodeCh <- amqp.Delivery{Body: msgdata}
+	close(td.decodeCh)
 	<-td.fc
 	verifySendInform(t, messages.InformType_Failed, 0)
 	verifySendMessage(t, messages.JoinAudio, 0)
@@ -229,12 +226,62 @@ func TestHandlesMessagesDecodeMsg_FailGet(t *testing.T) {
 	pegomock.When(loaderMock.Load(pegomock.AnyString())).ThenReturn(fileMock, nil)
 	pegomock.When(lenMock.Get(pegomock.AnyString(), matchers.AnyIoReader())).ThenReturn(time.Second, nil)
 	msgdata, _ := json.Marshal(newTestMsg())
-	td.dc <- amqp.Delivery{Body: msgdata}
-	close(td.dc)
+	td.decodeCh <- amqp.Delivery{Body: msgdata}
+	close(td.decodeCh)
 	<-td.fc
 	verifySendInform(t, messages.InformType_Failed, 0)
 	verifySendMessage(t, messages.JoinAudio, 0)
 	verifySendMessage(t, messages.Decode, 0)
+}
+
+func TestHandlesJoinAudio(t *testing.T) {
+	td := initTestData(t)
+	pegomock.When(statusMock.Get(pegomock.AnyString())).ThenReturn(&api.TranscriptionResult{}, nil)
+	msgdata, _ := json.Marshal(newTestMsg())
+	td.joinAudioCh <- amqp.Delivery{Body: msgdata}
+	close(td.joinAudioCh)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Once()).SaveF(pegomock.AnyString(),
+		matchers.AnyMapOfStringToInterface(), matchers.AnyMapOfStringToInterface())
+}
+
+func TestHandlesJoinAudio_NoSave(t *testing.T) {
+	td := initTestData(t)
+	pegomock.When(statusMock.Get(pegomock.AnyString())).ThenReturn(&api.TranscriptionResult{ErrorCode: "EC"}, nil)
+	msgdata, _ := json.Marshal(newTestMsg())
+	td.joinAudioCh <- amqp.Delivery{Body: msgdata}
+	close(td.joinAudioCh)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Never()).SaveF(pegomock.AnyString(),
+		matchers.AnyMapOfStringToInterface(), matchers.AnyMapOfStringToInterface())
+}
+
+func TestHandlesJoinResults(t *testing.T) {
+	td := initTestData(t)
+	pegomock.When(statusMock.Get(pegomock.AnyString())).ThenReturn(&api.TranscriptionResult{}, nil)
+	msgdata, _ := json.Marshal(newTestResMsg())
+	td.joinResultsCh <- amqp.Delivery{Body: msgdata}
+	close(td.joinResultsCh)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Once()).SaveF(pegomock.AnyString(),
+		matchers.AnyMapOfStringToInterface(), matchers.AnyMapOfStringToInterface())
+	resultSaverMock.VerifyWasCalled(pegomock.Once()).Save(pegomock.AnyString(),
+		pegomock.AnyString())
+	verifySendInform(t, messages.InformType_Finished, 1)
+}
+
+func TestHandlesJoinResults_Failure(t *testing.T) {
+	td := initTestData(t)
+	pegomock.When(statusMock.Get(pegomock.AnyString())).ThenReturn(&api.TranscriptionResult{}, nil)
+	rm := newTestResMsg()
+	rm.Error = "error"
+	msgdata, _ := json.Marshal(rm)
+	td.joinResultsCh <- amqp.Delivery{Body: msgdata}
+	close(td.joinResultsCh)
+	<-td.fc
+	statusSaverMock.VerifyWasCalled(pegomock.Once()).SaveError(pegomock.AnyString(), pegomock.AnyString())
+	resultSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), pegomock.AnyString())
+	verifySendInform(t, messages.InformType_Failed, 1)
 }
 
 func TestMakeIdsFNMap(t *testing.T) {
@@ -280,4 +327,8 @@ func verifySendInform(t *testing.T, tp string, count int) {
 
 func newTestMsg() *messages.QueueMessage {
 	return &messages.QueueMessage{ID: "1", Recognizer: "rec"}
+}
+
+func newTestResMsg() *messages.ResultMessage {
+	return &messages.ResultMessage{QueueMessage: messages.QueueMessage{ID: "1", Recognizer: "rec"}, Result: "olia"}
 }
