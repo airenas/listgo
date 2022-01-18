@@ -63,10 +63,11 @@ func StartWebServer(data *ServiceData) error {
 	portStr := strconv.Itoa(data.Port)
 	srv := http.Server{
 		Addr:              ":" + portStr,
-		WriteTimeout:      15 * time.Second,
+		WriteTimeout:      180 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       180 * time.Second,
-		Handler:           r,
+		IdleTimeout:       5 * time.Minute,
+		Handler: r,
 	}
 
 	w := cmdapp.Log.Writer()

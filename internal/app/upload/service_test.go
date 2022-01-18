@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -551,3 +552,16 @@ func TestValidateFormFiles(t *testing.T) {
 	assert.Nil(t, validateFormFiles(&multipart.Form{File: map[string][]*multipart.FileHeader{"file": {}, "file2": {},
 		"file3": {}, "file4": {}}}))
 }
+
+func Test(t *testing.T) {
+	assert.Equal(t, "olia.txt", filepath.Base("../../olia.txt"))
+	assert.Equal(t, "olia.txt", filepath.Base("olia.txt"))
+	assert.Equal(t, "olia.txt", filepath.Base("aaa/../../olia.txt"))
+	assert.Equal(t, "olia.txt", filepath.Base("/home/aaa/aaa/../../olia.txt"))
+
+	assert.Equal(t, "olia.txt", filepath.Clean("olia.txt"))
+	assert.Equal(t, "../olia.txt", filepath.Clean("aaa/../../olia.txt"))
+	assert.Equal(t, "/home/olia.txt", filepath.Clean("/home/aaa/aaa/../../olia.txt"))
+	assert.Equal(t, "../../olia.txt", filepath.Clean("../../olia.txt"))
+}
+
