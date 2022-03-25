@@ -7,6 +7,7 @@ import (
 	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
 	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	aInform "github.com/airenas/async-api/pkg/inform"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -53,7 +54,7 @@ func run(cmd *cobra.Command, args []string) {
 	data.workCh, err = rabbit.NewChannel(ch, msgChannelProvider.QueueName(data.taskName))
 	cmdapp.CheckOrPanic(err, "Can't listen to "+data.taskName+" channel")
 
-	data.emailMaker, err = newSimpleEmailMaker(cmdapp.Config)
+	data.emailMaker, err = aInform.NewTemplateEmailMaker(cmdapp.Config)
 	cmdapp.CheckOrPanic(err, "Can't init email maker")
 
 	location := cmdapp.Config.GetString("worker.location")
@@ -62,7 +63,7 @@ func run(cmd *cobra.Command, args []string) {
 		cmdapp.CheckOrPanic(err, "Can't init location")
 	}
 
-	data.emailSender, err = newSimpleEmailSender()
+	data.emailSender, err = aInform.NewSimpleEmailSender(cmdapp.Config)
 	cmdapp.CheckOrPanic(err, "Can't init email sender")
 
 	mongoSessionProvider, err := mongo.NewSessionProvider()

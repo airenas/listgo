@@ -18,8 +18,6 @@ Services for running the transcription process. It uses Mongo DB (for saving sta
 
     `go get ./...`
 
-    `go get github.com/petergtz/pegomock/...`
-
 1. Install [librdkafka](https://github.com/confluentinc/confluent-kafka-go)
 
     `git clone --branch v1.1.0 https://github.com/edenhill/librdkafka.git`
@@ -38,13 +36,13 @@ Services for running the transcription process. It uses Mongo DB (for saving sta
 
 1. Generate mocks:
 
-    `go generate ./...`
+    `make generate/mocks`
 
 ---
 
 ## Testing source code
 
-Run `go test ./...`
+Run `make test/unit`
 
 ---
 

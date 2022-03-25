@@ -19,8 +19,6 @@ Instaliuokite [go* (v >= 14.0)](https://golang.org/), [protoc](https://grpc.io/d
 
     `go get ./...`
 
-    `go get github.com/petergtz/pegomock/...`
-
 1. Instaliuokite [librdkafka](https://github.com/confluentinc/confluent-kafka-go)
 
     `git clone --branch v1.1.0 https://github.com/edenhill/librdkafka.git`
@@ -39,7 +37,7 @@ Instaliuokite [go* (v >= 14.0)](https://golang.org/), [protoc](https://grpc.io/d
 
 1. Sugeneruokite mock'us testavimui:
 
-    `go generate ./...`
+    `make generate/mocks`
 
 ---
 

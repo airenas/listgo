@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/inform"
 	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	aInform "github.com/airenas/async-api/pkg/inform"
 
 	"github.com/jordan-wright/email"
 
@@ -22,7 +22,7 @@ type Sender interface {
 
 //EmailMaker prepares the email
 type EmailMaker interface {
-	Make(data *inform.Data) (*email.Email, error)
+	Make(data *aInform.Data) (*email.Email, error)
 }
 
 //EmailRetriever return the email by ID
@@ -89,7 +89,7 @@ func StartWorkerService(data *ServiceData) error {
 func work(data *ServiceData, message *messages.InformMessage) error {
 	cmdapp.Log.Infof("Got task %s for ID: %s", data.taskName, message.ID)
 
-	mailData := inform.Data{}
+	mailData := aInform.Data{}
 	mailData.ID = message.ID
 	mailData.MsgTime = toLocalTime(data, message.At)
 	mailData.MsgType = message.Type
