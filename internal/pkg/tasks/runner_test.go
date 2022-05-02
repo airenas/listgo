@@ -66,7 +66,7 @@ func TestRuns_GetMsg(t *testing.T) {
 	assert.Nil(t, err)
 	time.Sleep(10 * time.Millisecond)
 	r.Close()
-	s := strings.TrimSpace(string(b.Bytes()))
+	s := strings.TrimSpace(b.String())
 	assert.Equal(t, "olia", s)
 }
 
@@ -80,7 +80,7 @@ func TestRuns_GetErrorMsg(t *testing.T) {
 	assert.Nil(t, err)
 	time.Sleep(10 * time.Millisecond)
 	r.Close()
-	s := strings.TrimSpace(string(b.Bytes()))
+	s := strings.TrimSpace(b.String())
 	assert.Contains(t, s, "xxxx")
 }
 
@@ -95,7 +95,7 @@ func TestRuns_TakesEnv(t *testing.T) {
 	assert.Nil(t, err)
 	time.Sleep(10 * time.Millisecond)
 	r.Close()
-	s := strings.TrimSpace(string(b.Bytes()))
+	s := strings.TrimSpace(b.String())
 	assert.Equal(t, "olia", s)
 }
 
@@ -113,6 +113,7 @@ func TestSplitComplex(t *testing.T) {
 }
 
 func newTestRunner(t *testing.T) *Runner {
+	t.Helper()
 	r, err := NewRunner("")
 	assert.Nil(t, err)
 	assert.NotNil(t, r)

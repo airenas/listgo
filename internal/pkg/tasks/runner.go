@@ -23,8 +23,9 @@ type Runner struct {
 
 	cmd        *exec.Cmd
 	startWait  *sync.WaitGroup
-	running    bool  // status
-	processErr error // exit error
+	startErr   error // start error
+	exitErr    error // exit error
+	finishChan chan struct{}
 }
 
 //NewRunner inits new runner instance
@@ -33,6 +34,8 @@ func NewRunner(workingDir string) (*Runner, error) {
 	r.workingDir = workingDir
 	r.lock = &sync.Mutex{}
 	r.startWait = &sync.WaitGroup{}
+	r.startWait.Add(1)
+	r.finishChan = make(chan struct{})
 	return r, nil
 }
 
@@ -41,30 +44,29 @@ func (r *Runner) Close() error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	if r.cmd != nil && r.running && r.cmd.Process != nil {
+	if r.cmd != nil && r.Running() && r.cmd.Process != nil {
 		cmdapp.Log.Infof("Closing pid: %d", r.cmd.Process.Pid)
-		syscall.Kill(-r.cmd.Process.Pid, syscall.SIGTERM) // send terminate to group with -pid
+		_ = syscall.Kill(-r.cmd.Process.Pid, syscall.SIGTERM) // send terminate to group with -pid
 		cmdapp.Log.Infof("Sent term signal to pid: %d", r.cmd.Process.Pid)
+		err := r.waitForFinish()
+		if err == nil {
+			return nil
+		}
+		cmdapp.Log.Infof("Not responded. Killing pid: %d", r.cmd.Process.Pid)
+		_ = syscall.Kill(-r.cmd.Process.Pid, syscall.SIGKILL) // send terminate to group with -pid
+		cmdapp.Log.Infof("Sent kill signal to pid: %d", r.cmd.Process.Pid)
 		return r.waitForFinish()
 	}
 	return nil
 }
 
 func (r *Runner) waitForFinish() error {
-	c := make(chan bool, 1)
-	go func() {
-		for r.running {
-			time.Sleep(10 * time.Millisecond)
-		}
-		c <- true
-	}()
-
 	select {
-	case <-c:
+	case <-r.finishChan:
 		cmdapp.Log.Info("Process exited")
 		return nil
 	case <-time.After(10 * time.Second):
-		return errors.Errorf("Timeout waiting to finish")
+		return errors.Errorf("timeout waiting to finish")
 	}
 }
 
@@ -91,43 +93,44 @@ func (r *Runner) Run(cmdStr string, envs []string) error {
 	r.cmd.Stdout = r.outWriter
 	r.cmd.Stderr = r.errWriter
 
-	r.startWait.Add(1)
 	go func() {
 		r.runCmd(r.cmd)
 	}()
 	r.startWait.Wait()
-	return r.processErr
+	return r.startErr
 }
 
 // Running returns the running status
 func (r *Runner) Running() bool {
-	r.lock.Lock()
-	defer r.lock.Unlock()
 	r.startWait.Wait()
-	return r.running
+	select {
+	case <-r.finishChan:
+		return false
+	default:
+		return true
+	}
 }
 
 func (r *Runner) runCmd(cmd *exec.Cmd) {
-	r.running = false
-	r.processErr = nil
+	r.exitErr = nil
+	r.startErr = nil
 	r.cmd = cmd
 	err := cmd.Start()
 	if err != nil {
-		r.running = false
 		cmdapp.Log.Error(err)
-		r.processErr = err
+		r.startErr = err
+		close(r.finishChan)
 		r.startWait.Done()
 		return
 	}
-	r.running = true
 	r.startWait.Done()
 
 	err = cmd.Wait()
-	r.running = false
 
+	close(r.finishChan)
 	if err != nil {
 		cmdapp.Log.Error(err)
-		r.processErr = err
+		r.exitErr = err
 	}
 }
 
