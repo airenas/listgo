@@ -8,7 +8,11 @@ image: golang:1.17
 pipelines:
   default:
     - step:          
+        name: Prepare TF proto
+        script:
+          - cd build && ./prepareTFProto.sh
+    - step:          
         name: Build
         script:
-          - make test/unit
-      
+          - make test/unit      
+    
