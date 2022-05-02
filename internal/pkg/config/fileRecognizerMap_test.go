@@ -18,6 +18,7 @@ import (
 var recInfoLoaderMock *mocks.MockRecInfoLoader
 
 func initTest(t *testing.T) {
+	t.Helper()
 	mocks.AttachMockToTest(t)
 	recInfoLoaderMock = mocks.NewMockRecInfoLoader()
 	pegomock.When(recInfoLoaderMock.Get(pegomock.AnyString())).ThenReturn(&recognizer.Info{}, nil)
@@ -30,9 +31,10 @@ func createTempFile(t *testing.T) *os.File {
 }
 
 func load(t *testing.T) (*FileRecognizerMap, *os.File) {
+	t.Helper()
 	initTest(t)
 	f := createTempFile(t)
-	fmt.Fprint(f, "rec: recID")
+	fmt.Fprintln(f, "rec: recID")
 	r, err := newFileRecognizerMap(f.Name())
 	assert.Nil(t, err)
 	r.rCache.fileLoader = recInfoLoaderMock
@@ -69,16 +71,16 @@ func Test_Reload(t *testing.T) {
 	f := createTempFile(t)
 	defer os.Remove(f.Name())
 
-	fmt.Fprint(f, "rec: recID\n")
+	fmt.Fprintln(f, "rec: recID")
 	recMap, err := newFileRecognizerMap(f.Name())
 	assert.Nil(t, err)
 	assert.NotNil(t, recMap)
-	v, err := recMap.Get("rec1")
+	v, _ := recMap.Get("rec1")
 	assert.Equal(t, "", v)
 
-	fmt.Fprint(f, "rec1: recID1")
+	fmt.Fprintln(f, "rec1: recID1")
 	time.Sleep(time.Millisecond * 20)
-	v, err = recMap.Get("rec1")
+	v, _ = recMap.Get("rec1")
 	assert.Equal(t, "recID1", v)
 }
 
@@ -91,7 +93,7 @@ func Test_ReturnDefault(t *testing.T) {
 	f := createTempFile(t)
 	fmt.Fprint(f, "default: recID\n")
 	defer os.Remove(f.Name())
-	recMap, err := newFileRecognizerMap(f.Name())
+	recMap, _ := newFileRecognizerMap(f.Name())
 	v, err := recMap.Get("")
 	assert.Equal(t, "recID", v)
 	assert.Nil(t, err)
@@ -146,9 +148,11 @@ func TestRC_MarkedFor(t *testing.T) {
 	defer os.Remove(f.Name())
 	r.rCache.needsReload = false
 
-	fmt.Fprint(f, "rec1: recID1")
+	fmt.Fprintln(f, "rec1: recID1")
 	time.Sleep(time.Millisecond * 20)
 
+	r.rCache.lock.Lock()
+	defer r.rCache.lock.Unlock()
 	assert.Equal(t, true, r.rCache.needsReload)
 }
 

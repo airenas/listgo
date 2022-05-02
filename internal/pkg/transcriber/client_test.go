@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
@@ -33,8 +34,12 @@ func newTestReq(req *http.Request) testReq {
 }
 
 func initTestServer(t *testing.T, rData map[string]testResp) (*Client, *httptest.Server, *[]testReq) {
+	t.Helper()
 	resRequest := make([]testReq, 0)
+	rLock := &sync.Mutex{}
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rLock.Lock()
+		defer rLock.Unlock()
 		resRequest = append(resRequest, newTestReq(req))
 		resp, f := rData[req.URL.String()]
 		if f {
