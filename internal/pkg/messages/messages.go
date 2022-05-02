@@ -27,6 +27,8 @@ const (
 	TagChildIDS = "ch_ids"
 	//TagChildIDSFileNames contains IDs=FileName mappings of childrens transcriptions
 	TagChildIDSFileNames = "ch_ids_fn"
+	//TagSepSpeakersOnChannel indicates separate speakers on separate audio channels
+	TagSepSpeakersOnChannel = "sep_speakers_on_channel"
 )
 
 //QueueMessage message going throuht broker

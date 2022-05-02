@@ -78,3 +78,8 @@ func HidePass(link string) string {
 func SupportAudioExt(ext string) bool {
 	return ext == ".wav" || ext == ".mp3" || ext == ".mp4" || ext == ".m4a"
 }
+
+// ParamTrue - returns true if string param indicates true value
+func ParamTrue(prm string) bool {
+	return strings.ToLower(prm) == "true" || prm == "1"
+}

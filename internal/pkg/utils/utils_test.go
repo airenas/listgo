@@ -2,12 +2,12 @@ package utils
 
 import (
 	"bytes"
-	"errors"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -89,4 +89,27 @@ func TestSupportAudioExt(t *testing.T) {
 	assert.False(t, SupportAudioExt(""))
 	assert.False(t, SupportAudioExt(".txt"))
 	assert.False(t, SupportAudioExt(".mpeg"))
+}
+
+func TestParamTrue(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want bool
+	}{
+		{name: "true", args: "true", want: true},
+		{name: "True", args: "True", want: true},
+		{name: "TRUE", args: "TRUE", want: true},
+		{name: "1", args: "1", want: true},
+		{name: "False", args: "false", want: false},
+		{name: "False", args: "0", want: false},
+		{name: "False", args: "", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ParamTrue(tt.args); got != tt.want {
+				t.Errorf("ParamTrue() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

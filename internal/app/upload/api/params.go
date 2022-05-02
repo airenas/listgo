@@ -13,4 +13,6 @@ const (
 	PrmSkipNumJoin = "skipNumJoin"
 	//PrmFile parameter
 	PrmFile = "file"
+	//PrmSepSpeakersOnChannel parameter - do separate speakers are on separate audio channels
+	PrmSepSpeakersOnChannel = "sepSpeakersOnChannel"
 )

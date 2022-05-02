@@ -67,7 +67,7 @@ func StartWebServer(data *ServiceData) error {
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       180 * time.Second,
 		IdleTimeout:       5 * time.Minute,
-		Handler: r,
+		Handler:           r,
 	}
 
 	w := cmdapp.Log.Writer()
@@ -115,6 +115,7 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	externalID := r.FormValue(api.PrmExternalID)
 	numberOfSpeakers := r.FormValue(api.PrmNumberOfSpeakers)
 	skipNumJoin := r.FormValue(api.PrmSkipNumJoin)
+	sepSpOnCh := r.FormValue(api.PrmSepSpeakersOnChannel)
 	email := r.FormValue(api.PrmEmail)
 	if email != "" {
 		err := checkmail.ValidateFormat(email)
@@ -140,7 +141,8 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	files, fHeaders, err := takeFiles(r, api.PrmFile)
 	for _, f := range files {
-		defer f.Close()
+		f_ := f
+		defer f_.Close()
 	}
 	if err != nil && len(files) == 0 {
 		http.Error(w, "No file", http.StatusBadRequest)
@@ -157,6 +159,12 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		cmdapp.Log.Error(err)
+		return
+	}
+
+	if len(files) > 1 && utils.ParamTrue(sepSpOnCh) {
+		http.Error(w, "'sepSpeakersOnChannel' not supported with multiple files", http.StatusBadRequest)
+		cmdapp.Log.Error("'sepSpeakersOnChannel' not supported with multiple files")
 		return
 	}
 
@@ -198,6 +206,9 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		messages.NewTag(messages.TagTimestamp, strconv.FormatInt(time.Now().Unix(), 10))}
 	if skipNumJoin != "" {
 		tags = append(tags, messages.NewTag(messages.TagSkipNumJoin, skipNumJoin))
+	}
+	if utils.ParamTrue(sepSpOnCh) {
+		tags = append(tags, messages.NewTag(messages.TagSepSpeakersOnChannel, "1"))
 	}
 
 	msg := messages.Decode
@@ -262,7 +273,7 @@ func (h recognizersHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func validateFormParams(r *http.Request) error {
 	form := r.Form
 	allowed := map[string]bool{api.PrmEmail: true, api.PrmRecognizer: true, api.PrmExternalID: true,
-		api.PrmNumberOfSpeakers: true, api.PrmSkipNumJoin: true}
+		api.PrmNumberOfSpeakers: true, api.PrmSkipNumJoin: true, api.PrmSepSpeakersOnChannel: true}
 	for k := range form {
 		_, f := allowed[k]
 		if !f {
