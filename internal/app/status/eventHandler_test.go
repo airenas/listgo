@@ -2,6 +2,7 @@ package status
 
 import (
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -48,8 +49,8 @@ type testdata struct {
 	fc    chan bool
 	waitc chan bool
 	f     func()
-	fail  bool
-	i     int
+	fail  int64
+	i     int64
 }
 
 func initTestData(t *testing.T) *testdata {
@@ -142,18 +143,19 @@ func Test_ListenQueue_NultipleConnections(t *testing.T) {
 }
 
 func initTestDataRegisterQueue(t *testing.T) *testdata {
+	t.Helper()
 	res := initTestData(t)
 	res.c = make(chan amqp.Delivery)
 	res.data = &ServiceData{}
 	res.data.StatusProvider = statusProviderMock
 	res.fc = make(chan bool)
 	res.waitc = make(chan bool)
-	res.fail = true
+	res.fail = 1
 	res.i = 0
 
 	res.data.EventChannelFunc = func() (<-chan amqp.Delivery, error) {
-		res.i++
-		if res.fail {
+		atomic.AddInt64(&res.i, 1)
+		if atomic.LoadInt64(&res.fail) > 0 {
 			return nil, errors.New("error")
 		}
 		return res.c, nil
@@ -180,22 +182,22 @@ func Test_RegisteringQueue_Restores(t *testing.T) {
 
 	go td.f()
 	time.Sleep(time.Millisecond * 100)
-	td.fail = false
-	td.i = 0
+	atomic.StoreInt64(&td.fail, 0)
+	atomic.StoreInt64(&td.i, 0)
 	time.Sleep(time.Millisecond * 100)
 	close(td.fc)
 	close(td.c)
 	<-td.waitc
-	assert.Equal(t, td.i, 1)
+	assert.Equal(t, int64(1), td.i)
 }
 
 func Test_RegisteringQueue_NoFailure(t *testing.T) {
 	td := initTestDataRegisterQueue(t)
-	td.fail = false
+	atomic.StoreInt64(&td.fail, 0)
 	go td.f()
 	time.Sleep(time.Millisecond * 100)
 	close(td.fc)
 	close(td.c)
 	<-td.waitc
-	assert.Equal(t, td.i, 1)
+	assert.Equal(t, int64(1), td.i)
 }

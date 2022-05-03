@@ -483,7 +483,7 @@ func TestGET_Recognizers(t *testing.T) {
 	assert.Equal(t, "ID", r[0].ID)
 	assert.Equal(t, "name", r[0].Name)
 	assert.Equal(t, "descr", r[0].Description)
-	assert.Equal(t, ttime, r[0].DateCreated)
+	assert.Equal(t, ttime.UTC(), r[0].DateCreated.UTC())
 }
 
 func TestGET_Recognizers_Fails(t *testing.T) {
@@ -564,4 +564,3 @@ func Test(t *testing.T) {
 	assert.Equal(t, "/home/olia.txt", filepath.Clean("/home/aaa/aaa/../../olia.txt"))
 	assert.Equal(t, "../../olia.txt", filepath.Clean("../../olia.txt"))
 }
-
