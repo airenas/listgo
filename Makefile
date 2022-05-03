@@ -17,6 +17,12 @@ generate/proto:
 	cd .proto && make generate clean/source
 .PHONY: generate/proto	
 #####################################################################################
+## install kafka lib
+install/librkafka:
+	git clone --branch v1.1.0 https://github.com/edenhill/librdkafka.git
+	cd librdkafka && ./configure --prefix /usr && make && make install
+.PHONY: install/librkafka
+#####################################################################################
 ## call units tests
 test/unit:
 	go test -v -race -count 1 ./...	

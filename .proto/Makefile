@@ -8,7 +8,7 @@ serving:
 tensorflow:
 	git clone -b r1.7 https://github.com/tensorflow/tensorflow.git
 
-.proto.done: gen tensorflow serving
+.proto.done: gen tensorflow serving .install.proto.done
 	protoc -I tensorflow -I serving --go_out=gen --go-grpc_out=gen --go_opt=$(GO_OPTS) \
 		--go-grpc_opt=$(GO_OPTS) serving/tensorflow_serving/apis/*.proto \
 		serving/tensorflow_serving/config/*.proto \
@@ -37,9 +37,14 @@ clean/target:
 	rm -rf ../internal/pkg/tensorflow_serving
 
 clean:
-	rm -f .done .proto.done .proto.fixed.done
+	rm -f .done .proto.done .proto.fixed.done .install.proto.done
 	rm -rf gen
 
 clean/source:
 	rm -rf tensorflow
 	rm -rf serving
+
+.install.proto.done:
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+	touch $@
