@@ -12,7 +12,7 @@ type WorkSaver struct {
 	SessionProvider *SessionProvider
 }
 
-//NewStatusSaver creates StatusSaver instance
+// NewWorkSaver creates WorkSaver instance
 func NewWorkSaver(sessionProvider *SessionProvider) (*WorkSaver, error) {
 	f := WorkSaver{SessionProvider: sessionProvider}
 	return &f, nil

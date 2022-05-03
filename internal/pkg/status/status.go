@@ -4,17 +4,21 @@ package status
 type Status int
 
 const (
-	//Uploaded value
+	// Uploaded value
 	Uploaded Status = iota + 1
-	//AudioConvert value
+	// AudioConvert value
 	AudioConvert
-	//Diarization value
+	// Diarization value
 	Diarization
-	//Transcription
+	// Transcription value
 	Transcription
+	// Rescore status
 	Rescore
+	// ResultMake status
 	ResultMake
+	// JoinResults status
 	JoinResults
+	// Completed status
 	Completed
 )
 
@@ -29,14 +33,17 @@ var (
 		"ResultMake": ResultMake, "JoinResults": JoinResults}
 )
 
+// Name return status as string
 func Name(st Status) string {
 	return statusName[st]
 }
 
+// From converts string to Status
 func From(st string) Status {
 	return nameStatus[st]
 }
 
+// Min selects min status of the two
 func Min(st1, st2 Status) Status {
 	if st1 < st2 {
 		return st1

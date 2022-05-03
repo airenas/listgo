@@ -141,8 +141,8 @@ func (h uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	files, fHeaders, err := takeFiles(r, api.PrmFile)
 	for _, f := range files {
-		f_ := f
-		defer f_.Close()
+		fInt := f
+		defer fInt.Close()
 	}
 	if err != nil && len(files) == 0 {
 		http.Error(w, "No file", http.StatusBadRequest)
@@ -291,7 +291,7 @@ func validateFormParams(r *http.Request) error {
 func validateFormFiles(form *multipart.Form) error {
 	check := make(map[string]bool)
 	if form != nil {
-		for k, _ := range form.File {
+		for k := range form.File {
 			check[k] = true
 		}
 	}
