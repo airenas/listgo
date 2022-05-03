@@ -72,7 +72,7 @@ func newFileRecognizerMap(file string) (*FileRecognizerMap, error) {
 	return &f, nil
 }
 
-func (f *FileRecognizerMap) addWatcher(file string) error {
+func (fm *FileRecognizerMap) addWatcher(file string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -87,7 +87,7 @@ func (f *FileRecognizerMap) addWatcher(file string) error {
 				}
 				if event.Op&fsnotify.Write == fsnotify.Write {
 					cmdapp.Log.Println("modified file:", event.Name)
-					f.onConfigChange(file)
+					fm.onConfigChange(file)
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
@@ -112,10 +112,10 @@ func initViper(file string) (*viper.Viper, error) {
 }
 
 // Get return recognizer ID by provided key
-func (fs *FileRecognizerMap) onConfigChange(file string) {
+func (fm *FileRecognizerMap) onConfigChange(file string) {
 	cmdapp.Log.Infof("Config reload started from '%s'", file)
-	fs.vLock.Lock()
-	defer fs.vLock.Unlock()
+	fm.vLock.Lock()
+	defer fm.vLock.Unlock()
 
 	copyV, err := initViper(file)
 	if err != nil {
@@ -123,24 +123,24 @@ func (fs *FileRecognizerMap) onConfigChange(file string) {
 		return
 	}
 	// cache access only with lock
-	rc := fs.rCache
-	fs.rCache.lock.Lock()
+	rc := fm.rCache
+	fm.rCache.lock.Lock()
 	defer rc.lock.Unlock()
-	fs.v = copyV
+	fm.v = copyV
 	rc.needsReload = true
 	cmdapp.Log.Infof("Config reloaded")
 }
 
 // Get return recognizer ID by provided key
-func (fs *FileRecognizerMap) Get(name string) (string, error) {
-	fs.vLock.RLock()
-	defer fs.vLock.RUnlock()
+func (fm *FileRecognizerMap) Get(name string) (string, error) {
+	fm.vLock.RLock()
+	defer fm.vLock.RUnlock()
 
 	var id string
 	if name == "" {
-		id = fs.v.GetString("default")
+		id = fm.v.GetString("default")
 	} else {
-		id = fs.v.GetString(name)
+		id = fm.v.GetString(name)
 	}
 	if id == "" {
 		return "", api.ErrRecognizerNotFound
@@ -149,14 +149,14 @@ func (fs *FileRecognizerMap) Get(name string) (string, error) {
 }
 
 // GetAll returns all information about installed recognizers
-func (fs *FileRecognizerMap) GetAll() ([]*api.Recognizer, error) {
-	rc := fs.rCache
+func (fm *FileRecognizerMap) GetAll() ([]*api.Recognizer, error) {
+	rc := fm.rCache
 	rc.lock.Lock()
 	defer rc.lock.Unlock()
 
 	if rc.needsReload {
 		cmdapp.Log.Info("Reloading recognizers")
-		err := rc.reload(fs.v.AllSettings())
+		err := rc.reload(fm.v.AllSettings())
 		if err != nil {
 			return nil, err
 		}

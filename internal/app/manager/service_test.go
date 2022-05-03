@@ -146,7 +146,7 @@ func TestHandlesMessagesDecodeMsg(t *testing.T) {
 	close(td.dc)
 	<-td.fc
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.AudioConvert))
-	verifySendInformOnce(t, messages.InformType_Started)
+	verifySendInformOnce(t, messages.InformTypeStarted)
 	verifySendMessageOnce(t, messages.AudioConvert)
 }
 
@@ -210,7 +210,7 @@ func TestHandlesMessagesAudioConvertWithError(t *testing.T) {
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
 		pegomock.EqString("error"))
 	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
-	verifySendInformOnce(t, messages.InformType_Failed)
+	verifySendInformOnce(t, messages.InformTypeFailed)
 
 }
 
@@ -226,7 +226,7 @@ func TestHandlesMessagesAudioConvertWithErrorAndTargetQueue(t *testing.T) {
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
 		pegomock.EqString("error"))
 	msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.EqString("Q1"), pegomock.AnyString())
-	verifySendInformOnce(t, messages.InformType_Failed)
+	verifySendInformOnce(t, messages.InformTypeFailed)
 
 }
 
@@ -291,7 +291,7 @@ func TestHandlesMessagesDiarizationWithError(t *testing.T) {
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
 		pegomock.EqString("error"))
 	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
-	verifySendInformOnce(t, messages.InformType_Failed)
+	verifySendInformOnce(t, messages.InformTypeFailed)
 }
 
 func TestHandlesMessagesTranscriptionMsg(t *testing.T) {
@@ -316,7 +316,7 @@ func TestHandlesMessagesTranscriptionWithError(t *testing.T) {
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
 		pegomock.EqString("error"))
 	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
-	verifySendInformOnce(t, messages.InformType_Failed)
+	verifySendInformOnce(t, messages.InformTypeFailed)
 }
 
 func TestHandlesMessagesRescoreMsg(t *testing.T) {
@@ -341,7 +341,7 @@ func TestHandlesMessagesRescoreWithError(t *testing.T) {
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).SaveError(pegomock.AnyString(),
 		pegomock.EqString("error"))
 	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
-	verifySendInformOnce(t, messages.InformType_Failed)
+	verifySendInformOnce(t, messages.InformTypeFailed)
 }
 
 func TestHandlesMessagesResultMakeMsgSaveFails(t *testing.T) {
@@ -366,7 +366,7 @@ func TestHandlesMessagesResultMakeMsg(t *testing.T) {
 	close(td.rc)
 	<-td.fc
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.Completed))
-	verifySendInformOnce(t, messages.InformType_Finished)
+	verifySendInformOnce(t, messages.InformTypeFinished)
 	resultSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), pegomock.AnyString())
 }
 
@@ -383,7 +383,7 @@ func TestHandlesMessagesResultMakeWithError(t *testing.T) {
 		pegomock.EqString("error"))
 	msgSenderMock.VerifyWasCalled(pegomock.Never()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(), pegomock.AnyString())
 	resultSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), pegomock.AnyString())
-	verifySendInformOnce(t, messages.InformType_Failed)
+	verifySendInformOnce(t, messages.InformTypeFailed)
 }
 
 func TestHandlesMessagesResultMakeMsgWithTarget(t *testing.T) {
@@ -396,7 +396,7 @@ func TestHandlesMessagesResultMakeMsgWithTarget(t *testing.T) {
 	close(td.rc)
 	<-td.fc
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.Completed))
-	verifySendInformOnce(t, messages.InformType_Finished)
+	verifySendInformOnce(t, messages.InformTypeFinished)
 	resultSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), pegomock.AnyString())
 	verifySendMessageOnce(t, "Q1")
 }

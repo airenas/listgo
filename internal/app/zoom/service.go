@@ -166,7 +166,7 @@ func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		return false, nil
 	}
 
-	err = data.InformMessageSender.Send(newInformMessage(&message, messages.InformType_Started),
+	err = data.InformMessageSender.Send(newInformMessage(&message, messages.InformTypeStarted),
 		messages.Inform, "")
 	if err != nil {
 		return true, err
@@ -289,7 +289,7 @@ func startTranscription(data *ServiceData, file string, message *messages.QueueM
 
 func sendInformFailure(message *messages.QueueMessage, data *ServiceData) {
 	cmdapp.Log.Infof("Trying send inform msg about failure %s", message.ID)
-	err := data.InformMessageSender.Send(newInformMessage(message, messages.InformType_Failed), messages.Inform, "")
+	err := data.InformMessageSender.Send(newInformMessage(message, messages.InformTypeFailed), messages.Inform, "")
 	cmdapp.LogIf(err)
 }
 
@@ -548,6 +548,6 @@ func joinResultsFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		}
 		return true, err
 	}
-	return true, data.InformMessageSender.Send(newInformMessage(&message.QueueMessage, messages.InformType_Finished),
+	return true, data.InformMessageSender.Send(newInformMessage(&message.QueueMessage, messages.InformTypeFinished),
 		messages.Inform, "")
 }

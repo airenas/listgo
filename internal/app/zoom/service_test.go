@@ -191,7 +191,7 @@ func TestHandlesMessagesDecodeMsg(t *testing.T) {
 	td.decodeCh <- amqp.Delivery{Body: msgdata}
 	close(td.decodeCh)
 	<-td.fc
-	verifySendInform(t, messages.InformType_Started, 1)
+	verifySendInform(t, messages.InformTypeStarted, 1)
 	verifySendMessage(t, messages.JoinAudio, 1)
 	getterMock.VerifyWasCalled(pegomock.Once()).List(pegomock.AnyString())
 	loaderMock.VerifyWasCalled(pegomock.Times(4)).Load(pegomock.AnyString())
@@ -209,7 +209,7 @@ func TestHandlesMessagesDecodeMsg_FailLen(t *testing.T) {
 	td.decodeCh <- amqp.Delivery{Body: msgdata}
 	close(td.decodeCh)
 	<-td.fc
-	verifySendInform(t, messages.InformType_Failed, 1)
+	verifySendInform(t, messages.InformTypeFailed, 1)
 	verifySendMessage(t, messages.JoinAudio, 0)
 	verifySendMessage(t, messages.Decode, 0)
 }
@@ -223,7 +223,7 @@ func TestHandlesMessagesDecodeMsg_FailLenError(t *testing.T) {
 	td.decodeCh <- amqp.Delivery{Body: msgdata}
 	close(td.decodeCh)
 	<-td.fc
-	verifySendInform(t, messages.InformType_Failed, 0)
+	verifySendInform(t, messages.InformTypeFailed, 0)
 	verifySendMessage(t, messages.JoinAudio, 0)
 	verifySendMessage(t, messages.Decode, 0)
 }
@@ -237,7 +237,7 @@ func TestHandlesMessagesDecodeMsg_FailGet(t *testing.T) {
 	td.decodeCh <- amqp.Delivery{Body: msgdata}
 	close(td.decodeCh)
 	<-td.fc
-	verifySendInform(t, messages.InformType_Failed, 0)
+	verifySendInform(t, messages.InformTypeFailed, 0)
 	verifySendMessage(t, messages.JoinAudio, 0)
 	verifySendMessage(t, messages.Decode, 0)
 }
@@ -275,7 +275,7 @@ func TestHandlesJoinResults(t *testing.T) {
 		matchers.AnyMapOfStringToInterface(), matchers.AnyMapOfStringToInterface())
 	resultSaverMock.VerifyWasCalled(pegomock.Once()).Save(pegomock.AnyString(),
 		pegomock.AnyString())
-	verifySendInform(t, messages.InformType_Finished, 1)
+	verifySendInform(t, messages.InformTypeFinished, 1)
 }
 
 func TestHandlesJoinResults_Failure(t *testing.T) {
@@ -289,7 +289,7 @@ func TestHandlesJoinResults_Failure(t *testing.T) {
 	<-td.fc
 	statusSaverMock.VerifyWasCalled(pegomock.Once()).SaveError(pegomock.AnyString(), pegomock.AnyString())
 	resultSaverMock.VerifyWasCalled(pegomock.Never()).Save(pegomock.AnyString(), pegomock.AnyString())
-	verifySendInform(t, messages.InformType_Failed, 1)
+	verifySendInform(t, messages.InformTypeFailed, 1)
 }
 
 func TestHandlesOneStatus(t *testing.T) {
@@ -350,7 +350,7 @@ func TestHandlesOneStatus_SavesError(t *testing.T) {
 	close(td.statusCh)
 	<-td.fc
 	statusSaverMock.VerifyWasCalled(pegomock.Once()).SaveError(pegomock.AnyString(), pegomock.AnyString())
-	verifySendInform(t, messages.InformType_Failed, 1)
+	verifySendInform(t, messages.InformTypeFailed, 1)
 }
 
 func TestHandlesOneCompleted(t *testing.T) {
@@ -414,7 +414,7 @@ func TestHandlesOneCompleted_SaveError(t *testing.T) {
 	close(td.completeCh)
 	<-td.fc
 	statusSaverMock.VerifyWasCalled(pegomock.Once()).SaveError(pegomock.AnyString(), pegomock.AnyString())
-	verifySendInform(t, messages.InformType_Failed, 1)
+	verifySendInform(t, messages.InformTypeFailed, 1)
 }
 
 func TestMakeIdsFNMap(t *testing.T) {
