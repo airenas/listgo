@@ -76,7 +76,7 @@ func TestContinuesOnProviderError(t *testing.T) {
 
 	startCleanTimer(d)
 
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(55 * time.Millisecond)
 	go close(d.qChan)
 	<-d.workWaitChan
 	idsProviderMock.VerifyWasCalled(pegomock.AtLeast(5)).Get()
