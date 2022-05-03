@@ -10,7 +10,12 @@ help:
 generate/mocks: 
 	go install github.com/petergtz/pegomock/...@latest
 	go generate ./...
-.PHONY: generate/mocks	
+.PHONY: generate/mocks
+#####################################################################################
+## generate proto files
+generate/proto: 
+	cd .proto && make generate clean/source
+.PHONY: generate/proto	
 #####################################################################################
 ## call units tests
 test/unit:

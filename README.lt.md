@@ -31,9 +31,9 @@ Instaliuokite [go* (v >= 14.0)](https://golang.org/), [protoc](https://grpc.io/d
 
     `sudo make install`
 
-1. Paruoškite tensorflow proto filus:
+1. Paruoškite tensorflow proto failus:
 
-    `cd build && ./prepareTFProto.sh`
+    `make generate/proto`
 
 1. Sugeneruokite mock'us testavimui:
 

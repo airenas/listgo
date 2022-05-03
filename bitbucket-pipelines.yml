@@ -10,9 +10,17 @@ pipelines:
     - step:          
         name: Prepare TF proto
         script:
-          - cd build && ./prepareTFProto.sh
+          - make generate/proto
+    - step:          
+        name: Prepare test mocks
+        script:
+          - make generate/mocks     
     - step:          
         name: Build
         script:
-          - make test/unit      
+          - make test/unit
+    - step:          
+        name: Lint
+        script:
+          - make test/lint
     

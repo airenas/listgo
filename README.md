@@ -32,7 +32,7 @@ Services for running the transcription process. It uses Mongo DB (for saving sta
 
 1. Prepare tensorflow proto files for go
 
-    `cd build && ./prepareTFProto.sh`
+    `make genereate/proto`
 
 1. Generate mocks:
 
