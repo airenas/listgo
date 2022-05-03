@@ -25,3 +25,5 @@ cmd/cleanService/cleanService
 example/**
 cmd/**/config.yaml
 cmd/dispatcherService/dispatcherService
+.proto/.*.done
+.proto/.done
