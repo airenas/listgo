@@ -429,6 +429,28 @@ func TestPOST_SkipNumJoinNotPassed(t *testing.T) {
 	assert.Equal(t, "", getTag(qmsg.Tags, messages.TagSkipNumJoin))
 }
 
+func TestPOST_SpOnChannelPassed(t *testing.T) {
+	initTest(t)
+	req := newReqMap([]string{"file.wav"}, map[string]string{"sepSpeakersOnChannel": "1"})
+	resp := httptest.NewRecorder()
+	newTestRouter().ServeHTTP(resp, req)
+
+	msg, q, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.AnyString(),
+		pegomock.AnyString()).GetCapturedArguments()
+
+	assert.Equal(t, messages.Decode, q)
+	qmsg, ok := msg.(*messages.QueueMessage)
+	assert.True(t, ok)
+	assert.NotNil(t, qmsg)
+	assert.NotNil(t, qmsg.Tags)
+	assert.Equal(t, "1", getTag(qmsg.Tags, messages.TagSepSpeakersOnChannel))
+}
+
+func TestPOST_SpOnChannelPassedFail(t *testing.T) {
+	req := newReqMap([]string{"file.wav", "file1.wav"}, map[string]string{"sepSpeakersOnChannel": "1"})
+	testCode(t, req, http.StatusBadRequest)
+}
+
 func TestPOST_FailOnUnknownFormData(t *testing.T) {
 	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", "recognizer": "rec"}), 200)
 	testCode(t, newReqMap([]string{"file.wav"}, map[string]string{"email": "a@a.lt", "rec": "rec"}), 400)
