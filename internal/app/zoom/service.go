@@ -26,16 +26,20 @@ import (
 )
 
 type (
+	// StatusProvider returns status by ID
 	StatusProvider interface {
 		Get(ID string) (*stapi.TranscriptionResult, error)
 	}
+	// FilesGetter retrieves file for ID
 	FilesGetter interface {
 		List(ID string) ([]string, error)
 	}
+	// WorkPersistence save, gets data to DB
 	WorkPersistence interface {
 		Save(*persistence.WorkData) error
 		Get(ID string) (*persistence.WorkData, error)
 	}
+	// AudioDuration provides audio len for file/io.Reader
 	AudioDuration interface {
 		Get(string, io.Reader) (time.Duration, error)
 	}
