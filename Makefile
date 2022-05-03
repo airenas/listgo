@@ -30,7 +30,7 @@ test/unit:
 #####################################################################################
 ## run tests in docker
 docker/test:
-	docker -f build/Dockerfile.test .
+	docker build -f build/Dockerfile.test .
 .PHONY: docker/test
 #####################################################################################
 ## code vet and lint
