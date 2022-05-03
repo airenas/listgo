@@ -25,8 +25,13 @@ install/librkafka:
 #####################################################################################
 ## call units tests
 test/unit:
-	go test -v -race -count 1 ./...	
+	go test -race -count 1 ./...	
 .PHONY: test/unit
+#####################################################################################
+## run tests in docker
+docker/test:
+	docker -f build/Dockerfile.test .
+.PHONY: docker/test
 #####################################################################################
 ## code vet and lint
 test/lint: 

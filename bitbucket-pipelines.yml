@@ -8,27 +8,8 @@ image: golang:1.17
 pipelines:
   default:
     - step:          
-        name: Install protoc
+        name: Run test/lint in docker
         script:
-          - apt update && apt install -y protobuf-compiler
-    - step:          
-        name: Install librkafka
-        script:
-          - make install/librkafka
-    - step:          
-        name: Prepare TF proto
-        script:
-          - make generate/proto
-    - step:          
-        name: Prepare test mocks
-        script:
-          - make generate/mocks     
-    - step:          
-        name: Build
-        script:
-          - make test/unit
-    - step:          
-        name: Lint
-        script:
-          - make test/lint
-    
+          - make docker/test
+        services:
+          - docker      
