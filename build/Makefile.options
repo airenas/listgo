@@ -1,0 +1,6 @@
+## non configurable
+ifeq ($(dhub), true)
+docker_prefix?=airenas/list-
+else
+docker_prefix?=semantikadocker.vdu.lt/trans/
+endif 
