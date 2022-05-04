@@ -123,7 +123,7 @@ func listenQueue(q <-chan amqp.Delivery, f prFunc, data *ServiceData) {
 	for d := range q {
 		redeliver, err := f(&d, data)
 		if err != nil {
-			cmdapp.Log.Errorf("Can't process message %s\n%s", d.MessageId, string(d.Body))
+			cmdapp.Log.Errorf("can't process message %s\n%s", d.MessageId, string(d.Body))
 			cmdapp.Log.Error(err)
 			d.Nack(false, redeliver && !d.Redelivered) // redeliver for first time
 		} else {
@@ -143,7 +143,7 @@ func listenQueue(q <-chan amqp.Delivery, f prFunc, data *ServiceData) {
 func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	var message messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
-		return false, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
+		return false, errors.Wrap(err, "can't unmarshal message "+string(d.Body))
 	}
 
 	cmdapp.Log.Infof("Got %s msg :%s (%s)", messages.DecodeMultiple, message.ID, message.Recognizer)
@@ -176,10 +176,13 @@ func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		return true, err
 	}
 
-	err = data.MessageSender.Send(messages.NewQueueMessageFromM(&message), messages.JoinAudio,
-		messages.ResultQueueFor(messages.JoinAudio))
-	if err != nil {
-		return true, err
+	if sepCh, ok := messages.GetTag(message.Tags, messages.TagSepSpeakersOnChannel); ok && utils.ParamTrue(sepCh) {
+		cmdapp.Log.Infof("Separate speakers on channels")
+	} else {
+		if err := data.MessageSender.Send(messages.NewQueueMessageFromM(&message), messages.JoinAudio,
+			messages.ResultQueueFor(messages.JoinAudio)); err != nil {
+			return true, err
+		}
 	}
 
 	ids, fNames, err := startTranscriptions(data, files, &message)
@@ -276,7 +279,8 @@ func startTranscription(data *ServiceData, file string, message *messages.QueueM
 
 	tags := make([]messages.Tag, 0)
 	for _, t := range message.Tags {
-		if t.Key == messages.TagNumberOfSpeakers || t.Key == messages.TagTimestamp {
+		if t.Key == messages.TagNumberOfSpeakers || t.Key == messages.TagTimestamp ||
+			t.Key == messages.TagSepSpeakersOnChannel {
 			continue
 		}
 		tags = append(tags, t)

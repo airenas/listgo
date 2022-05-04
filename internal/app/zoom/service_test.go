@@ -198,6 +198,31 @@ func TestHandlesMessagesDecodeMsg(t *testing.T) {
 	verifySendMessage(t, messages.Decode, 2)
 }
 
+func TestHandlesMessagesDecodeMsg_SkipJoinAudion(t *testing.T) {
+	td := initTestData(t)
+
+	pegomock.When(getterMock.List(pegomock.AnyString())).ThenReturn([]string{"1.mp4", "2.mp4"}, nil)
+	pegomock.When(loaderMock.Load(pegomock.AnyString())).ThenReturn(fileMock, nil)
+	pegomock.When(lenMock.Get(pegomock.AnyString(), matchers.AnyIoReader())).ThenReturn(time.Second, nil)
+	msg := newTestMsg()
+	msg.Tags = append(msg.Tags, messages.NewTag(messages.TagSepSpeakersOnChannel, "1"), messages.NewTag("olia", "1"))
+	msgdata, _ := json.Marshal(msg)
+	td.decodeCh <- amqp.Delivery{Body: msgdata}
+	close(td.decodeCh)
+	<-td.fc
+	verifySendInform(t, messages.InformTypeStarted, 1)
+	verifySendMessage(t, messages.JoinAudio, 0)
+	getterMock.VerifyWasCalled(pegomock.Once()).List(pegomock.AnyString())
+	loaderMock.VerifyWasCalled(pegomock.Times(4)).Load(pegomock.AnyString())
+	dMsg := verifySendMessage(t, messages.Decode, 2)
+	if len(dMsg) > 0 {
+		str, _ := messages.GetTag(dMsg[0].Tags, messages.TagSepSpeakersOnChannel)
+		assert.Equal(t, "", str)
+		str, _ = messages.GetTag(dMsg[0].Tags, "olia")
+		assert.Equal(t, "1", str)
+	}
+}
+
 func TestHandlesMessagesDecodeMsg_FailLen(t *testing.T) {
 	td := initTestData(t)
 
@@ -445,18 +470,23 @@ func TestCmpDur(t *testing.T) {
 	assert.False(t, cmpDur(time.Hour, time.Hour+time.Second*2))
 }
 
-func verifySendMessage(t *testing.T, mType string, count int) {
+func verifySendMessage(t *testing.T, mType string, count int) []*messages.QueueMessage {
+	t.Helper()
 	msgSenderMock.VerifyWasCalled(pegomock.Times(count)).Send(matchers.AnyMessagesMessage(), pegomock.EqString(mType), pegomock.AnyString())
+	var res []*messages.QueueMessage
 	if count > 0 {
 		dm, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Times(count)).Send(matchers.AnyMessagesMessage(), pegomock.EqString(mType), pegomock.AnyString()).
 			GetCapturedArguments()
 
 		m1 := dm.(*messages.QueueMessage)
 		assert.Equal(t, "rec", m1.Recognizer)
+		res = append(res, m1)
 	}
+	return res
 }
 
 func verifySendInform(t *testing.T, tp string, count int) {
+	t.Helper()
 	msgInformSenderMock.VerifyWasCalled(pegomock.Times(count)).Send(matchers.AnyMessagesMessage(), pegomock.EqString(messages.Inform), pegomock.AnyString())
 	if count > 0 {
 		dm, _, _ := msgInformSenderMock.VerifyWasCalled(pegomock.Times(count)).Send(matchers.AnyMessagesMessage(), pegomock.EqString(messages.Inform), pegomock.AnyString()).
