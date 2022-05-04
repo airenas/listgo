@@ -7,7 +7,7 @@ dir=manager
 ########### DOCKER ##################################################################
 tag=$(service):$(version)
 
-dbuild: $(dist_dir)/$(executable_name)
+dbuild:
 	cd ../../ && docker build -t $(tag) --build-arg BUILD_VERSION=$(version) -f build/$(dir)/Dockerfile .
 
 dpush: dbuild

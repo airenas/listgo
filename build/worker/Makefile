@@ -1,9 +1,9 @@
 -include ../../version
 -include ../Makefile.options
 #####################################################################################
-service=$(docker_prefix)upload-service
-version=$(upload_version)
-dir=upload
+service=airenas/list-worker
+version=$(worker_version)
+dir=worker
 ########### DOCKER ##################################################################
 tag=$(service):$(version)
 
