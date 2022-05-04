@@ -1,14 +1,10 @@
 #########################################################################################
 ## docker will invoke this file from ../.. dir in order to access code
 #########################################################################################
-FROM airenas/list-builder:0.1.382-cdd1caf as builder
-
-
-COPY . /go/src
+FROM airenas/list-builder:0.2.388-0c1d460 as builder
 
 ARG BUILD_VERSION=0.1
 
-# copy src
 COPY . /go/src
 
 RUN CGO_ENABLED=0 go build -o /go/bin/uploadService -ldflags "-X main.version=$BUILD_VERSION" cmd/uploadService/main.go
