@@ -8,7 +8,8 @@ var statusProgressMap = make(map[status.Status]int32)
 
 func init() {
 	statusProgressMap[status.Uploaded] = 5
-	statusProgressMap[status.AudioConvert] = 6
+	statusProgressMap[status.SplitChannels] = 6
+	statusProgressMap[status.AudioConvert] = 7
 	statusProgressMap[status.Diarization] = 35
 	statusProgressMap[status.Transcription] = 50
 	statusProgressMap[status.Rescore] = 70

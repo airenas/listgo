@@ -5,6 +5,8 @@ const (
 	Decode string = "Decode"
 	// Inform queue
 	Inform string = "Inform"
+	// SplitChannels queue
+	SplitChannels string = "SplitChannels"
 	// AudioConvert queue
 	AudioConvert string = "AudioConvert"
 	// Diarization queue

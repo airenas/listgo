@@ -6,6 +6,8 @@ type Status int
 const (
 	// Uploaded value
 	Uploaded Status = iota + 1
+	// SplitChannels value
+	SplitChannels
 	// AudioConvert value
 	AudioConvert
 	// Diarization value
@@ -24,11 +26,12 @@ const (
 
 var (
 	statusName = map[Status]string{Uploaded: "UPLOADED", Completed: "COMPLETED",
-		AudioConvert: "AudioConvert", Diarization: "Diarization",
+		SplitChannels: "SplitChannels", AudioConvert: "AudioConvert", Diarization: "Diarization",
 		Transcription: "Transcription", Rescore: "Rescore",
 		ResultMake: "ResultMake", JoinResults: "JoinResults"}
 	nameStatus = map[string]Status{"UPLOADED": Uploaded, "COMPLETED": Completed,
-		"AudioConvert": AudioConvert, "Diarization": Diarization,
+		"SplitChannels": SplitChannels,
+		"AudioConvert":  AudioConvert, "Diarization": Diarization,
 		"Transcription": Transcription, "Rescore": Rescore,
 		"ResultMake": ResultMake, "JoinResults": JoinResults}
 )

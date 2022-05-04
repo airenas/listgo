@@ -95,6 +95,7 @@ func initQueues(prv *rabbit.ChannelProvider) error {
 	return prv.RunOnChannelWithRetry(func(ch *amqp.Channel) error {
 		queues := []string{messages.Decode, messages.Inform,
 			messages.AudioConvert, messages.ResultQueueFor(messages.AudioConvert),
+			messages.SplitChannels, messages.ResultQueueFor(messages.SplitChannels),
 			messages.Diarization, messages.ResultQueueFor(messages.Diarization),
 			messages.Transcription, messages.ResultQueueFor(messages.Transcription),
 			messages.Rescore, messages.ResultQueueFor(messages.Rescore),

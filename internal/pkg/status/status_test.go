@@ -16,8 +16,10 @@ func TestMin(t *testing.T) {
 func TestFrom(t *testing.T) {
 	assert.Equal(t, JoinResults, From("JoinResults"))
 	assert.Equal(t, AudioConvert, From("AudioConvert"))
+	assert.Equal(t, SplitChannels, From("SplitChannels"))
 }
 
 func TestName(t *testing.T) {
 	assert.Equal(t, "JoinResults", Name(JoinResults))
+	assert.Equal(t, "SplitChannels", Name(SplitChannels))
 }

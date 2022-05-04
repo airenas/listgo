@@ -5,26 +5,26 @@ import (
 
 	"bitbucket.org/airenas/listgo/internal/pkg/progress"
 	"bitbucket.org/airenas/listgo/internal/pkg/status"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestConvert(t *testing.T) {
-	pr := progress.Convert(status.AudioConvert)
-	assert.True(t, pr > 0)
-
-	pr = progress.Convert(status.From("olia"))
-	assert.Equal(t, int32(0), pr)
-
-	pr = progress.Convert(status.Completed)
-	assert.Equal(t, int32(100), pr)
-}
-
-func TestConvert_Rescore(t *testing.T) {
-	pr := progress.Convert(status.Rescore)
-	assert.Equal(t, int32(70), pr)
-}
-
-func TestConvert_ResultMake(t *testing.T) {
-	pr := progress.Convert(status.ResultMake)
-	assert.Equal(t, int32(90), pr)
+	tests := []struct {
+		name string
+		args status.Status
+		want int32
+	}{
+		{name: "any", args: status.From("olia"), want: 0},
+		{name: "ChannelsSplit", args: status.SplitChannels, want: 6},
+		{name: "AudioConvert", args: status.AudioConvert, want: 7},
+		{name: "Rescore", args: status.Rescore, want: 70},
+		{name: "ResultMake", args: status.ResultMake, want: 90},
+		{name: "Completed", args: status.Completed, want: 100},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := progress.Convert(tt.args); got != tt.want {
+				t.Errorf("Convert() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

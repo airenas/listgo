@@ -23,6 +23,7 @@ type ServiceData struct {
 	StatusSaver         status.Saver
 	ResultSaver         ResultSaver
 	DecodeCh            <-chan amqp.Delivery
+	SplitChannelsCh     <-chan amqp.Delivery
 	AudioConvertCh      <-chan amqp.Delivery
 	DiarizationCh       <-chan amqp.Delivery
 	TranscriptionCh     <-chan amqp.Delivery
@@ -61,6 +62,7 @@ func StartWorkerService(data *ServiceData) error {
 	cmdapp.Log.Infof("Starting listen for messages")
 
 	go listenQueue(data.DecodeCh, decode, data)
+	go listenQueue(data.SplitChannelsCh, splitChannelsFinish, data)
 	go listenQueue(data.AudioConvertCh, audioConvertFinish, data)
 	go listenQueue(data.DiarizationCh, diarizationFinish, data)
 	go listenQueue(data.TranscriptionCh, transcriptionFinish, data)
@@ -85,31 +87,59 @@ func listenQueue(q <-chan amqp.Delivery, f prFunc, data *ServiceData) {
 	data.fc.Close()
 }
 
-//decode starts the transcription process
+// decode starts the transcription process
 // workflow:
 // 1. set status to STARTED
 // 2. send 'Started' event (async)
-// 3. send and wait for 'AudioConvert' to finish
+// 3.1. send and wait for 'AudioConvert' to finish
+// or
+// 3.2  send msg to 'SplitChannels'
 func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	var message messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
-		return false, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
+		return false, errors.Wrap(err, "can't unmarshal message "+string(d.Body))
 	}
 
 	cmdapp.Log.Infof("Got %s msg :%s (%s)", messages.Decode, message.ID, message.Recognizer)
-	err := data.StatusSaver.Save(message.ID, status.AudioConvert)
-	if err != nil {
+
+	st := status.AudioConvert
+	target := messages.AudioConvert
+	if sepCh, ok := messages.GetTag(message.Tags, messages.TagSepSpeakersOnChannel); ok && utils.ParamTrue(sepCh) {
+		cmdapp.Log.Infof("Separate speakers on channels")
+		st = status.SplitChannels
+		target = messages.SplitChannels
+	}
+
+	if err := data.StatusSaver.Save(message.ID, st); err != nil {
 		cmdapp.Log.Error(err)
 		return true, err
 	}
 	publishStatusChange(&message, data)
-	err = data.InformMessageSender.Send(newInformMessage(&message, messages.InformTypeStarted),
-		messages.Inform, "")
+	err := data.InformMessageSender.Send(newInformMessage(&message, messages.InformTypeStarted), messages.Inform, "")
 	if err != nil {
 		return true, err
 	}
 	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message),
-		messages.AudioConvert, messages.ResultQueueFor(messages.AudioConvert))
+		messages.AudioConvert, messages.ResultQueueFor(target))
+}
+
+//splitChannelsFinish processes split channel finish message
+// 1. logs status
+// 2. sends 'DecodeMultiple' message
+func splitChannelsFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
+	var message messages.QueueMessage
+	if err := json.Unmarshal(d.Body, &message); err != nil {
+		return false, errors.Wrap(err, "can't unmarshal message "+string(d.Body))
+	}
+	c, err := processStatus(&message, data, messages.SplitChannels, status.AudioConvert) // there is no DecodeMultiple status
+	if !c {
+		if err != nil {
+			cmdapp.Log.Error(err)
+		}
+		return true, err
+	}
+	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message),
+		messages.DecodeMultiple, "")
 }
 
 //audioConvertFinish processes audio convert result messages
@@ -118,7 +148,7 @@ func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 func audioConvertFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	var message messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
-		return false, errors.Wrap(err, "Can't unmarshal message "+string(d.Body))
+		return false, errors.Wrap(err, "can't unmarshal message "+string(d.Body))
 	}
 	c, err := processStatus(&message, data, messages.AudioConvert, status.Diarization)
 	if !c {
