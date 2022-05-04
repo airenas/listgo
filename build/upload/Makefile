@@ -2,7 +2,7 @@
 -include ../Makefile.options
 #####################################################################################
 service=$(docker_prefix)upload-service
-version=$(manager_version)
+version=$(upload_version)
 dir=upload
 ########### DOCKER ##################################################################
 tag=$(service):$(version)
