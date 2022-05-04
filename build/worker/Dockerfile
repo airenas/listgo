@@ -11,7 +11,7 @@ RUN CGO_ENABLED=0 go build -o /go/bin/cmdWorkerService -ldflags "-X main.version
 #####################################################################################
 FROM alpine:3.15 as runner
 
-RUN apk add --no-cache make
+RUN apk add --no-cache make bash
 
 ARG BUILD_VERSION=0.1
 
