@@ -65,6 +65,7 @@ func run(cmd *cobra.Command, args []string) {
 
 	data.DecodeCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.Decode))
 	data.AudioConvertCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.ResultQueueFor(messages.AudioConvert)))
+	data.SplitChannelsCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.ResultQueueFor(messages.SplitChannels)))
 	data.DiarizationCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.ResultQueueFor(messages.Diarization)))
 	data.TranscriptionCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.ResultQueueFor(messages.Transcription)))
 	data.RescoreCh = makeQChannel(ch, msgChannelProvider.QueueName(messages.ResultQueueFor(messages.Rescore)))

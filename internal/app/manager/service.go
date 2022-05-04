@@ -119,8 +119,7 @@ func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	if err != nil {
 		return true, err
 	}
-	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message),
-		messages.AudioConvert, messages.ResultQueueFor(target))
+	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message), target, messages.ResultQueueFor(target))
 }
 
 //splitChannelsFinish processes split channel finish message
@@ -138,8 +137,7 @@ func splitChannelsFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		}
 		return true, err
 	}
-	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message),
-		messages.DecodeMultiple, "")
+	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message), messages.DecodeMultiple, "")
 }
 
 //audioConvertFinish processes audio convert result messages
