@@ -17,5 +17,8 @@ ARG BUILD_VERSION=0.1
 WORKDIR /go/src/
 
 RUN git clone --branch v1.1.0 https://github.com/edenhill/librdkafka.git && \
-    cd librdkafka && ./configure --prefix /usr && make && make install && cd /go/src && rm -rf librdkafka
+      cd librdkafka && ./configure --prefix /usr && make && make install && cd /go/src && rm -rf librdkafka
 
+COPY go.mod /go/src/
+COPY go.sum /go/src/
+RUN go mod download
