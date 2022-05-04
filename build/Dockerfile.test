@@ -1,7 +1,7 @@
 #########################################################################################
 ## docker will invoke this file from ./.. dir in order to access code
 #########################################################################################
-FROM airenas/list-builder:0.1.382-cdd1caf as builder
+FROM airenas/list-builder:0.2.388-0c1d460 as builder
 
 COPY . /go/src
 
