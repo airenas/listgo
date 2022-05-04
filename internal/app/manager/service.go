@@ -137,7 +137,9 @@ func splitChannelsFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		}
 		return true, err
 	}
-	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message), messages.DecodeMultiple, "")
+	nMsg := messages.NewQueueMessageFromM(&message)
+	nMsg.Tags, _ = messages.DropTag(nMsg.Tags, messages.TagSepSpeakersOnChannel)
+	return true, data.MessageSender.Send(nMsg, messages.DecodeMultiple, "")
 }
 
 //audioConvertFinish processes audio convert result messages

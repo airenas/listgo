@@ -89,7 +89,7 @@ func NewTag(key string, value string) Tag {
 	return Tag{Key: key, Value: value}
 }
 
-//GetTag retrieves tag value from tag list
+// GetTag retrieves tag value from tag list
 func GetTag(tags []Tag, key string) (string, bool) {
 	for _, t := range tags {
 		if t.Key == key {
@@ -97,4 +97,18 @@ func GetTag(tags []Tag, key string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// DropTag drops tag by key value
+func DropTag(tags []Tag, key string) ([]Tag, bool) {
+	var res []Tag
+	was := false
+	for _, t := range tags {
+		if t.Key == key {
+			was = true
+		} else {
+			res = append(res, t)
+		}
+	}
+	return res, was
 }
