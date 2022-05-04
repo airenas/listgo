@@ -166,13 +166,12 @@ func TestHandlesMessagesDecodeMsg_SplitChannels(t *testing.T) {
 	verifySendMessageOnce(t, messages.SplitChannels)
 }
 
-func verifySendMessageOnce(t *testing.T, mType string) *messages.QueueMessage {
+func verifySendMessageOnce(t *testing.T, mType string) {
 	t.Helper()
 	dm, _, _ := msgSenderMock.VerifyWasCalled(pegomock.Once()).Send(matchers.AnyMessagesMessage(), pegomock.EqString(mType), pegomock.AnyString()).
 		GetCapturedArguments()
 	m1 := dm.(*messages.QueueMessage)
 	assert.Equal(t, "rec", m1.Recognizer)
-	return m1
 }
 
 func verifySendInformOnce(t *testing.T, tp string) {
@@ -198,17 +197,12 @@ func TestHandlesMessagesAudioConvertMsg(t *testing.T) {
 func TestHandlesMessagesSplitChannelsMsg(t *testing.T) {
 	td := initTestData(t)
 
-	msg := newTestMsg()
-	msg.Tags = append(msg.Tags, messages.NewTag(messages.TagSepSpeakersOnChannel, "1"))
-	msgdata, _ := json.Marshal(msg)
+	msgdata, _ := json.Marshal(newTestMsg())
 	td.splitc <- amqp.Delivery{Body: msgdata}
 	close(td.splitc)
 	<-td.fc
 	statusSaverMock.VerifyWasCalled(pegomock.Times(1)).Save(pegomock.AnyString(), matchers.EqStatusStatus(status.AudioConvert))
-	dMsg := verifySendMessageOnce(t, messages.DecodeMultiple)
-	// test no TagSepSpeakersOnChannel is set
-	_, ok := messages.GetTag(dMsg.Tags, messages.TagSepSpeakersOnChannel)
-	assert.False(t, ok)
+	verifySendMessageOnce(t, messages.DecodeMultiple)
 }
 
 func TestHandlesMessagesSplitChannelsMsg_Fail(t *testing.T) {
