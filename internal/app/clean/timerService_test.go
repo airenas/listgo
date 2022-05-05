@@ -37,10 +37,10 @@ func TestInvokesOnTimer(t *testing.T) {
 
 	startCleanTimer(d)
 
-	time.Sleep(35 * time.Millisecond)
+	time.Sleep(30 * time.Millisecond)
 	go close(d.qChan)
 	<-d.workWaitChan
-	idsProviderMock.VerifyWasCalled(pegomock.AtLeast(5)).Get()
+	idsProviderMock.VerifyWasCalled(pegomock.AtLeast(3)).Get()
 }
 
 func TestInvokesCleaner(t *testing.T) {
