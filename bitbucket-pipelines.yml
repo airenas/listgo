@@ -7,7 +7,10 @@ image: golang:1.17
 
 pipelines:
   default:
-    - step:          
+    - step: 
+        runs-on:
+              - "self.hosted"
+              - "linux"         
         name: Run test/lint in docker
         script:
           - make docker/test
