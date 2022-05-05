@@ -33,11 +33,11 @@ func TestInvokesOnStartup(t *testing.T) {
 func TestInvokesOnTimer(t *testing.T) {
 	initTimerTest(t)
 	d := newtData()
-	d.runEvery = time.Millisecond * 10
+	d.runEvery = time.Millisecond * 5
 
 	startCleanTimer(d)
 
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(35 * time.Millisecond)
 	go close(d.qChan)
 	<-d.workWaitChan
 	idsProviderMock.VerifyWasCalled(pegomock.AtLeast(5)).Get()
