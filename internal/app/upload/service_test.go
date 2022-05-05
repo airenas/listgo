@@ -2,7 +2,7 @@ package upload
 
 import (
 	"bytes"
-	"errors"
+	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -13,19 +13,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/heptiolabs/healthcheck"
-	"github.com/prometheus/client_golang/prometheus/testutil"
-	"github.com/stretchr/testify/assert"
-
 	"bitbucket.org/airenas/listgo/internal/app/upload/api"
 	"bitbucket.org/airenas/listgo/internal/pkg/messages"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
-
-	"encoding/json"
-
 	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
+	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
 	"github.com/gorilla/mux"
+	"github.com/heptiolabs/healthcheck"
 	"github.com/petergtz/pegomock"
+	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 var statusSaverMock *mocks.MockSaver
@@ -585,4 +582,24 @@ func Test(t *testing.T) {
 	assert.Equal(t, "../olia.txt", filepath.Clean("aaa/../../olia.txt"))
 	assert.Equal(t, "/home/olia.txt", filepath.Clean("/home/aaa/aaa/../../olia.txt"))
 	assert.Equal(t, "../../olia.txt", filepath.Clean("../../olia.txt"))
+}
+
+func Test_sanitizeName(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want string
+	}{
+		{name: "Good", args: "file.wav", want: "file.wav"},
+		{name: "Space", args: "file 2.wav", want: "file_2.wav"},
+		{name: "Several spaces", args: "file  2 2.wav", want: "file__2_2.wav"},
+		{name: "basePaths", args: "../../file  2 2.wav", want: "file__2_2.wav"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := sanitizeName(tt.args); got != tt.want {
+				t.Errorf("sanitizeName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

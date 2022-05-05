@@ -365,13 +365,22 @@ func saveFiles(fs FileSaver, id string, files []multipart.File, fHeaders []*mult
 	}
 
 	for i, f := range files {
-		fn := filepath.Join(id, fHeaders[i].Filename)
+		fn := fHeaders[i].Filename
+		if fn == "" {
+			return errors.New("no file name in multipart")
+		}
+		fn = filepath.Join(id, sanitizeName(fn))
 		err := fs.Save(toLowerExt(fn), f)
 		if err != nil {
 			return errors.Wrapf(err, "can't save %s", fn)
 		}
 	}
 	return nil
+}
+
+func sanitizeName(s string) string {
+	res := strings.ReplaceAll(s, " ", "_")
+	return filepath.Base(res)
 }
 
 func toLowerExt(f string) string {
