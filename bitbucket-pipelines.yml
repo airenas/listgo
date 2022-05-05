@@ -9,8 +9,8 @@ pipelines:
   default:
     - step: 
         runs-on:
-              - "self.hosted"
-              - "linux"         
+          - "self.hosted"
+          - "linux"         
         name: Run test/lint in docker
         script:
           - make docker/test
