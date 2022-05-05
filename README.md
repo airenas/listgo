@@ -19,16 +19,7 @@ Services for running the transcription process. It uses Mongo DB (for saving sta
     `go get ./...`
 
 1. Install [librdkafka](https://github.com/confluentinc/confluent-kafka-go)
-
-    `git clone --branch v1.1.0 https://github.com/edenhill/librdkafka.git`
-
-    `cd librdkafka`
-
-    `./configure --prefix /usr`
-
-    `make`
-
-    `sudo make install`
+    `make install/librdkafka`
 
 1. Prepare tensorflow proto files for go
 
@@ -63,7 +54,7 @@ Airenas Vaičiūnas
 
 ## License
 
-Copyright © 2020, [Airenas Vaičiūnas](https://bitbucket.org/airenas).
+Copyright © 2022, [Airenas Vaičiūnas](https://bitbucket.org/airenas).
 Released under the [The 3-Clause BSD License](LICENSE).
 
 ---
