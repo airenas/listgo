@@ -72,14 +72,14 @@ func TestContinuesOnProviderError(t *testing.T) {
 	initTimerTest(t)
 	d := newtData()
 	pegomock.When(idsProviderMock.Get()).ThenReturn(nil, errors.New("error"))
-	d.runEvery = time.Millisecond * 10
+	d.runEvery = time.Millisecond * 5
 
 	startCleanTimer(d)
 
-	time.Sleep(55 * time.Millisecond)
+	time.Sleep(35 * time.Millisecond)
 	go close(d.qChan)
 	<-d.workWaitChan
-	idsProviderMock.VerifyWasCalled(pegomock.AtLeast(5)).Get()
+	idsProviderMock.VerifyWasCalled(pegomock.AtLeast(3)).Get()
 }
 
 func newtData() *timerServiceData {
