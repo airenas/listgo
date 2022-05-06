@@ -13,6 +13,6 @@ pipelines:
           - "linux"         
         name: Run test/lint in docker
         script:
-          - make docker/test
+          - make docker/test tty=
         services:
           - docker      
