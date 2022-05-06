@@ -1,7 +1,7 @@
 #########################################################################################
 ## docker will invoke this file from ../.. dir in order to access code
 #########################################################################################
-FROM airenas/list-builder:0.2.388-0c1d460 as builder
+FROM airenas/list-builder:0.2.409-3f6985e as builder
 
 ARG BUILD_VERSION=0.1
 

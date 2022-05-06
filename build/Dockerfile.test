@@ -1,12 +1,10 @@
 #########################################################################################
 ## docker will invoke this file from ./.. dir in order to access code
 #########################################################################################
-FROM airenas/list-builder:0.2.388-0c1d460 as builder
+FROM airenas/list-builder:0.2.409-3f6985e as builder
 
 COPY . /go/src
 
 ENV CGO_ENABLED=1
 RUN make generate/mocks
 
-RUN make test/unit
-RUN make test/lint
