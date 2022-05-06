@@ -1,3 +1,4 @@
+tty?=t
 #####################################################################################
 ## print usage information
 help:
@@ -29,9 +30,19 @@ test/unit:
 .PHONY: test/unit
 #####################################################################################
 ## run tests in docker
-docker/test:
-	docker build -f build/Dockerfile.test .
+docker/test: | test-reports
+	docker build -f build/Dockerfile.test -t list-test .
+	docker run -i$(tty) -v $(CURDIR)/test-reports:/go/src/test-reports:rw list-test make test/report
+	docker run -i$(tty) list-test make test/lint
 .PHONY: docker/test
+#####################################################################################
+test-reports:
+	mkdir -p $@
+## generates test reports
+test/report: | test-reports
+	go install github.com/jstemmer/go-junit-report@latest
+	go test ./... -v 2>&1 | go-junit-report > test-reports/report.xml
+.PHONY: test/report
 #####################################################################################
 ## code vet and lint
 test/lint: 
