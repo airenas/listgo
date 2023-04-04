@@ -2,7 +2,7 @@ commit_count=$(shell git rev-list --count HEAD)
 rev_id=$(shell git rev-parse --short HEAD)
 #################################################
 builder_version?=0.2.$(commit_count)-$(rev_id)
-upload_version?=1.7.$(commit_count)-$(rev_id)
+upload_version?=1.8.$(commit_count)-$(rev_id)
 status_version?=1.5.$(commit_count)-$(rev_id)
 manager_version?=1.5.$(commit_count)-$(rev_id)
 worker_version?=1.0.$(commit_count)-$(rev_id)
