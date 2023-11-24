@@ -63,10 +63,10 @@ func StartWebServer(data *ServiceData) error {
 	portStr := strconv.Itoa(data.Port)
 	srv := http.Server{
 		Addr:              ":" + portStr,
-		WriteTimeout:      180 * time.Second,
+		WriteTimeout:      300 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       180 * time.Second,
-		IdleTimeout:       5 * time.Minute,
+		ReadTimeout:       300 * time.Second,
+		IdleTimeout:       10 * time.Minute,
 		Handler:           r,
 	}
 
