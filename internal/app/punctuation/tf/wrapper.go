@@ -4,9 +4,8 @@ import (
 	"context"
 	"strings"
 
-	tf_framework "bitbucket.org/airenas/listgo/internal/pkg/tensorflow/core/framework"
-	tf_serving "bitbucket.org/airenas/listgo/internal/pkg/tensorflow_serving/apis"
-	google_protobuf "github.com/golang/protobuf/ptypes/wrappers"
+	tf_framework "github.com/airenas/go-tf-serving-protogen/tensorflow/core/framework"
+	tf_serving "github.com/airenas/go-tf-serving-protogen/tensorflow_serving/apis"
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -19,7 +18,7 @@ type Wrapper struct {
 	version int
 }
 
-//NewWrapper creates Wrapper
+// NewWrapper creates Wrapper
 func NewWrapper(url string, name string, version int) (*Wrapper, error) {
 	res := Wrapper{}
 	if strings.TrimSpace(url) == "" {
@@ -34,7 +33,7 @@ func NewWrapper(url string, name string, version int) (*Wrapper, error) {
 	return &res, nil
 }
 
-//Healthy return nil or error is TF model is not accesible
+// Healthy return nil or error is TF model is not accesible
 func (w *Wrapper) Healthy() error {
 	conn, err := grpc.Dial(w.url, grpc.WithInsecure())
 	if err != nil {
@@ -56,7 +55,7 @@ func (w *Wrapper) Healthy() error {
 	return errors.New("Model is not available")
 }
 
-//Invoke is main method
+// Invoke is main method
 func (w *Wrapper) Invoke(nums []int32) ([]int32, error) {
 	conn, err := grpc.Dial(w.url, grpc.WithInsecure())
 	if err != nil {
@@ -65,7 +64,7 @@ func (w *Wrapper) Invoke(nums []int32) ([]int32, error) {
 	defer conn.Close()
 
 	r := newPredictRequest(w.name, int64(w.version))
-	addInput(r, "word_ids", nums, []int64{1, int64(len(nums))})
+	addInput(r, "word_ids", nums)
 
 	client := tf_serving.NewPredictionServiceClient(conn)
 	resp, err := client.Predict(context.Background(), r)
@@ -109,9 +108,6 @@ func newPredictRequest(modelName string, modelVersion int64) *tf_serving.Predict
 	return &tf_serving.PredictRequest{
 		ModelSpec: &tf_serving.ModelSpec{
 			Name: modelName,
-			Version: &google_protobuf.Int64Value{
-				Value: modelVersion,
-			},
 		},
 		Inputs: make(map[string]*tf_framework.TensorProto),
 	}
@@ -121,25 +117,19 @@ func newModelStatusRequest(modelName string, modelVersion int64) *tf_serving.Get
 	return &tf_serving.GetModelStatusRequest{
 		ModelSpec: &tf_serving.ModelSpec{
 			Name: modelName,
-			Version: &google_protobuf.Int64Value{
-				Value: modelVersion,
-			}}}
+		}}
 }
 
-func addInput(pr *tf_serving.PredictRequest, tensorName string, data []int32, shapeSize []int64) (err error) {
+func addInput(pr *tf_serving.PredictRequest, tensorName string, data []int32) (err error) {
 	tp := &tf_framework.TensorProto{
 		Dtype: tf_framework.DataType_DT_INT32,
-	}
-	tp.IntVal = data
-	tp.TensorShape = &tf_framework.TensorShapeProto{
-		Dim: []*tf_framework.TensorShapeProto_Dim{},
-	}
-	for _, size := range shapeSize {
-		tp.TensorShape.Dim = append(tp.TensorShape.Dim,
-			&tf_framework.TensorShapeProto_Dim{
-				Size: size,
-				Name: "",
-			})
+		TensorShape: &tf_framework.TensorShapeProto{
+			Dim: []*tf_framework.TensorShapeProto_Dim{
+				{Size: 1},
+				{Size: int64(len(data))},
+			},
+		},
+		IntVal: data,
 	}
 	pr.Inputs[tensorName] = tp
 	return

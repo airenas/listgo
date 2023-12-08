@@ -21,10 +21,6 @@ Services for running the transcription process. It uses Mongo DB (for saving sta
 1. Install [librdkafka](https://github.com/confluentinc/confluent-kafka-go)
     `make install/librdkafka`
 
-1. Prepare tensorflow proto files for go
-
-    `make genereate/proto`
-
 1. Generate mocks:
 
     `make generate/mocks`
