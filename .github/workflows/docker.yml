@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        container: [builder punctuation]
+        container: [ builder, punctuation ]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
