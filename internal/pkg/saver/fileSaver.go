@@ -8,17 +8,17 @@ import (
 	"strings"
 	"syscall"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 )
 
-//WriterCloser keeps Writer interface and close function
+// WriterCloser keeps Writer interface and close function
 type WriterCloser interface {
 	io.Writer
 	Close() error
 }
 
-//OpenFileFunc declares function to open file by name and return Writer
+// OpenFileFunc declares function to open file by name and return Writer
 type OpenFileFunc func(fileName string) (WriterCloser, error)
 
 // LocalFileSaver saves file on local disk
@@ -28,7 +28,7 @@ type LocalFileSaver struct {
 	OpenFileFunc OpenFileFunc
 }
 
-//NewLocalFileSaver creates LocalFileSaver instance
+// NewLocalFileSaver creates LocalFileSaver instance
 func NewLocalFileSaver(storagePath string) (*LocalFileSaver, error) {
 	cmdapp.Log.Infof("Init Local File Storage at: %s", storagePath)
 	if storagePath == "" {
@@ -76,7 +76,7 @@ func openFile(fileName string) (WriterCloser, error) {
 	return os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0666)
 }
 
-//HealthyFunc returns func for health check
+// HealthyFunc returns func for health check
 func (fs *LocalFileSaver) HealthyFunc(sizeInMb uint64) func() error {
 	return func() error {
 		var info syscall.Statfs_t

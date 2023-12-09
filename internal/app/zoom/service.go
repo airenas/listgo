@@ -9,17 +9,17 @@ import (
 	"strings"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/app/manager"
-	"bitbucket.org/airenas/listgo/internal/app/result"
-	stapi "bitbucket.org/airenas/listgo/internal/app/status/api"
-	"bitbucket.org/airenas/listgo/internal/app/upload"
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
-	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
-	resultConst "bitbucket.org/airenas/listgo/internal/pkg/result"
-	"bitbucket.org/airenas/listgo/internal/pkg/status"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/app/manager"
+	"github.com/airenas/listgo/internal/app/result"
+	stapi "github.com/airenas/listgo/internal/app/status/api"
+	"github.com/airenas/listgo/internal/app/upload"
+	"github.com/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/persistence"
+	resultConst "github.com/airenas/listgo/internal/pkg/result"
+	"github.com/airenas/listgo/internal/pkg/status"
+	"github.com/airenas/listgo/internal/pkg/utils"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
@@ -66,10 +66,10 @@ type (
 	}
 )
 
-//return true if it can be redelivered
+// return true if it can be redelivered
 type prFunc func(d *amqp.Delivery, data *ServiceData) (bool, error)
 
-//StartWorkerService starts the event queue listener service to listen for events
+// StartWorkerService starts the event queue listener service to listen for events
 func StartWorkerService(data *ServiceData) error {
 	if data.ResultSaver == nil {
 		return errors.New("result saver not provided")
@@ -134,7 +134,7 @@ func listenQueue(q <-chan amqp.Delivery, f prFunc, data *ServiceData) {
 	data.fc.Close()
 }
 
-//decode starts the transcription process
+// decode starts the transcription process
 // workflow:
 // 1. send "Started" event
 // 2. validate file lengths
@@ -312,7 +312,7 @@ func newInformMessage(msg *messages.QueueMessage, it string) *messages.InformMes
 		Type: it, At: time.Now().UTC()}
 }
 
-//gotStatus process status msgs from child transcriptions
+// gotStatus process status msgs from child transcriptions
 func gotStatus(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	var message messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
@@ -374,7 +374,7 @@ func gotStatus(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	return false, nil
 }
 
-//completed process result msgs from child transcriptions
+// completed process result msgs from child transcriptions
 func completed(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	var message messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
@@ -491,7 +491,7 @@ func processStatus(message *messages.QueueMessage, data *ServiceData, from strin
 	return true, nil
 }
 
-//mergedAudio process audio merge event result
+// mergedAudio process audio merge event result
 func mergedAudio(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	var message messages.QueueMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {
@@ -528,7 +528,7 @@ func mergedAudio(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	return true, nil
 }
 
-//transcriptionFinish processes transcription result messages
+// transcriptionFinish processes transcription result messages
 // 1. logs status
 // 2. sends 'FinishDecode' message
 func joinResultsFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {

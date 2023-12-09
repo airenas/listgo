@@ -10,14 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/app/upload/api"
+	"github.com/airenas/listgo/internal/app/upload/api"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
-	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
-	"bitbucket.org/airenas/listgo/internal/pkg/status"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/persistence"
+	"github.com/airenas/listgo/internal/pkg/status"
+	"github.com/airenas/listgo/internal/pkg/utils"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/badoux/checkmail"
 	"github.com/facebookgo/grace/gracehttp"
 	"github.com/google/uuid"
@@ -55,7 +55,7 @@ type FileResult struct {
 	ID string `json:"id"`
 }
 
-//StartWebServer starts the HTTP service and listens for the requests
+// StartWebServer starts the HTTP service and listens for the requests
 func StartWebServer(data *ServiceData) error {
 	cmdapp.Log.Infof("Starting HTTP service at %d", data.Port)
 	r := NewRouter(data)
@@ -78,7 +78,7 @@ func StartWebServer(data *ServiceData) error {
 	return gracehttp.Serve(&srv)
 }
 
-//NewRouter creates the router for HTTP service
+// NewRouter creates the router for HTTP service
 func NewRouter(data *ServiceData) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	uh := promhttp.InstrumentHandlerDuration(data.metrics.uploadResponseDur,

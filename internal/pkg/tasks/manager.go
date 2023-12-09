@@ -5,11 +5,11 @@ import (
 	"strings"
 	"sync"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 )
 
-//ProcessRunner executes external process and manages it
+// ProcessRunner executes external process and manages it
 type ProcessRunner interface {
 	Run(cmd string, env []string) error
 	Close() error
@@ -25,7 +25,7 @@ type Manager struct {
 	runner     ProcessRunner
 }
 
-//NewManager creates LocalFileSaver instance
+// NewManager creates LocalFileSaver instance
 func NewManager(prefix string, workingDir string) (*Manager, error) {
 	r, err := NewRunner(workingDir)
 	if err != nil {
@@ -37,7 +37,7 @@ func NewManager(prefix string, workingDir string) (*Manager, error) {
 	return newManager(prefix, r)
 }
 
-//NewManager creates LocalFileSaver instance
+// NewManager creates LocalFileSaver instance
 func newManager(prefix string, r ProcessRunner) (*Manager, error) {
 	if prefix == "" {
 		return nil, errors.New("No prefix for task manager provided")

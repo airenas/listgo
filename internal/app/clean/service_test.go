@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/airenas/listgo/internal/pkg/test/mocks"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/petergtz/pegomock"
 	"github.com/prometheus/client_golang/prometheus/testutil"

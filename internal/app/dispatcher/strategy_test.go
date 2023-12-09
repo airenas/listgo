@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/strategy/api"
+	"github.com/airenas/listgo/internal/pkg/strategy/api"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
+	"github.com/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/airenas/listgo/internal/pkg/test/mocks/matchers"
 	"github.com/petergtz/pegomock"
 	"github.com/stretchr/testify/assert"
 )

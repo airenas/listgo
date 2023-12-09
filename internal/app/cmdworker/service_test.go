@@ -5,12 +5,12 @@ import (
 	"sync"
 	"testing"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/recognizer"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/pkg/recognizer"
+	"github.com/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/airenas/listgo/internal/pkg/test/mocks/matchers"
+	"github.com/airenas/listgo/internal/pkg/utils"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/messages"
 	"github.com/petergtz/pegomock"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"

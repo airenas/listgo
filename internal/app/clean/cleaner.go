@@ -4,8 +4,8 @@ import (
 	"strings"
 	"syscall"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/mongo"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -76,7 +76,7 @@ func newFileCleaners(fs string, patterns string) ([]*localFile, error) {
 	return result, nil
 }
 
-//HealthyFunc returns func for health check
+// HealthyFunc returns func for health check
 func (c *cleanerImpl) HealthyFunc() func() error {
 	return func() error {
 		var info syscall.Statfs_t

@@ -1,6 +1,6 @@
 package main
 
-import "bitbucket.org/airenas/listgo/internal/app/dispatcher"
+import "github.com/airenas/listgo/internal/app/dispatcher"
 
 func main() {
 	dispatcher.Execute()

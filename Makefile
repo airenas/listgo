@@ -13,11 +13,6 @@ generate/mocks:
 	go generate ./...
 .PHONY: generate/mocks
 #####################################################################################
-## generate proto files
-generate/proto: 
-	cd .proto && make generate clean/source
-.PHONY: generate/proto	
-#####################################################################################
 ## install kafka lib
 install/librkafka:
 	git clone --branch v1.1.0 https://github.com/edenhill/librdkafka.git

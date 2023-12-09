@@ -6,17 +6,17 @@ import (
 	"path"
 	"strings"
 
-	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 )
 
-//Filer saves working ids to file system
+// Filer saves working ids to file system
 type Filer struct {
 	path string
 }
 
-//NewFiler creates a Filer
+// NewFiler creates a Filer
 func NewFiler() (*Filer, error) {
 	res := Filer{}
 	res.path = cmdapp.Config.GetString("ids.path")
@@ -30,7 +30,7 @@ func NewFiler() (*Filer, error) {
 	return &res, nil
 }
 
-//Find returns existing working map by kafkaID or nil
+// Find returns existing working map by kafkaID or nil
 func (f *Filer) Find(kafkaID string) (*kafkaapi.KafkaTrMap, error) {
 	fn := f.makePath(kafkaID)
 	if _, err := os.Stat(fn); err != nil {
@@ -49,7 +49,7 @@ func (f *Filer) makePath(kafkaID string) string {
 	return path.Join(f.path, kafkaID)
 }
 
-//SetWorking creates file with id as working one
+// SetWorking creates file with id as working one
 func (f *Filer) SetWorking(krIds *kafkaapi.KafkaTrMap) error {
 	fn := f.makePath(krIds.KafkaID)
 	cmdapp.Log.Info("Creating file:" + fn)
@@ -65,7 +65,7 @@ func (f *Filer) SetWorking(krIds *kafkaapi.KafkaTrMap) error {
 	return nil
 }
 
-//Delete removes transcription ID from working file indicators
+// Delete removes transcription ID from working file indicators
 func (f *Filer) Delete(kafkaID string) error {
 	fp := f.makePath(kafkaID)
 	cmdapp.Log.Info("Deleting file:" + fp)

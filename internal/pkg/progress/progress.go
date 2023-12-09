@@ -1,7 +1,7 @@
 package progress
 
 import (
-	"bitbucket.org/airenas/listgo/internal/pkg/status"
+	"github.com/airenas/listgo/internal/pkg/status"
 )
 
 var statusProgressMap = make(map[status.Status]int32)
@@ -18,7 +18,7 @@ func init() {
 	statusProgressMap[status.Completed] = 100
 }
 
-//Convert return percentage value of a progress for status value
+// Convert return percentage value of a progress for status value
 func Convert(status status.Status) int32 {
 	pr, found := statusProgressMap[status]
 	if found {

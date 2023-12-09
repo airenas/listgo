@@ -6,23 +6,23 @@ import (
 	"strings"
 	"unicode"
 
-	"bitbucket.org/airenas/listgo/internal/app/punctuation/api"
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/app/punctuation/api"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 )
 
-//DataProvider provides data to initializer
+// DataProvider provides data to initializer
 type DataProvider interface {
 	GetVocab() (io.Reader, error)
 	GetData() (*api.Data, error)
 }
 
-//TFWrap makes real call to tensorflow service
+// TFWrap makes real call to tensorflow service
 type TFWrap interface {
 	Invoke([]int32) ([]int32, error)
 }
 
-//PunctuatorImpl implements punctuator service
+// PunctuatorImpl implements punctuator service
 type PunctuatorImpl struct {
 	vocab        map[string]int32
 	puncVocab    map[int32]string
@@ -34,7 +34,7 @@ type PunctuatorImpl struct {
 	numID        int32
 }
 
-//NewPunctuatorImpl creates instance
+// NewPunctuatorImpl creates instance
 func NewPunctuatorImpl(d DataProvider, tfWrap TFWrap) (*PunctuatorImpl, error) {
 	p := PunctuatorImpl{}
 	var err error
@@ -75,7 +75,7 @@ func NewPunctuatorImpl(d DataProvider, tfWrap TFWrap) (*PunctuatorImpl, error) {
 	return &p, nil
 }
 
-//Process is main Punctuator method
+// Process is main Punctuator method
 func (p *PunctuatorImpl) Process(text []string) (*api.PResult, error) {
 	result := &api.PResult{}
 	result.Original = text

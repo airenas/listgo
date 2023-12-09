@@ -1,7 +1,7 @@
 package mongo
 
 import (
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -11,7 +11,7 @@ type ResultSaver struct {
 	SessionProvider *SessionProvider
 }
 
-//NewResultSaver creates ResultSaver instance
+// NewResultSaver creates ResultSaver instance
 func NewResultSaver(sessionProvider *SessionProvider) (*ResultSaver, error) {
 	f := ResultSaver{SessionProvider: sessionProvider}
 	return &f, nil

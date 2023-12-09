@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
-	"bitbucket.org/airenas/listgo/internal/app/status/api"
+	"github.com/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
+	"github.com/airenas/listgo/internal/app/status/api"
 	"github.com/stretchr/testify/assert"
 )
 

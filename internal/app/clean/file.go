@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 )
 

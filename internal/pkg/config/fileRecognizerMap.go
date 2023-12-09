@@ -4,9 +4,9 @@ import (
 	"path/filepath"
 	"sync"
 
-	"bitbucket.org/airenas/listgo/internal/app/upload/api"
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/recognizer"
+	"github.com/airenas/listgo/internal/app/upload/api"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/recognizer"
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -35,7 +35,7 @@ type RecognizersCache struct {
 	fileLoader  infoLoader
 }
 
-//NewFileRecognizerMap creates FileRecognizerMap instance
+// NewFileRecognizerMap creates FileRecognizerMap instance
 func NewFileRecognizerMap(path string) (*FileRecognizerMap, error) {
 	cmdapp.Log.Infof("Init Recognizer Map from: %s", path)
 	if path == "" {

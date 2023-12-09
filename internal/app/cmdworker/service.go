@@ -8,22 +8,22 @@ import (
 	"strings"
 	"sync"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
-	"bitbucket.org/airenas/listgo/internal/pkg/recognizer"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/recognizer"
+	"github.com/airenas/listgo/internal/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
 
 type readFunc func(file string, id string) (string, error)
 
-//RecInfoLoader loads recognizer information
+// RecInfoLoader loads recognizer information
 type RecInfoLoader interface {
 	Get(key string) (*recognizer.Info, error)
 }
 
-//PreloadTaskManager manages long running process, loaded by key before processing task
+// PreloadTaskManager manages long running process, loaded by key before processing task
 type PreloadTaskManager interface {
 	EnsureRunning(map[string]string) error
 	Close() error
@@ -51,7 +51,7 @@ type ServiceData struct {
 	quitChannel *utils.MultiCloseChannel
 }
 
-//StartWorkerService starts the event queue listener service to listen for configured events
+// StartWorkerService starts the event queue listener service to listen for configured events
 // return channel to track the finish event
 //
 // to wait sync for the service to finish:
@@ -80,7 +80,7 @@ func StartWorkerService(data *ServiceData) error {
 	return nil
 }
 
-//work is main method to process of the worker
+// work is main method to process of the worker
 func work(data *ServiceData, msg *messages.QueueMessage) error {
 	data.reapLock.Lock()
 	defer data.reapLock.Unlock()
@@ -168,7 +168,7 @@ func processMsg(d *amqp.Delivery, data *ServiceData) (messages.Message, error) {
 	return result, nil
 }
 
-//ReadFile reads content as string
+// ReadFile reads content as string
 func ReadFile(file string, id string) (string, error) {
 	realFile := strings.Replace(file, "{ID}", id, -1)
 	cmdapp.Log.Infof("Reading file: %s", realFile)

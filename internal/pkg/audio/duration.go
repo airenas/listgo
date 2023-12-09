@@ -10,17 +10,17 @@ import (
 	"net/url"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 )
 
-//Duration comunicates with duration service
+// Duration comunicates with duration service
 type Duration struct {
 	httpclient *http.Client
 	url        string
 }
 
-//NewDurationClient creates a transcriber client
+// NewDurationClient creates a transcriber client
 func NewDurationClient(urlStr string) (*Duration, error) {
 	res := Duration{}
 	var err error
@@ -36,7 +36,7 @@ func NewDurationClient(urlStr string) (*Duration, error) {
 	return &res, nil
 }
 
-//Get return duration by calling the service
+// Get return duration by calling the service
 func (dc *Duration) Get(name string, file io.Reader) (time.Duration, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)

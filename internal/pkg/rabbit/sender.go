@@ -3,31 +3,31 @@ package rabbit
 import (
 	"encoding/json"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/messages"
 
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
 
-//Sender performs messages sending using rabbit mq broker
+// Sender performs messages sending using rabbit mq broker
 type Sender struct {
 	ChannelProvider *ChannelProvider
 }
 
 type initFunc func(*ChannelProvider) error
 
-//NewSender initializes rabbit sender
+// NewSender initializes rabbit sender
 func NewSender(provider *ChannelProvider) *Sender {
 	return &Sender{ChannelProvider: provider}
 }
 
-//Send sends the message
+// Send sends the message
 func (sender *Sender) Send(message messages.Message, queue string, replyQueue string) error {
 	return sender.SendWithCorr(message, queue, replyQueue, "")
 }
 
-//SendWithCorr sends the message with correlationID
+// SendWithCorr sends the message with correlationID
 func (sender *Sender) SendWithCorr(message messages.Message, queue string, replyQueue string, corrID string) error {
 	realQueue := sender.ChannelProvider.QueueName(queue)
 	cmdapp.Log.Debugf("Sending message to %s", realQueue)

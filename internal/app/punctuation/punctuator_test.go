@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"bitbucket.org/airenas/listgo/internal/app/punctuation/api"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/airenas/listgo/internal/app/punctuation/api"
+	"github.com/airenas/listgo/internal/pkg/test/mocks"
 	"github.com/petergtz/pegomock"
 	"github.com/stretchr/testify/assert"
 )

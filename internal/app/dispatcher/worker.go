@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/messages"
 	"github.com/pkg/errors"
 )
 

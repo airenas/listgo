@@ -4,20 +4,20 @@ import (
 	"encoding/json"
 	"os"
 
-	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 
 	ckafka "github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
-//Reader reads data from kafka topic
+// Reader reads data from kafka topic
 type Reader struct {
 	consumer    *ckafka.Consumer
 	stopChannel <-chan os.Signal
 }
 
-//NewReader creates Kafka reader
+// NewReader creates Kafka reader
 func NewReader(stopChannel <-chan os.Signal) (*Reader, error) {
 	brokers := cmdapp.Config.GetString("kafka.brokers")
 	if brokers == "" {
@@ -61,7 +61,7 @@ func NewReader(stopChannel <-chan os.Signal) (*Reader, error) {
 	return &res, nil
 }
 
-//Close closes reader
+// Close closes reader
 func (sp *Reader) Close() {
 	if sp.consumer != nil {
 		cmdapp.Log.Info("Closing kafka consumer")
@@ -70,14 +70,14 @@ func (sp *Reader) Close() {
 	}
 }
 
-//Commit commit messages offset
+// Commit commit messages offset
 func (sp *Reader) Commit(msg *kafkaapi.Msg) error {
 	cmdapp.Log.Infof("Commit message %s", msg.RealMsg.TopicPartition.String())
 	_, err := sp.consumer.CommitMessage(msg.RealMsg)
 	return err
 }
 
-//Get reads a next message from kafka topic
+// Get reads a next message from kafka topic
 func (sp *Reader) Get() (*kafkaapi.Msg, error) {
 	for {
 		select {

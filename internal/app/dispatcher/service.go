@@ -5,29 +5,29 @@ import (
 	"sync"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
 
-//SelectionStrategy type returns task work worker
+// SelectionStrategy type returns task work worker
 type SelectionStrategy interface {
 	FindBest(wrks []*worker, tsks map[string]*task, wi int) (*task, error)
 }
 
-//DurationGetter type provider duration for transcription ID
+// DurationGetter type provider duration for transcription ID
 type DurationGetter interface {
 	Get(v string) (time.Duration, error)
 }
 
-//ModelTypeGetter type provides requires preload model type for transcription ID
+// ModelTypeGetter type provides requires preload model type for transcription ID
 type ModelTypeGetter interface {
 	Get(v string) (string, error)
 }
 
-//StartTimeGetter type provides start time for the transcription
+// StartTimeGetter type provides start time for the transcription
 type StartTimeGetter interface {
 	Get(tags []messages.Tag) (time.Time, error)
 }
@@ -54,7 +54,7 @@ type ServiceData struct {
 	ResponseCh     <-chan amqp.Delivery
 }
 
-//StartWorkerService starts the event queue listener service to listen for manager and work events
+// StartWorkerService starts the event queue listener service to listen for manager and work events
 func StartWorkerService(data *ServiceData) error {
 	cmdapp.Log.Infof("Starting listen for messages")
 	err := validate(data)

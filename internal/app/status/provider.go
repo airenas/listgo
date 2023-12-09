@@ -1,6 +1,6 @@
 package status
 
-import "bitbucket.org/airenas/listgo/internal/app/status/api"
+import "github.com/airenas/listgo/internal/app/status/api"
 
 // Provider provides transcription result for ID
 type Provider interface {

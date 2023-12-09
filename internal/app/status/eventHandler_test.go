@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
+	"github.com/airenas/listgo/internal/pkg/test/mocks/matchers"
 
-	"bitbucket.org/airenas/listgo/internal/app/status/api"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/airenas/listgo/internal/app/status/api"
+	"github.com/airenas/listgo/internal/pkg/test/mocks"
 
 	"github.com/petergtz/pegomock"
 	"github.com/streadway/amqp"

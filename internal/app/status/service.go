@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/heptiolabs/healthcheck"
@@ -30,7 +30,7 @@ type ServiceData struct {
 	metrics serviceMetric
 }
 
-//StartWebServer starts the HTTP service and listens for the requests
+// StartWebServer starts the HTTP service and listens for the requests
 func StartWebServer(data *ServiceData) error {
 
 	cmdapp.Log.Infof("Listen queue")
@@ -50,7 +50,7 @@ func StartWebServer(data *ServiceData) error {
 	return nil
 }
 
-//NewRouter creates the router for HTTP service
+// NewRouter creates the router for HTTP service
 func NewRouter(data *ServiceData) *mux.Router {
 	router := mux.NewRouter()
 	sh := promhttp.InstrumentHandlerDuration(data.metrics.responseDur,

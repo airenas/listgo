@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration"
+	"github.com/airenas/listgo/internal/app/kafkaintegration"
 )
 
 func main() {

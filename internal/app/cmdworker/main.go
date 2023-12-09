@@ -4,12 +4,12 @@ import (
 	"io"
 	"sync"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/config"
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
-	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
-	"bitbucket.org/airenas/listgo/internal/pkg/tasks"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/config"
+	"github.com/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/rabbit"
+	"github.com/airenas/listgo/internal/pkg/tasks"
+	"github.com/airenas/listgo/internal/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/streadway/amqp"
@@ -28,7 +28,7 @@ func init() {
 	cmdapp.InitApplication(rootCmd)
 }
 
-//Execute starts the server
+// Execute starts the server
 func Execute() {
 	cmdapp.Execute(rootCmd)
 }
@@ -82,7 +82,7 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Infof("Exiting service")
 }
 
-///////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////////
 func validateConfig() error {
 	if cmdapp.Config.GetString("worker.name") == "" {
 		return errors.New("No worker.name configured")
@@ -99,9 +99,9 @@ func validateConfig() error {
 	return nil
 }
 
-///////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////////
 // init prepload task manager
-///////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////////
 func initPreloadManager() (PreloadTaskManager, error) {
 	kp := cmdapp.Config.GetString("worker.preloadKeyPrefix")
 	if kp == "" {
@@ -120,7 +120,7 @@ func (pm *fakePreloadManager) Close() error {
 	return nil
 }
 
-///////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////////
 func getPrivateQueue(ch *amqp.Channel) (<-chan amqp.Delivery, string, error) {
 	q, err := ch.QueueDeclare("", // name
 		false, // durable
@@ -144,7 +144,7 @@ func getPrivateQueue(ch *amqp.Channel) (<-chan amqp.Delivery, string, error) {
 	return cd, q.Name, err
 }
 
-///////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////
 func initWorkQueue(msgChannelProvider *rabbit.ChannelProvider) (<-chan amqp.Delivery, string, error) {
 	ch, err := msgChannelProvider.Channel()
 	if err != nil {
@@ -175,7 +175,7 @@ func isRegistrator() bool {
 	return cmdapp.Config.GetString("registry.queue") != ""
 }
 
-///////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////
 func initRegistrator(sender messages.Sender, qName string, closeChan *utils.MultiCloseChannel) (io.Closer, error) {
 	if isRegistrator() {
 		reg, err := newQueueRegistrator(sender, qName, closeChan)

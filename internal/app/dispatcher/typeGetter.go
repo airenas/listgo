@@ -1,11 +1,11 @@
 package dispatcher
 
 import (
-	"bitbucket.org/airenas/listgo/internal/pkg/recognizer"
+	"github.com/airenas/listgo/internal/pkg/recognizer"
 	"github.com/pkg/errors"
 )
 
-//recInfoLoader loads recognizer information
+// recInfoLoader loads recognizer information
 type recInfoLoader interface {
 	Get(key string) (*recognizer.Info, error)
 }

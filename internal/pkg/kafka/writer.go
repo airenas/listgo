@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
@@ -22,13 +22,13 @@ type kafkaRespMsgError struct {
 	DebugMessage string `json:"debug_message"`
 }
 
-//Writer writes messages to Kafka topic
+// Writer writes messages to Kafka topic
 type Writer struct {
 	producer *ckafka.Producer
 	topic    string
 }
 
-//NewWriter creates Kafka writer
+// NewWriter creates Kafka writer
 func NewWriter() (*Writer, error) {
 	brokers := cmdapp.Config.GetString("kafka.brokers")
 	if brokers == "" {
@@ -50,7 +50,7 @@ func NewWriter() (*Writer, error) {
 	return &res, nil
 }
 
-//Write writes msg to Kafka
+// Write writes msg to Kafka
 func (sp *Writer) Write(msg *kafkaapi.ResponseMsg) error {
 	deliveryChan := make(chan ckafka.Event)
 	defer close(deliveryChan)

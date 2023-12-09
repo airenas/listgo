@@ -8,11 +8,11 @@ import (
 	"path"
 	"strings"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 )
 
-//URLJoin joins urls with '/'
+// URLJoin joins urls with '/'
 func URLJoin(urls ...string) string {
 	u, err := url.Parse(urls[0])
 	if err != nil || u.Host == "" {
@@ -22,12 +22,12 @@ func URLJoin(urls ...string) string {
 	return u.String()
 }
 
-//GetURLFromConfig retrieves URL from config and checks it
+// GetURLFromConfig retrieves URL from config and checks it
 func GetURLFromConfig(name string) (string, error) {
 	return validateConfigURL(cmdapp.Config.GetString(name), name)
 }
 
-//GetURLFromConfig retrieves URL from config and checks it
+// GetURLFromConfig retrieves URL from config and checks it
 func validateConfigURL(urlStr, settingName string) (string, error) {
 	if urlStr == "" {
 		return "", errors.New("No " + settingName + " setting provided")
@@ -39,10 +39,10 @@ func validateConfigURL(urlStr, settingName string) (string, error) {
 	return url.String(), nil
 }
 
-//ErrWrongHTTPCall indicates failure due wrong http call
+// ErrWrongHTTPCall indicates failure due wrong http call
 var ErrWrongHTTPCall = errors.New("Wrong http call")
 
-//ValidateResponse returns error if code is not in [200, 299]
+// ValidateResponse returns error if code is not in [200, 299]
 func ValidateResponse(resp *http.Response) error {
 	if !(resp.StatusCode >= 200 && resp.StatusCode <= 299) {
 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
@@ -61,7 +61,7 @@ func ValidateResponse(resp *http.Response) error {
 	return nil
 }
 
-//HidePass removes pass from URL
+// HidePass removes pass from URL
 func HidePass(link string) string {
 	u, err := url.Parse(link)
 	if err != nil {

@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 )
 
-//Loader loads file by name
+// Loader loads file by name
 type Loader interface {
 	Read(name string) ([]byte, error)
 }

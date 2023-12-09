@@ -4,34 +4,34 @@ import (
 	"encoding/json"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 	aInform "github.com/airenas/async-api/pkg/inform"
+	"github.com/airenas/listgo/internal/pkg/utils"
 
 	"github.com/jordan-wright/email"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/messages"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
 
-//Sender send emails
+// Sender send emails
 type Sender interface {
 	Send(email *email.Email) error
 }
 
-//EmailMaker prepares the email
+// EmailMaker prepares the email
 type EmailMaker interface {
 	Make(data *aInform.Data) (*email.Email, error)
 }
 
-//EmailRetriever return the email by ID
+// EmailRetriever return the email by ID
 type EmailRetriever interface {
 	Get(ID string) (string, error)
 }
 
-//Locker tracks email sending process
-//It is used to quarantee not to send the emails twice
+// Locker tracks email sending process
+// It is used to quarantee not to send the emails twice
 type Locker interface {
 	Lock(id string, lockKey string) error
 	UnLock(id string, lockKey string, value *int) error
@@ -50,7 +50,7 @@ type ServiceData struct {
 	fc *utils.MultiCloseChannel
 }
 
-//StartWorkerService starts the event queue listener service to listen for configured events
+// StartWorkerService starts the event queue listener service to listen for configured events
 // return channel to track the finish event
 //
 // to wait sync for the service to finish:
@@ -85,7 +85,7 @@ func StartWorkerService(data *ServiceData) error {
 	return nil
 }
 
-//work is main method to send the message
+// work is main method to send the message
 func work(data *ServiceData, message *messages.InformMessage) error {
 	cmdapp.Log.Infof("Got task %s for ID: %s", data.taskName, message.ID)
 
@@ -145,7 +145,7 @@ func toLocalTime(data *ServiceData, t time.Time) time.Time {
 	return t
 }
 
-//processMsg returns true if it needs to retry on error again
+// processMsg returns true if it needs to retry on error again
 func processMsg(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	var message messages.InformMessage
 	if err := json.Unmarshal(d.Body, &message); err != nil {

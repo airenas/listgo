@@ -3,8 +3,8 @@ package status
 import (
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/app/status/api"
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/app/status/api"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )

@@ -3,7 +3,7 @@ package tasks
 import (
 	"testing"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/airenas/listgo/internal/pkg/test/mocks"
 	"github.com/petergtz/pegomock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"

@@ -7,19 +7,19 @@ import (
 	"net/http"
 	"strconv"
 
-	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/utils"
 	"github.com/pkg/errors"
 )
 
-//Client comunicates with file server
+// Client comunicates with file server
 type Client struct {
 	httpclient *http.Client
 	url        string
 }
 
-//NewClient creates a fs client
+// NewClient creates a fs client
 func NewClient() (*Client, error) {
 	res := Client{}
 	var err error
@@ -41,7 +41,7 @@ type getAudioResponse struct {
 	RecordQuality    string `json:"record_quality"`
 }
 
-//GetAudio loads audio from fs
+// GetAudio loads audio from fs
 func (sp *Client) GetAudio(kafkaID string) (*kafkaapi.DBEntry, error) {
 	urlStr := utils.URLJoin(sp.url, "audio", kafkaID)
 	cmdapp.Log.Infof("Get audio: %s", urlStr)
@@ -95,7 +95,7 @@ type trError struct {
 	DebugMessage string `json:"debug_message"`
 }
 
-//SaveResult saves result to fs
+// SaveResult saves result to fs
 func (sp *Client) SaveResult(dataIn *kafkaapi.DBResultEntry) error {
 	urlStr := utils.URLJoin(sp.url, "audio", dataIn.ID, "transcription")
 	cmdapp.Log.Infof("Post audio: %s", urlStr)

@@ -1,7 +1,7 @@
 package mongo
 
 import (
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -12,7 +12,7 @@ type CleanRecord struct {
 	Table           string
 }
 
-//NewCleanRecords creates CleanRecord instances
+// NewCleanRecords creates CleanRecord instances
 func NewCleanRecords(sessionProvider *SessionProvider) ([]*CleanRecord, error) {
 	result := make([]*CleanRecord, 0)
 	result = append(result, newCleanRecord(sessionProvider, statusTable))

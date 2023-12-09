@@ -8,11 +8,11 @@ import (
 	"os/exec"
 	"strings"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 )
 
-//RunCommand executes system comman end return error if any
+// RunCommand executes system comman end return error if any
 func RunCommand(command string, workingDir string, id string, envs []string, outWriter io.Writer) error {
 	logger := log.New(outWriter, "cmd: ", log.LstdFlags)
 	realCommand := strings.Replace(command, "{ID}", id, -1)

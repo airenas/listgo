@@ -3,9 +3,9 @@ package punctuation
 import (
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/app/punctuation/tf"
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/metrics"
+	"github.com/airenas/listgo/internal/app/punctuation/tf"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/metrics"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
@@ -27,7 +27,7 @@ func init() {
 	cmdapp.Config.SetDefault("port", 8080)
 }
 
-//Execute starts the server
+// Execute starts the server
 func Execute() {
 	cmdapp.Execute(rootCmd)
 }

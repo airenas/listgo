@@ -1,7 +1,7 @@
 package dispatcher
 
 import (
-	"bitbucket.org/airenas/listgo/internal/pkg/strategy/api"
+	"github.com/airenas/listgo/internal/pkg/strategy/api"
 	"github.com/pkg/errors"
 )
 

@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"bitbucket.org/airenas/listgo/internal/app/punctuation/api"
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/app/punctuation/api"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/gorilla/mux"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/pkg/errors"
@@ -15,7 +15,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-//Punctuator invokes TF to retrieve punctuation
+// Punctuator invokes TF to retrieve punctuation
 type Punctuator interface {
 	Process(data []string) (*api.PResult, error)
 }
@@ -33,7 +33,7 @@ type ServiceData struct {
 	metrics    serviceMetric
 }
 
-//StartWebServer starts the HTTP service and listens for the requests
+// StartWebServer starts the HTTP service and listens for the requests
 func StartWebServer(data *ServiceData) error {
 
 	cmdapp.Log.Infof("Starting HTTP service at %d", data.Port)
@@ -48,7 +48,7 @@ func StartWebServer(data *ServiceData) error {
 	return nil
 }
 
-//NewRouter creates the router for HTTP service
+// NewRouter creates the router for HTTP service
 func NewRouter(data *ServiceData) *mux.Router {
 	router := mux.NewRouter()
 	ph := promhttp.InstrumentHandlerDuration(data.metrics.responseDur, &punctuationHandler{data: data})

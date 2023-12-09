@@ -6,9 +6,9 @@ import (
 	"syscall"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/metrics"
-	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/metrics"
+	"github.com/airenas/listgo/internal/pkg/mongo"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -31,7 +31,7 @@ func init() {
 	cmdapp.Config.SetDefault("port", 8080)
 }
 
-//Execute starts the server
+// Execute starts the server
 func Execute() {
 	cmdapp.Execute(rootCmd)
 }

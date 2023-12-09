@@ -1,9 +1,10 @@
 package cmdworker
 
 import (
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"github.com/hashicorp/go-reap"
 	"sync"
+
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/hashicorp/go-reap"
 )
 
 func reapChildren(reapLock *sync.RWMutex) {

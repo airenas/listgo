@@ -1,10 +1,10 @@
 package mongo
 
 import (
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/err"
-	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
-	"bitbucket.org/airenas/listgo/internal/pkg/status"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/err"
+	"github.com/airenas/listgo/internal/pkg/persistence"
+	"github.com/airenas/listgo/internal/pkg/status"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -19,7 +19,7 @@ type StatusSaver struct {
 	errCodeExtractor errCodeExtractor
 }
 
-//NewStatusSaver creates StatusSaver instance
+// NewStatusSaver creates StatusSaver instance
 func NewStatusSaver(sessionProvider *SessionProvider) (*StatusSaver, error) {
 	f := StatusSaver{SessionProvider: sessionProvider, errCodeExtractor: err.CodeExtractor{}}
 	return &f, nil
@@ -72,7 +72,7 @@ func makeUpdate(set, unset map[string]interface{}) (bson.M, error) {
 	return res, nil
 }
 
-//SaveError saves error to DB
+// SaveError saves error to DB
 func (ss *StatusSaver) SaveError(ID string, errorStr string) error {
 	cmdapp.Log.Infof("Saving error %s: %s", ID, errorStr)
 

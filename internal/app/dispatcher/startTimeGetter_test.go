@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/messages"
 	"github.com/stretchr/testify/assert"
 )
 

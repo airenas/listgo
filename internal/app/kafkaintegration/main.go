@@ -3,14 +3,14 @@ package kafkaintegration
 import (
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/file"
-	"bitbucket.org/airenas/listgo/internal/pkg/fs"
-	"bitbucket.org/airenas/listgo/internal/pkg/kafka"
-	transcriberapi "bitbucket.org/airenas/listgo/internal/pkg/transcriber"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/pkg/file"
+	"github.com/airenas/listgo/internal/pkg/fs"
+	"github.com/airenas/listgo/internal/pkg/kafka"
+	transcriberapi "github.com/airenas/listgo/internal/pkg/transcriber"
+	"github.com/airenas/listgo/internal/pkg/utils"
 	"github.com/cenkalti/backoff"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +27,7 @@ func init() {
 	cmdapp.InitApplication(rootCmd)
 }
 
-//Execute starts the server
+// Execute starts the server
 func Execute() {
 	cmdapp.Execute(rootCmd)
 }

@@ -11,17 +11,17 @@ import (
 	"strings"
 	"sync"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/status"
+	"github.com/airenas/listgo/internal/pkg/status"
 
-	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
-	"bitbucket.org/airenas/listgo/internal/app/status/api"
-	uparams "bitbucket.org/airenas/listgo/internal/app/upload/api"
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
+	"github.com/airenas/listgo/internal/app/status/api"
+	uparams "github.com/airenas/listgo/internal/app/upload/api"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/utils"
 	"github.com/pkg/errors"
 )
 
-//Client comunicates with transcriber service
+// Client comunicates with transcriber service
 type Client struct {
 	httpclient *http.Client
 	uploadURL  string
@@ -30,7 +30,7 @@ type Client struct {
 	cleanURL   string
 }
 
-//NewClient creates a transcriber client
+// NewClient creates a transcriber client
 func NewClient() (*Client, error) {
 	res := Client{}
 	var err error
@@ -55,7 +55,7 @@ func NewClient() (*Client, error) {
 	return &res, nil
 }
 
-//GetStatus get status from the server
+// GetStatus get status from the server
 func (sp *Client) GetStatus(ID string) (*kafkaapi.Status, error) {
 	urlStr := utils.URLJoin(sp.statusURL, ID)
 	cmdapp.Log.Infof("Get status: %s", urlStr)
@@ -85,7 +85,7 @@ func (sp *Client) GetStatus(ID string) (*kafkaapi.Status, error) {
 	return &res, nil
 }
 
-//GetResult gets result file from transcrinber
+// GetResult gets result file from transcrinber
 func (sp *Client) GetResult(ID string) (*kafkaapi.Result, error) {
 	var err error
 	var lock sync.Mutex
@@ -144,7 +144,7 @@ type uploadResponse struct {
 	ID string `json:"id"`
 }
 
-//Upload uploads audio to transcriber service
+// Upload uploads audio to transcriber service
 func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 	dataDecoder := base64.NewDecoder(base64.StdEncoding, strings.NewReader(audio.AudioData))
 	body := &bytes.Buffer{}
@@ -191,7 +191,7 @@ func (sp *Client) Upload(audio *kafkaapi.UploadData) (string, error) {
 	return respData.ID, nil
 }
 
-//Delete removes all transcription data related with ID
+// Delete removes all transcription data related with ID
 func (sp *Client) Delete(ID string) error {
 	urlStr := utils.URLJoin(sp.cleanURL, ID)
 	cmdapp.Log.Infof("Invoke clean data request to: %s", urlStr)

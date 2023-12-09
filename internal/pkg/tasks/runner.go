@@ -9,11 +9,11 @@ import (
 	"syscall"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 )
 
-//Runner executes external process and manages it
+// Runner executes external process and manages it
 type Runner struct {
 	errWriter  io.Writer
 	outWriter  io.Writer
@@ -28,7 +28,7 @@ type Runner struct {
 	finishChan chan struct{}
 }
 
-//NewRunner inits new runner instance
+// NewRunner inits new runner instance
 func NewRunner(workingDir string) (*Runner, error) {
 	r := &Runner{}
 	r.workingDir = workingDir

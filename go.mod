@@ -1,4 +1,4 @@
-module bitbucket.org/airenas/listgo
+module github.com/airenas/listgo
 
 go 1.21.4
 

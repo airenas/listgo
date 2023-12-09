@@ -1,8 +1,8 @@
 package mongo
 
 import (
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/persistence"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -12,7 +12,7 @@ type RequestSaver struct {
 	SessionProvider *SessionProvider
 }
 
-//NewRequestSaver creates RequestSaver instance
+// NewRequestSaver creates RequestSaver instance
 func NewRequestSaver(sessionProvider *SessionProvider) (*RequestSaver, error) {
 	f := RequestSaver{SessionProvider: sessionProvider}
 	return &f, nil

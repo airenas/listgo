@@ -1,7 +1,7 @@
 package result
 
 import (
-	"bitbucket.org/airenas/listgo/internal/app/result/api"
+	"github.com/airenas/listgo/internal/app/result/api"
 )
 
 // FileLoader loads file by the name

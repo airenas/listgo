@@ -3,14 +3,14 @@ package status
 import (
 	"sync"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 )
 
 var idConnectionMap = make(map[string]map[WsConn]bool)
 var connectionIDMap = make(map[WsConn]string)
 var mapLock = sync.Mutex{}
 
-//WsConn is interface for websocket handling in status service
+// WsConn is interface for websocket handling in status service
 type WsConn interface {
 	ReadMessage() (messageType int, p []byte, err error)
 	Close() error

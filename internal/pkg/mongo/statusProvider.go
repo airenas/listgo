@@ -3,12 +3,12 @@ package mongo
 import (
 	"context"
 
-	"bitbucket.org/airenas/listgo/internal/app/status/api"
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/err"
-	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
-	"bitbucket.org/airenas/listgo/internal/pkg/progress"
-	"bitbucket.org/airenas/listgo/internal/pkg/status"
+	"github.com/airenas/listgo/internal/app/status/api"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/err"
+	"github.com/airenas/listgo/internal/pkg/persistence"
+	"github.com/airenas/listgo/internal/pkg/progress"
+	"github.com/airenas/listgo/internal/pkg/status"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	mgo "go.mongodb.org/mongo-driver/mongo"
@@ -19,7 +19,7 @@ type StatusProvider struct {
 	SessionProvider *SessionProvider
 }
 
-//NewStatusProvider creates StatusProvider instance
+// NewStatusProvider creates StatusProvider instance
 func NewStatusProvider(sessionProvider *SessionProvider) (*StatusProvider, error) {
 	f := StatusProvider{SessionProvider: sessionProvider}
 	return &f, nil

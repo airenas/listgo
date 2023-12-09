@@ -7,18 +7,18 @@ import (
 	"path"
 	"strings"
 
-	"bitbucket.org/airenas/listgo/internal/app/punctuation/api"
+	"github.com/airenas/listgo/internal/app/punctuation/api"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
-//SettingsDataProviderImpl provides punctuator data from settings
+// SettingsDataProviderImpl provides punctuator data from settings
 type SettingsDataProviderImpl struct {
 	dir  string
 	data *api.Data
 }
 
-//NewSettingsDataProviderImpl inits SettingsDataProviderImpl from directory
+// NewSettingsDataProviderImpl inits SettingsDataProviderImpl from directory
 func NewSettingsDataProviderImpl(dir string) (*SettingsDataProviderImpl, error) {
 	res := SettingsDataProviderImpl{}
 	res.dir = dir
@@ -30,12 +30,12 @@ func NewSettingsDataProviderImpl(dir string) (*SettingsDataProviderImpl, error) 
 	return &res, nil
 }
 
-//GetData gets data
+// GetData gets data
 func (p *SettingsDataProviderImpl) GetData() (*api.Data, error) {
 	return p.data, nil
 }
 
-//GetVocab return reader to word vocabulary
+// GetVocab return reader to word vocabulary
 func (p *SettingsDataProviderImpl) GetVocab() (io.Reader, error) {
 	b, err := ioutil.ReadFile(path.Join(p.dir, "vocabulary")) // just pass the file name
 	if err != nil {

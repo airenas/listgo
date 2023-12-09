@@ -49,7 +49,7 @@ Vykdykite `go test ./...`
 
 ## Diegimo instrukcijos
 
-Žr.: [bitbucket.org/airenas/list](https://bitbucket.org/airenas/list)
+Žr.: [github.com/airenas/list](https://github.com/airenas/list)
 
 ---
 
@@ -57,14 +57,14 @@ Vykdykite `go test ./...`
 
 Airenas Vaičiūnas
 
-- [bitbucket.org/airenas](https://bitbucket.org/airenas)
+- [github.com/airenas](https://github.com/airenas)
 - [linkedin.com/in/airenas](https://www.linkedin.com/in/airenas/)
 
 ---
 
 ## Licencija
 
-Copyright © 2020, [Airenas Vaičiūnas](https://bitbucket.org/airenas).
+Copyright © 2020, [Airenas Vaičiūnas](https://github.com/airenas).
 
 Released under the [The 3-Clause BSD License](LICENSE).
 

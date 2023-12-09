@@ -12,13 +12,13 @@ import (
 
 	"github.com/streadway/amqp"
 
-	"bitbucket.org/airenas/listgo/internal/app/status/api"
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
-	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
-	"bitbucket.org/airenas/listgo/internal/pkg/status"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/app/status/api"
+	"github.com/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/persistence"
+	"github.com/airenas/listgo/internal/pkg/status"
+	"github.com/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/airenas/listgo/internal/pkg/test/mocks/matchers"
+	"github.com/airenas/listgo/internal/pkg/utils"
 )
 
 var statusSaverMock *mocks.MockSaver

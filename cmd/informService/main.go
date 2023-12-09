@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bitbucket.org/airenas/listgo/internal/app/inform"
+	"github.com/airenas/listgo/internal/app/inform"
 )
 
 func main() {

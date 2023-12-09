@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 )
 
@@ -18,7 +18,7 @@ type NonEmptyFileTester struct {
 	fileFunc fileOpenFunc
 }
 
-//NewNonEmptyFileTester creates NonEmptyFileTester instance
+// NewNonEmptyFileTester creates NonEmptyFileTester instance
 func NewNonEmptyFileTester(path string) (*NonEmptyFileTester, error) {
 	cmdapp.Log.Infof("Init FileTester with pattern: %s", path)
 	if path == "" {

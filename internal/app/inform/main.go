@@ -3,11 +3,11 @@ package inform
 import (
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
-	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
 	aInform "github.com/airenas/async-api/pkg/inform"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/mongo"
+	"github.com/airenas/listgo/internal/pkg/rabbit"
+	"github.com/airenas/listgo/internal/pkg/utils"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -26,7 +26,7 @@ func init() {
 	cmdapp.InitApplication(rootCmd)
 }
 
-//Execute starts the server
+// Execute starts the server
 func Execute() {
 	cmdapp.Execute(rootCmd)
 }

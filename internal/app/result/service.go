@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/gorilla/mux"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/pkg/errors"
@@ -36,7 +36,7 @@ type FileResult struct {
 	ID string `json:"id"`
 }
 
-//StartWebServer starts the HTTP service and listens for the requests
+// StartWebServer starts the HTTP service and listens for the requests
 func StartWebServer(data *ServiceData) error {
 	cmdapp.Log.Infof("Starting HTTP service at %d", data.port)
 	r := NewRouter(data)
@@ -50,7 +50,7 @@ func StartWebServer(data *ServiceData) error {
 	return nil
 }
 
-//NewRouter creates the router for HTTP service
+// NewRouter creates the router for HTTP service
 func NewRouter(data *ServiceData) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	rh := promhttp.InstrumentHandlerDuration(data.metrics.resultResponseDur,

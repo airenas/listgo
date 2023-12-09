@@ -3,10 +3,10 @@ package clean
 import (
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 )
 
-//OldIDsProvider return old ids for clesning service
+// OldIDsProvider return old ids for clesning service
 type OldIDsProvider interface {
 	Get() ([]string, error)
 }

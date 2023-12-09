@@ -5,11 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"bitbucket.org/airenas/listgo/internal/app/result/api"
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/app/result/api"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 )
 
-//OpenFileFunc declares function to open file by name and return Reader
+// OpenFileFunc declares function to open file by name and return Reader
 type OpenFileFunc func(fileName string) (api.File, error)
 
 // LocalFileLoader loads file on local disk
@@ -19,7 +19,7 @@ type LocalFileLoader struct {
 	OpenFileFunc OpenFileFunc
 }
 
-//NewLocalFileLoader creates LocalFileLoader instance
+// NewLocalFileLoader creates LocalFileLoader instance
 func NewLocalFileLoader(path string) (*LocalFileLoader, error) {
 	cmdapp.Log.Infof("Init Local File Storage at: %s", path)
 	if path == "" {

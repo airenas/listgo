@@ -1,7 +1,7 @@
 package mongo
 
 import (
-	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
+	"github.com/airenas/listgo/internal/pkg/persistence"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"

@@ -1,11 +1,11 @@
 package dispatcher
 
 import (
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/config"
-	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
-	"bitbucket.org/airenas/listgo/internal/pkg/strategy"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/config"
+	"github.com/airenas/listgo/internal/pkg/rabbit"
+	"github.com/airenas/listgo/internal/pkg/strategy"
+	"github.com/airenas/listgo/internal/pkg/utils"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -25,7 +25,7 @@ func init() {
 	cmdapp.InitApplication(rootCmd)
 }
 
-//Execute starts the server
+// Execute starts the server
 func Execute() {
 	cmdapp.Execute(rootCmd)
 }
@@ -97,7 +97,7 @@ func run(cmd *cobra.Command, args []string) {
 	cmdapp.Log.Infof("Bye")
 }
 
-///////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////
 func validateConfig() error {
 	if cmdapp.Config.GetString("dispatcher.registrationQueue") == "" {
 		return errors.New("No dispatcher.registrationQueue configured")
@@ -108,7 +108,7 @@ func validateConfig() error {
 	return nil
 }
 
-///////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////
 func initRegistrationQueue(prv *rabbit.ChannelProvider, qName string) error {
 	return prv.RunOnChannelWithRetry(func(ch *amqp.Channel) error {
 		_, err := rabbit.DeclareQueue(ch, prv.QueueName(qName))
@@ -119,7 +119,7 @@ func initRegistrationQueue(prv *rabbit.ChannelProvider, qName string) error {
 	})
 }
 
-///////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////
 func initResponseQueue(ch *amqp.Channel) (<-chan amqp.Delivery, string, error) {
 	q, err := ch.QueueDeclare("", // name
 		false, // durable
@@ -143,7 +143,7 @@ func initResponseQueue(ch *amqp.Channel) (<-chan amqp.Delivery, string, error) {
 	return cd, q.Name, err
 }
 
-///////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////
 func initWorkQueue(chPrv *rabbit.ChannelProvider) (<-chan amqp.Delivery, error) {
 	workCh, err := chPrv.Channel()
 	if err != nil {

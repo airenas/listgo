@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
-	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
-	"bitbucket.org/airenas/listgo/internal/pkg/result"
-	"bitbucket.org/airenas/listgo/internal/pkg/status"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/persistence"
+	"github.com/airenas/listgo/internal/pkg/result"
+	"github.com/airenas/listgo/internal/pkg/status"
+	"github.com/airenas/listgo/internal/pkg/utils"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 )
@@ -33,15 +33,15 @@ type ServiceData struct {
 	speechIndicator     SpeechIndicator
 }
 
-//SpeechIndicator looks if request audio has speech
+// SpeechIndicator looks if request audio has speech
 type SpeechIndicator interface {
 	Test(string) (bool, error)
 }
 
-//return true if it can be redelivered
+// return true if it can be redelivered
 type prFunc func(d *amqp.Delivery, data *ServiceData) (bool, error)
 
-//StartWorkerService starts the event queue listener service to listen for events
+// StartWorkerService starts the event queue listener service to listen for events
 func StartWorkerService(data *ServiceData) error {
 	if data.ResultSaver == nil {
 		return errors.New("Result saver not provided")
@@ -122,7 +122,7 @@ func decode(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message), target, messages.ResultQueueFor(target))
 }
 
-//splitChannelsFinish processes split channel finish message
+// splitChannelsFinish processes split channel finish message
 // 1. logs status
 // 2. sends 'DecodeMultiple' message
 func splitChannelsFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
@@ -140,7 +140,7 @@ func splitChannelsFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message), messages.DecodeMultiple, "")
 }
 
-//audioConvertFinish processes audio convert result messages
+// audioConvertFinish processes audio convert result messages
 // 1. logs status
 // 2. sends 'Diarization' message
 func audioConvertFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
@@ -159,7 +159,7 @@ func audioConvertFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		messages.Diarization, messages.ResultQueueFor(messages.Diarization))
 }
 
-//diarizationFinish processes audio diarization result messages
+// diarizationFinish processes audio diarization result messages
 // 1. logs status
 // 2. sends 'Transctiption' message
 func diarizationFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
@@ -185,7 +185,7 @@ func diarizationFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 	return true, data.MessageSender.Send(messages.NewQueueMessageFromM(&message), nextTask, messages.ResultQueueFor(nextTask))
 }
 
-//transcriptionFinish processes transcription result messages
+// transcriptionFinish processes transcription result messages
 // 1. logs status
 // 2. sends 'Rescore' message
 func transcriptionFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
@@ -204,7 +204,7 @@ func transcriptionFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		messages.Rescore, messages.ResultQueueFor(messages.Rescore))
 }
 
-//rescoreFinish processes rescore result messages
+// rescoreFinish processes rescore result messages
 // 1. logs status
 // 2. sends 'ResultMake' message
 func rescoreFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
@@ -223,7 +223,7 @@ func rescoreFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		messages.ResultMake, messages.ResultQueueFor(messages.ResultMake))
 }
 
-//transcriptionFinish processes transcription result messages
+// transcriptionFinish processes transcription result messages
 // 1. logs status
 // 2. sends 'FinishDecode' message
 func resultMakeFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
@@ -261,7 +261,7 @@ func resultMakeFinish(d *amqp.Delivery, data *ServiceData) (bool, error) {
 		messages.Inform, "")
 }
 
-//processStatus analyzes message response and saves status
+// processStatus analyzes message response and saves status
 // returns false if no futher processing is needed
 func processStatus(message *messages.QueueMessage, data *ServiceData, from string, to status.Status) (bool, error) {
 	cmdapp.Log.Infof("Got %s msg :%s (%s)", from, message.ID, message.Recognizer)

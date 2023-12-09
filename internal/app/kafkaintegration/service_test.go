@@ -7,17 +7,17 @@ import (
 
 	"github.com/cenkalti/backoff"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
+	"github.com/airenas/listgo/internal/pkg/test/mocks/matchers"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 
 	"github.com/petergtz/pegomock"
 	"github.com/pkg/errors"
 
-	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
-	errc "bitbucket.org/airenas/listgo/internal/pkg/err"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
+	errc "github.com/airenas/listgo/internal/pkg/err"
+	"github.com/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/airenas/listgo/internal/pkg/utils"
 
 	"github.com/stretchr/testify/assert"
 )

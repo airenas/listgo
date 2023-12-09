@@ -1,16 +1,16 @@
 package zoom
 
 import (
-	"bitbucket.org/airenas/listgo/internal/app/manager"
-	"bitbucket.org/airenas/listgo/internal/pkg/audio"
-	"bitbucket.org/airenas/listgo/internal/pkg/loader"
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
-	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
-	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
-	"bitbucket.org/airenas/listgo/internal/pkg/saver"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/app/manager"
+	"github.com/airenas/listgo/internal/pkg/audio"
+	"github.com/airenas/listgo/internal/pkg/loader"
+	"github.com/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/mongo"
+	"github.com/airenas/listgo/internal/pkg/rabbit"
+	"github.com/airenas/listgo/internal/pkg/saver"
+	"github.com/airenas/listgo/internal/pkg/utils"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/spf13/cobra"
 	"github.com/streadway/amqp"
 )
@@ -28,7 +28,7 @@ func init() {
 	cmdapp.InitApplication(rootCmd)
 }
 
-//Execute starts the server
+// Execute starts the server
 func Execute() {
 	cmdapp.Execute(rootCmd)
 }

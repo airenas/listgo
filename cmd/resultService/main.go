@@ -1,6 +1,6 @@
 package main
 
-import "bitbucket.org/airenas/listgo/internal/app/result"
+import "github.com/airenas/listgo/internal/app/result"
 
 func main() {
 	result.Execute()

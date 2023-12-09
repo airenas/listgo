@@ -4,8 +4,8 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/recognizer"
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/recognizer"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
@@ -15,7 +15,7 @@ type FileRecognizerInfoLoader struct {
 	Path string
 }
 
-//NewFileRecognizerInfoLoader creates FileRecognizerInfoLoader instance
+// NewFileRecognizerInfoLoader creates FileRecognizerInfoLoader instance
 func NewFileRecognizerInfoLoader(path string) (*FileRecognizerInfoLoader, error) {
 	cmdapp.Log.Infof("Init Recognizer Info Loader from: %s", path)
 	if path == "" {

@@ -1,8 +1,8 @@
 package mongo
 
 import (
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/persistence"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/persistence"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	mgo "go.mongodb.org/mongo-driver/mongo"
@@ -13,13 +13,13 @@ type FileNameProvider struct {
 	SessionProvider *SessionProvider
 }
 
-//NewFileNameProvider creates FileNameProvider instance
+// NewFileNameProvider creates FileNameProvider instance
 func NewFileNameProvider(sessionProvider *SessionProvider) (*FileNameProvider, error) {
 	f := FileNameProvider{SessionProvider: sessionProvider}
 	return &f, nil
 }
 
-//Get returns filename by ID
+// Get returns filename by ID
 func (ss *FileNameProvider) Get(id string) (string, error) {
 	cmdapp.Log.Infof("Getting file name by ID %s", id)
 

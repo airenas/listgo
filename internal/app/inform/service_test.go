@@ -9,11 +9,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks1"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/airenas/listgo/internal/pkg/test/mocks/matchers"
+	"github.com/airenas/listgo/internal/pkg/test/mocks1"
+	"github.com/airenas/listgo/internal/pkg/utils"
 
 	"github.com/petergtz/pegomock"
 	"github.com/streadway/amqp"

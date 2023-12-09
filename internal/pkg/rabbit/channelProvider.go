@@ -4,15 +4,15 @@ import (
 	"sync"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/utils"
 	"github.com/cenkalti/backoff"
 	"github.com/streadway/amqp"
 
 	"github.com/pkg/errors"
 )
 
-//ChannelProvider provider amqp channel
+// ChannelProvider provider amqp channel
 type ChannelProvider struct {
 	url     string
 	conn    *amqp.Connection
@@ -23,7 +23,7 @@ type ChannelProvider struct {
 
 type runOnChannelFunc func(*amqp.Channel) error
 
-//NewChannelProvider initializes channel provider
+// NewChannelProvider initializes channel provider
 func NewChannelProvider() (*ChannelProvider, error) {
 	url := cmdapp.Config.GetString("messageServer.url")
 	if url == "" {
@@ -43,7 +43,7 @@ func NewChannelProvider() (*ChannelProvider, error) {
 	return &ChannelProvider{url: finalURL, qPrefix: prefix}, nil
 }
 
-//Channel return cached channel or tries to connect to rabbit broker
+// Channel return cached channel or tries to connect to rabbit broker
 func (pr *ChannelProvider) Channel() (*amqp.Channel, error) {
 	pr.m.Lock()
 	defer pr.m.Unlock()
@@ -65,7 +65,7 @@ func (pr *ChannelProvider) Channel() (*amqp.Channel, error) {
 	return pr.ch, nil
 }
 
-//RunOnChannelWithRetry invokes method on channel with retry
+// RunOnChannelWithRetry invokes method on channel with retry
 func (pr *ChannelProvider) RunOnChannelWithRetry(f runOnChannelFunc) error {
 	ch, err := pr.Channel()
 	if err != nil {
@@ -84,7 +84,7 @@ func (pr *ChannelProvider) RunOnChannelWithRetry(f runOnChannelFunc) error {
 	return err
 }
 
-//Close finalizes ChannelProvider
+// Close finalizes ChannelProvider
 func (pr *ChannelProvider) Close() {
 	pr.m.Lock()
 	defer pr.m.Unlock()
@@ -99,7 +99,7 @@ func (pr *ChannelProvider) Close() {
 	pr.conn = nil
 }
 
-//QueueName return queue name for channel, may append prefix
+// QueueName return queue name for channel, may append prefix
 func (pr *ChannelProvider) QueueName(name string) string {
 	if name == "" {
 		return ""

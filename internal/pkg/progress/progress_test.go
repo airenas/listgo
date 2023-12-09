@@ -3,8 +3,8 @@ package progress_test
 import (
 	"testing"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/progress"
-	"bitbucket.org/airenas/listgo/internal/pkg/status"
+	"github.com/airenas/listgo/internal/pkg/progress"
+	"github.com/airenas/listgo/internal/pkg/status"
 )
 
 func TestConvert(t *testing.T) {

@@ -1,6 +1,6 @@
 package main
 
-import "bitbucket.org/airenas/listgo/internal/app/punctuation"
+import "github.com/airenas/listgo/internal/app/punctuation"
 
 func main() {
 	punctuation.Execute()

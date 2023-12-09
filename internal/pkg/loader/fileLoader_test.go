@@ -4,9 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/airenas/listgo/internal/pkg/test/mocks"
 
-	"bitbucket.org/airenas/listgo/internal/app/result/api"
+	"github.com/airenas/listgo/internal/app/result/api"
 	"github.com/stretchr/testify/assert"
 )
 

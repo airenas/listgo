@@ -6,19 +6,19 @@ import (
 	"sort"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/strategy/api"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/strategy/api"
 	"github.com/pkg/errors"
 )
 
-//Cost based strategy
+// Cost based strategy
 type Cost struct {
 	modelLoadTime   time.Duration
 	rtFactor        float64
 	delayCostPerSec float64
 }
 
-//NewCost init new Cost task selection strategy
+// NewCost init new Cost task selection strategy
 func NewCost() (*Cost, error) {
 	return newCost(cmdapp.Config.GetDuration("strategy.modelLoadDuration"),
 		cmdapp.Config.GetFloat64("strategy.realTimeFactor"),
@@ -42,7 +42,7 @@ func newCost(modelLoadTime time.Duration, rtFactor float64, delayCostPerSec floa
 	return res, nil
 }
 
-//FindBest is the main selection method
+// FindBest is the main selection method
 // select task for worker ws[workerIndex]
 func (c *Cost) FindBest(ws []*api.Worker, ts []*api.Task, workerIndex int) (*api.Task, error) {
 	ctx := newContext(time.Now())

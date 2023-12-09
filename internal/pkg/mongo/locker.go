@@ -1,7 +1,7 @@
 package mongo
 
 import (
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -12,13 +12,13 @@ type Locker struct {
 	SessionProvider *SessionProvider
 }
 
-//NewLocker creates Locker instance
+// NewLocker creates Locker instance
 func NewLocker(sessionProvider *SessionProvider) (*Locker, error) {
 	f := Locker{SessionProvider: sessionProvider}
 	return &f, nil
 }
 
-//Lock locks record for sending email
+// Lock locks record for sending email
 func (ss *Locker) Lock(id string, lockKey string) error {
 	cmdapp.Log.Infof("Locking %s: %s", id, lockKey)
 
@@ -42,7 +42,7 @@ func (ss *Locker) Lock(id string, lockKey string) error {
 		bson.M{"$set": bson.M{"status": 1}}, options.FindOneAndUpdate().SetUpsert(false)).Err()
 }
 
-//UnLock marks record with specific value
+// UnLock marks record with specific value
 func (ss *Locker) UnLock(id string, lockKey string, value *int) error {
 	cmdapp.Log.Infof("Unlocking table %s: %s", id, lockKey)
 

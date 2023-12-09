@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bitbucket.org/airenas/listgo/internal/app/cmdworker"
+	"github.com/airenas/listgo/internal/app/cmdworker"
 	"github.com/labstack/gommon/color"
 )
 
@@ -32,5 +32,5 @@ ________________________________________________________
 
 `
 	cl := color.New()
-	cl.Printf(banner, cl.Red(version), cl.Green("bitbucket.org/airenas/listgo"))
+	cl.Printf(banner, cl.Red(version), cl.Green("github.com/airenas/listgo"))
 }

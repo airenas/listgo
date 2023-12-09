@@ -6,15 +6,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/streadway/amqp"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/config"
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
-	"bitbucket.org/airenas/listgo/internal/pkg/metrics"
+	"github.com/airenas/listgo/internal/pkg/config"
+	"github.com/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/metrics"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/mongo"
-	"bitbucket.org/airenas/listgo/internal/pkg/rabbit"
+	"github.com/airenas/listgo/internal/pkg/mongo"
+	"github.com/airenas/listgo/internal/pkg/rabbit"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/saver"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/saver"
 	"github.com/spf13/cobra"
 
 	"github.com/heptiolabs/healthcheck"
@@ -35,7 +35,7 @@ func init() {
 	cmdapp.Config.SetDefault("fileStorage.path", "/data/audio.in/")
 }
 
-//Execute starts the server
+// Execute starts the server
 func Execute() {
 	cmdapp.Execute(rootCmd)
 }

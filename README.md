@@ -35,7 +35,7 @@ Run `make test/unit`
 
 ## Deploy note
 
-For deploy options see [bitbucket.org/airenas/list](https://bitbucket.org/airenas/list)
+For deploy options see [github.com/airenas/list](https://github.com/airenas/list)
 
 ---
 
@@ -43,14 +43,14 @@ For deploy options see [bitbucket.org/airenas/list](https://bitbucket.org/airena
 
 Airenas Vaičiūnas
 
-- [bitbucket.org/airenas](https://bitbucket.org/airenas)
+- [github.com/airenas](https://github.com/airenas)
 - [linkedin.com/in/airenas](https://www.linkedin.com/in/airenas/)
 
 ---
 
 ## License
 
-Copyright © 2022, [Airenas Vaičiūnas](https://bitbucket.org/airenas).
+Copyright © 2022, [Airenas Vaičiūnas](https://github.com/airenas).
 Released under the [The 3-Clause BSD License](LICENSE).
 
 ---

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/utils"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/mongo"
 	mgo "go.mongodb.org/mongo-driver/mongo"
@@ -15,19 +15,19 @@ import (
 	"go.mongodb.org/mongo-driver/x/bsonx"
 )
 
-//IndexData keeps index creation data
+// IndexData keeps index creation data
 type IndexData struct {
 	Table  string
 	Fields []string
 	Unique bool
 }
 
-//NewIndexData creates index data
+// NewIndexData creates index data
 func newIndexData(table string, field string, unique bool) IndexData {
 	return IndexData{Table: table, Fields: []string{field}, Unique: unique}
 }
 
-//SessionProvider connects and provides session for mongo DB
+// SessionProvider connects and provides session for mongo DB
 type SessionProvider struct {
 	client  *mgo.Client
 	URL     string
@@ -35,7 +35,7 @@ type SessionProvider struct {
 	m       sync.Mutex // struct field mutex
 }
 
-//NewSessionProvider creates Mongo session provider
+// NewSessionProvider creates Mongo session provider
 func NewSessionProvider() (*SessionProvider, error) {
 	url := cmdapp.Config.GetString("mongo.url")
 	if url == "" {
@@ -44,7 +44,7 @@ func NewSessionProvider() (*SessionProvider, error) {
 	return &SessionProvider{URL: url, indexes: indexData}, nil
 }
 
-//Close closes mongo session
+// Close closes mongo session
 func (sp *SessionProvider) Close() {
 	if sp.client != nil {
 		ctx, cancel := mongoContext()
@@ -53,7 +53,7 @@ func (sp *SessionProvider) Close() {
 	}
 }
 
-//NewSession creates mongo session
+// NewSession creates mongo session
 func (sp *SessionProvider) NewSession() (mgo.Session, error) {
 	sp.m.Lock()
 	defer sp.m.Unlock()

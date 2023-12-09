@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/utils"
 )
 
 // LocalFileList loads file list from local disk dir.
@@ -15,7 +15,7 @@ type LocalFileList struct {
 	Path string
 }
 
-//NewLocalFileList creates LocalFileList instance.
+// NewLocalFileList creates LocalFileList instance.
 func NewLocalFileList(path string) (*LocalFileList, error) {
 	cmdapp.Log.Infof("Init LocalFileList at: %s", path)
 	if path == "" {

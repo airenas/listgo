@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -18,7 +18,7 @@ type CleanIDsProvider struct {
 	expireDuration  time.Duration
 }
 
-//NewCleanIDsProvider creates CleanIDsProvider instances
+// NewCleanIDsProvider creates CleanIDsProvider instances
 func NewCleanIDsProvider(sessionProvider *SessionProvider, expireDuration time.Duration) (*CleanIDsProvider, error) {
 	f := CleanIDsProvider{SessionProvider: sessionProvider, expireDuration: expireDuration}
 	return &f, nil

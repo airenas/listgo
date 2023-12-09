@@ -3,9 +3,9 @@ package dispatcher
 import (
 	"testing"
 
-	"bitbucket.org/airenas/listgo/internal/pkg/messages"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks/matchers"
+	"github.com/airenas/listgo/internal/pkg/messages"
+	"github.com/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/airenas/listgo/internal/pkg/test/mocks/matchers"
 	"github.com/petergtz/pegomock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"bitbucket.org/airenas/listgo/internal/app/punctuation/api"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/airenas/listgo/internal/app/punctuation/api"
+	"github.com/airenas/listgo/internal/pkg/test/mocks"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/petergtz/pegomock"
 	"github.com/pkg/errors"

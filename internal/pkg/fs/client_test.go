@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
+	"github.com/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
 	"github.com/stretchr/testify/assert"
 )
 

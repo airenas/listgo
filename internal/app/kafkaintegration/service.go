@@ -6,10 +6,10 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 
-	"bitbucket.org/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
-	"bitbucket.org/airenas/listgo/internal/pkg/cmdapp"
-	errc "bitbucket.org/airenas/listgo/internal/pkg/err"
-	"bitbucket.org/airenas/listgo/internal/pkg/utils"
+	"github.com/airenas/listgo/internal/app/kafkaintegration/kafkaapi"
+	"github.com/airenas/listgo/internal/pkg/cmdapp"
+	errc "github.com/airenas/listgo/internal/pkg/err"
+	"github.com/airenas/listgo/internal/pkg/utils"
 )
 
 // ServiceData keeps data required for service work
@@ -26,7 +26,7 @@ type ServiceData struct {
 	leaveFilesOnError bool
 }
 
-//StartServer init the service to listen to kafka messages and pass it to transcrption
+// StartServer init the service to listen to kafka messages and pass it to transcrption
 func StartServer(data *ServiceData) error {
 	err := validateData(data)
 	if err != nil {
@@ -93,7 +93,7 @@ func readProcessKafkaMsg(data *ServiceData) error {
 	return nil
 }
 
-//processMsg tries to process message, returns error if no commit is needed
+// processMsg tries to process message, returns error if no commit is needed
 func processMsg(data *ServiceData, msg *kafkaapi.Msg) error {
 	cmdapp.Log.Infof("Process msg: %s", msg.ID)
 	ids, err := data.filer.Find(msg.ID)

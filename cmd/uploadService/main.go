@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bitbucket.org/airenas/listgo/internal/app/upload"
+	"github.com/airenas/listgo/internal/app/upload"
 	"github.com/labstack/gommon/color"
 )
 
@@ -23,7 +23,7 @@ func printBanner() {
 /_/_/____/\__/  
                __                __
   __  ______  / /___  ____ _____/ /
- / / / / __ \/ / __ \/ __ ` + "`" +`/ __  / 
+ / / / / __ \/ / __ \/ __ ` + "`" + `/ __  / 
 / /_/ / /_/ / / /_/ / /_/ / /_/ /  
 \__,_/ .___/_/\____/\__,_/\__,_/ v: %s  
     /_/ 	
@@ -32,5 +32,5 @@ ________________________________________________________
 
 `
 	cl := color.New()
-	cl.Printf(banner, cl.Red(version), cl.Green("bitbucket.org/airenas/listgo"))
+	cl.Printf(banner, cl.Red(version), cl.Green("github.com/airenas/listgo"))
 }

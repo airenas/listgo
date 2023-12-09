@@ -10,7 +10,7 @@ import (
 	"github.com/heptiolabs/healthcheck"
 	"github.com/stretchr/testify/assert"
 
-	"bitbucket.org/airenas/listgo/internal/app/status/api"
+	"github.com/airenas/listgo/internal/app/status/api"
 )
 
 func TestWrongPath(t *testing.T) {

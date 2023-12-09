@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"bitbucket.org/airenas/listgo/internal/app/upload/api"
-	"bitbucket.org/airenas/listgo/internal/pkg/recognizer"
-	"bitbucket.org/airenas/listgo/internal/pkg/test/mocks"
+	"github.com/airenas/listgo/internal/app/upload/api"
+	"github.com/airenas/listgo/internal/pkg/recognizer"
+	"github.com/airenas/listgo/internal/pkg/test/mocks"
 	"github.com/petergtz/pegomock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
