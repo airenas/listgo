@@ -1,7 +1,7 @@
 #########################################################################################
 ## docker will invoke this file from ./.. dir in order to access code
 #########################################################################################
-FROM golang:1.17 as builder
+FROM golang:1.21 as builder
 
 LABEL org.opencontainers.image.version=$BUILD_VERSION \
       org.opencontainers.image.authors="airenass@gmail.com" \
